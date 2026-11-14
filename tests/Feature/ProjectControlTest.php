@@ -5,6 +5,7 @@ use App\Models\Project;
 use App\Models\ProjectControl;
 use App\Models\ProjectControlOpening;
 use App\Models\ProjectControlTerm;
+use App\Models\ProjectStatus;
 use App\Models\Quotation;
 use App\Models\Takeoff;
 use App\Models\TakeoffOpening;
@@ -67,8 +68,14 @@ function controlWorkbook(): UploadedFile
 test('guests and regular users cannot open project control', function () {
     $this->get(route('admin.project-control.index'))->assertRedirect(route('login'));
 
-    $this->actingAs(User::factory()->create())
+    $regular = User::factory()->create();
+
+    $this->actingAs($regular)
         ->get(route('admin.project-control.index'))
+        ->assertForbidden();
+
+    $this->actingAs($regular)
+        ->post(route('admin.project-control.import'), ['workbook' => controlWorkbook()])
         ->assertForbidden();
 });
 
@@ -160,10 +167,24 @@ test('a super administrator imports the tracker and the reports stay in step', f
     $this->actingAs($admin)
         ->post(route('admin.project-control.import'), ['workbook' => controlWorkbook()])
         ->assertRedirect()
-        ->assertSessionHas('success');
+        ->assertSessionHas('success', fn (string $message): bool => str_contains($message, 'job updated'));
 
     expect(ProjectControl::query()->count())->toBe(4)
-        ->and(ProjectControl::query()->where('job_code', 'J-010')->value('current_value'))->toBe('2500.00');
+        ->and(ProjectControl::query()->where('job_code', 'J-010')->value('current_value'))->toBe('1000.00')
+        ->and($barn->fresh()->bids)->toHaveCount(2)
+        ->and($barn->fresh()->bids->firstWhere('name', 'Paired opening')?->amount)->toBe('1000.00')
+        ->and($barn->fresh()->openings)->toHaveCount(1)
+        ->and($barn->fresh()->procurements)->toHaveCount(2);
+
+    $this->actingAs($admin)
+        ->post(route('admin.project-control.import'), ['workbook' => controlWorkbook()])
+        ->assertRedirect()
+        ->assertSessionHas('success', fn (string $message): bool => str_contains($message, 'jobs unchanged'));
+
+    expect(ProjectControl::query()->count())->toBe(4)
+        ->and($barn->fresh()->bids)->toHaveCount(2)
+        ->and($barn->fresh()->openings)->toHaveCount(1)
+        ->and($barn->fresh()->procurements)->toHaveCount(2);
 
     $export = $this->actingAs($admin)
         ->get(route('admin.project-control.export'));
@@ -205,6 +226,81 @@ test('a workbook stored with shared strings imports the job and the excel date',
         ->and($job->name)->toBe('Shared string job')
         ->and($job->current_value)->toBe('80.00')
         ->and($job->bid_date->toDateString())->toBe('2026-08-13');
+
+    @unlink($path);
+});
+
+test('project control import ignores duplicate jobs and related spreadsheet rows', function () {
+    $path = tempnam(sys_get_temp_dir(), 'gds-control-').'.xlsx';
+    SimpleXlsx::save([
+        'Jobs & Bids' => [
+            ['Job ID', 'Project / Job', 'Status', 'Current Value'],
+            ['J-030', 'Duplicate-safe job', 'Quote sent', 900],
+            ['J-030', 'Duplicate-safe job', 'Quote sent', 900],
+        ],
+        'Bid Versions' => [
+            ['Job ID', 'Bid / Quote Version', 'Date', 'Amount', 'Current?'],
+            ['J-030', 'Base bid', '11/12/2026', 900, 'Yes'],
+            ['J-030', 'Base bid', '11/12/2026', 900, 'Yes'],
+        ],
+    ], $path);
+
+    $this->actingAs(controlAdmin())
+        ->post(route('admin.project-control.import'), [
+            'workbook' => new UploadedFile($path, 'duplicates.xlsx', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', null, true),
+        ])
+        ->assertRedirect()
+        ->assertSessionHas('success', fn (string $message): bool => str_contains($message, '2 duplicate spreadsheet rows ignored'));
+
+    $control = ProjectControl::query()->where('job_code', 'J-030')->first();
+
+    expect(ProjectControl::query()->where('job_code', 'J-030')->count())->toBe(1)
+        ->and($control)->not->toBeNull()
+        ->and($control->bids)->toHaveCount(1);
+
+    @unlink($path);
+});
+
+test('a partial workbook updates supplied columns without clearing other project control data', function () {
+    $admin = controlAdmin();
+    $this->actingAs($admin)
+        ->post(route('admin.project-control.import'), ['workbook' => controlWorkbook()])
+        ->assertRedirect();
+
+    $control = ProjectControl::query()->where('job_code', 'J-010')->firstOrFail();
+    $bid = $control->bids()->where('name', 'Paired opening')->firstOrFail();
+    $bid->update(['notes' => 'Keep this internal note']);
+    $control->bids()->create([
+        'sort_order' => 99,
+        'name' => 'Manual internal option',
+        'amount' => 75,
+        'standing' => 'historical',
+    ]);
+
+    $path = tempnam(sys_get_temp_dir(), 'gds-control-').'.xlsx';
+    SimpleXlsx::save([
+        'Jobs & Bids' => [
+            ['Job ID', 'Project / Job', 'Current Value'],
+            ['J-010', 'Barn restoration revised', 1250],
+        ],
+        'Bid Versions' => [
+            ['Job ID', 'Bid / Quote Version', 'Amount'],
+            ['J-010', 'Paired opening', 1250],
+        ],
+    ], $path);
+
+    $this->actingAs($admin)
+        ->post(route('admin.project-control.import'), [
+            'workbook' => new UploadedFile($path, 'partial.xlsx', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', null, true),
+        ])
+        ->assertRedirect();
+
+    expect($control->fresh()->name)->toBe('Barn restoration revised')
+        ->and($control->fresh()->current_value)->toBe('1250.00')
+        ->and($control->fresh()->customer)->toBe('Brian Gallagher')
+        ->and($bid->fresh()->amount)->toBe('1250.00')
+        ->and($bid->fresh()->notes)->toBe('Keep this internal note')
+        ->and($control->bids()->where('name', 'Manual internal option')->exists())->toBeTrue();
 
     @unlink($path);
 });
@@ -735,8 +831,8 @@ it('shows a bid, quotation, and takeoff when the project has them', function () 
 
 test('a job can be turned into a project once', function () {
     $user = User::factory()->create(['level_id' => UserLevel::firstOrCreate(['name' => UserLevel::SUPER_ADMIN])->id]);
-    \App\Models\ProjectStatus::firstOrCreate(['name' => 'Planned']);
-    $job = \App\Models\ProjectControl::create([
+    ProjectStatus::firstOrCreate(['name' => 'Planned']);
+    $job = ProjectControl::create([
         'job_code' => 'J-777', 'name' => 'Test Hospital', 'customer' => 'Acme Builders',
         'location' => '1 Main St, Austin TX', 'current_value' => 5000, 'pipeline_status' => 'active',
     ]);
@@ -750,12 +846,12 @@ test('a job can be turned into a project once', function () {
         ->and($project->contractors()->pluck('name')->all())->toBe(['Acme Builders']);
 
     $this->actingAs($user)->post(route('admin.project-control.create-project', $job));
-    expect(\App\Models\Project::count())->toBe(1);
+    expect(Project::count())->toBe(1);
 });
 
 test('a job can be converted to a takeoff and creates its project', function () {
     $user = User::factory()->create(['level_id' => UserLevel::firstOrCreate(['name' => UserLevel::SUPER_ADMIN])->id]);
-    \App\Models\ProjectStatus::firstOrCreate(['name' => 'Planned']);
+    ProjectStatus::firstOrCreate(['name' => 'Planned']);
     $job = ProjectControl::create(['job_code' => 'J-778', 'name' => 'Takeoff Job', 'pipeline_status' => 'active']);
 
     $this->actingAs($user)->post(route('admin.project-control.create-takeoff', $job))->assertRedirect();

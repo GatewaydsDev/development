@@ -263,22 +263,29 @@ class ProjectControlController extends Controller
             return back()->withErrors(['workbook' => 'That workbook could not be read.']);
         }
 
-        $created = $result['created'];
-        $skipped = $result['skipped'];
+        $jobCount = $result['created'] + $result['updated'] + $result['unchanged'];
 
-        if ($created === 0 && $skipped === 0) {
+        if ($jobCount === 0) {
             return back()->withErrors(['workbook' => 'No jobs were found on the Jobs & Bids sheet.']);
         }
 
-        $message = $created === 1 ? 'Imported 1 job.' : "Imported {$created} jobs.";
+        $parts = [];
 
-        if ($skipped > 0) {
-            $message .= $skipped === 1
-                ? ' 1 job was already in the tracker and was left unchanged.'
-                : " {$skipped} jobs were already in the tracker and were left unchanged.";
+        foreach ([
+            ['job created', 'jobs created', $result['created']],
+            ['job updated', 'jobs updated', $result['updated']],
+            ['job unchanged', 'jobs unchanged', $result['unchanged']],
+            ['related record created', 'related records created', $result['related_created']],
+            ['related record updated', 'related records updated', $result['related_updated']],
+            ['related record unchanged', 'related records unchanged', $result['related_unchanged']],
+            ['duplicate spreadsheet row ignored', 'duplicate spreadsheet rows ignored', $result['duplicates']],
+        ] as [$singular, $plural, $count]) {
+            if ($count > 0) {
+                $parts[] = $count.' '.($count === 1 ? $singular : $plural);
+            }
         }
 
-        return back()->with('success', $message);
+        return back()->with('success', 'Import complete: '.implode(', ', $parts).'.');
     }
 
     public function export(Request $request): StreamedResponse

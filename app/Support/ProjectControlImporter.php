@@ -5,13 +5,36 @@ namespace App\Support;
 use App\Models\ProjectControl;
 use App\Models\ProjectControlBid;
 use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
 
 class ProjectControlImporter
 {
     /**
-     * @return array{created: int, skipped: int}
+     * @var array{
+     *     created: int,
+     *     updated: int,
+     *     unchanged: int,
+     *     related_created: int,
+     *     related_updated: int,
+     *     related_unchanged: int,
+     *     duplicates: int
+     * }
+     */
+    private array $result = [];
+
+    /**
+     * @return array{
+     *     created: int,
+     *     updated: int,
+     *     unchanged: int,
+     *     related_created: int,
+     *     related_updated: int,
+     *     related_unchanged: int,
+     *     duplicates: int
+     * }
      */
     public function import(string $path): array
     {
@@ -22,70 +45,161 @@ class ProjectControlImporter
             throw new RuntimeException('That workbook has no Jobs & Bids sheet.');
         }
 
-        $created = 0;
-        $skipped = 0;
-        $imported = [];
+        $this->result = [
+            'created' => 0,
+            'updated' => 0,
+            'unchanged' => 0,
+            'related_created' => 0,
+            'related_updated' => 0,
+            'related_unchanged' => 0,
+            'duplicates' => 0,
+        ];
+        $jobRows = $this->jobRows($jobs);
 
-        DB::transaction(function () use ($book, $jobs, &$created, &$skipped, &$imported): void {
-            foreach ($jobs as $row) {
-                $code = trim((string) ($row['Job ID'] ?? ''));
+        DB::transaction(function () use ($book, $jobRows): void {
+            $controls = [];
 
-                if ($code === '' || strcasecmp($code, 'Job ID') === 0 || ! preg_match('/^J-\d+$/i', $code)) {
-                    continue;
+            foreach ($jobRows as $code => $row) {
+                $control = ProjectControl::query()
+                    ->where('job_code', $code)
+                    ->lockForUpdate()
+                    ->first();
+                $attributes = $this->jobAttributes($code, $row);
+
+                if ($control === null) {
+                    $attributes['name'] ??= $code;
+                    $control = ProjectControl::query()->create($attributes);
+                    $this->result['created']++;
+                } else {
+                    $control->fill($attributes);
+
+                    if ($control->isDirty()) {
+                        $control->save();
+                        $this->result['updated']++;
+                    } else {
+                        $this->result['unchanged']++;
+                    }
                 }
 
-                $code = strtoupper($code);
-
-                if (ProjectControl::query()->where('job_code', $code)->exists()) {
-                    $skipped++;
-
-                    continue;
-                }
-
-                $status = trim((string) ($row['Status'] ?? ''));
-                $control = ProjectControl::query()->create([
-                    'job_code' => $code,
-                    'name' => $this->text($row['Project / Job'] ?? '') ?: $code,
-                    'customer' => $this->text($row['Customer / Prime'] ?? ''),
-                    'location' => $this->text($row['Location'] ?? ''),
-                    'bid_date' => $this->date($row['Bid / Quote Date'] ?? ''),
-                    'current_value' => $this->money($row['Current Value'] ?? ''),
-                    'pipeline_status' => ProjectControl::pipelineStatusFromNote($status),
-                    'status_note' => $this->text($status),
-                    'award_status' => $this->text($row['Award / PO Status'] ?? ''),
-                    'probability' => $this->probability($row['Probability'] ?? ''),
-                    'scope_summary' => $this->text($row['Scope Summary'] ?? ''),
-                    'assembly_count' => $this->whole($row['Known Door / Opening Assemblies'] ?? ''),
-                    'pricing_class' => $this->text($row['Pricing Class'] ?? ''),
-                    'material_cost' => $this->money($row['Est Material / Supplier Cost'] ?? ''),
-                    'freight_cost' => $this->money($row['Freight / Handling Allowance'] ?? ''),
-                    'labor_cost' => $this->money($row['Est Labor / Payroll Burden'] ?? ''),
-                    'other_cost' => $this->money($row['Other Direct Cost / Contingency'] ?? ''),
-                    'deposit_percent' => $this->percent($row['Customer Deposit %'] ?? ''),
-                    'bid_due_date' => $this->date($row['Bid Due Date'] ?? ''),
-                    'next_follow_up_date' => $this->date($row['Next Follow-Up Date'] ?? ''),
-                    'material_payment_date' => $this->date($row['Expected Material Payment Date'] ?? ''),
-                    'customer_payment_date' => $this->date($row['Expected Customer Payment Date'] ?? ''),
-                    'lead_time' => $this->text($row['Lead Time (Weeks)'] ?? ''),
-                    'bonding_required' => $this->text($row['Bonding Required?'] ?? ''),
-                    'payment_plan' => $this->text($row['Payment / Billing Plan'] ?? ''),
-                    'cash_flag' => $this->text($row['Cash / Follow-Up Flag'] ?? ''),
-                    'next_step' => $this->text($row['Next Procurement / Sales Step'] ?? ''),
-                    'bid_document' => $this->text($row['Current Bid Source'] ?? ''),
-                    'counts_in_demonstrated' => $this->yes($this->columnStarting($row, 'Counts in')),
-                ]);
-
-                $imported[$code] = $control;
-                $created++;
+                $controls[$code] = $control;
             }
 
-            $this->importBids($book, $imported);
-            $this->importOpenings($book, $imported);
-            $this->importProcurements($book, $imported);
-            $this->importBlastDetail($book, $imported);
+            $this->importBids($book, $controls);
+            $this->importOpenings($book, $controls);
+            $this->importProcurements($book, $controls);
+            $this->importBlastDetail($book, $controls);
         });
 
-        return ['created' => $created, 'skipped' => $skipped];
+        return $this->result;
+    }
+
+    /**
+     * @param  list<array<string, string>>  $jobs
+     * @return array<string, array<string, string>>
+     */
+    private function jobRows(array $jobs): array
+    {
+        $rows = [];
+
+        foreach ($jobs as $row) {
+            $code = strtoupper(trim((string) ($row['Job ID'] ?? '')));
+
+            if ($code === '' || strcasecmp($code, 'Job ID') === 0 || preg_match('/^J-\d+$/', $code) !== 1) {
+                continue;
+            }
+
+            if (isset($rows[$code])) {
+                $this->result['duplicates']++;
+            }
+
+            // The last occurrence wins while the unique job code prevents a duplicate record.
+            $rows[$code] = $row;
+        }
+
+        return $rows;
+    }
+
+    /**
+     * @param  array<string, string>  $row
+     * @return array<string, mixed>
+     */
+    private function jobAttributes(string $code, array $row): array
+    {
+        $attributes = [
+            'job_code' => $code,
+        ];
+
+        foreach ([
+            'Project / Job' => 'name',
+            'Customer / Prime' => 'customer',
+            'Location' => 'location',
+            'Award / PO Status' => 'award_status',
+            'Scope Summary' => 'scope_summary',
+            'Pricing Class' => 'pricing_class',
+            'Lead Time (Weeks)' => 'lead_time',
+            'Bonding Required?' => 'bonding_required',
+            'Payment / Billing Plan' => 'payment_plan',
+            'Cash / Follow-Up Flag' => 'cash_flag',
+            'Next Procurement / Sales Step' => 'next_step',
+            'Current Bid Source' => 'bid_document',
+        ] as $column => $field) {
+            $this->mapColumn($attributes, $row, $column, $field, $this->text(...));
+        }
+
+        foreach ([
+            'Bid / Quote Date' => 'bid_date',
+            'Bid Due Date' => 'bid_due_date',
+            'Next Follow-Up Date' => 'next_follow_up_date',
+            'Expected Material Payment Date' => 'material_payment_date',
+            'Expected Customer Payment Date' => 'customer_payment_date',
+        ] as $column => $field) {
+            $this->mapColumn($attributes, $row, $column, $field, $this->date(...));
+        }
+
+        foreach ([
+            'Current Value' => 'current_value',
+            'Est Material / Supplier Cost' => 'material_cost',
+            'Freight / Handling Allowance' => 'freight_cost',
+            'Est Labor / Payroll Burden' => 'labor_cost',
+            'Other Direct Cost / Contingency' => 'other_cost',
+        ] as $column => $field) {
+            $this->mapColumn($attributes, $row, $column, $field, $this->money(...));
+        }
+
+        $this->mapColumn($attributes, $row, 'Probability', 'probability', $this->probability(...));
+        $this->mapColumn($attributes, $row, 'Known Door / Opening Assemblies', 'assembly_count', $this->whole(...));
+        $this->mapColumn($attributes, $row, 'Customer Deposit %', 'deposit_percent', $this->percent(...));
+
+        if (array_key_exists('Status', $row)) {
+            $status = trim((string) $row['Status']);
+            $attributes['pipeline_status'] = ProjectControl::pipelineStatusFromNote($status);
+            $attributes['status_note'] = $this->text($status);
+        }
+
+        foreach ($row as $column => $value) {
+            if (str_starts_with($column, 'Counts in')) {
+                $attributes['counts_in_demonstrated'] = $this->yes($value);
+                break;
+            }
+        }
+
+        return $attributes;
+    }
+
+    /**
+     * @param  array<string, mixed>  $attributes
+     * @param  array<string, string>  $row
+     */
+    private function mapColumn(
+        array &$attributes,
+        array $row,
+        string $column,
+        string $field,
+        callable $transform,
+    ): void {
+        if (array_key_exists($column, $row)) {
+            $attributes[$field] = $transform($row[$column]);
+        }
     }
 
     /**
@@ -93,7 +207,7 @@ class ProjectControlImporter
      */
     private function importBids(array $book, array $imported): void
     {
-        $sort = [];
+        $rows = [];
 
         foreach ($this->table($book, 'Bid Versions', ['Job ID', 'Bid / Quote Version']) as $row) {
             $control = $this->imported($imported, $row['Job ID'] ?? '');
@@ -103,17 +217,26 @@ class ProjectControlImporter
                 continue;
             }
 
-            $sort[$control->id] = ($sort[$control->id] ?? 0) + 1;
-            $control->bids()->create([
-                'sort_order' => $sort[$control->id],
+            $attributes = [
                 'name' => $name,
-                'quoted_on' => $this->date($row['Date'] ?? ''),
-                'amount' => $this->money($row['Amount'] ?? ''),
-                'standing' => ProjectControlBid::standingFromLabel((string) ($row['Current?'] ?? '')),
-                'count_rule' => $this->text($row['Double-Count Rule'] ?? ''),
-                'document' => $this->text($row['Document'] ?? ''),
-                'notes' => $this->text($row['Notes'] ?? ''),
-            ]);
+            ];
+            $this->mapColumn($attributes, $row, 'Date', 'quoted_on', $this->date(...));
+            $this->mapColumn($attributes, $row, 'Amount', 'amount', $this->money(...));
+            $this->mapColumn(
+                $attributes,
+                $row,
+                'Current?',
+                'standing',
+                fn (mixed $value): string => ProjectControlBid::standingFromLabel((string) $value),
+            );
+            $this->mapColumn($attributes, $row, 'Double-Count Rule', 'count_rule', $this->text(...));
+            $this->mapColumn($attributes, $row, 'Document', 'document', $this->text(...));
+            $this->mapColumn($attributes, $row, 'Notes', 'notes', $this->text(...));
+            $rows[$control->job_code][] = $attributes;
+        }
+
+        foreach ($rows as $code => $items) {
+            $this->syncRelated($imported[$code], 'bids', $items, ['name']);
         }
     }
 
@@ -122,7 +245,7 @@ class ProjectControlImporter
      */
     private function importOpenings(array $book, array $imported): void
     {
-        $sort = [];
+        $rows = [];
 
         foreach ($this->table($book, 'Door & Material Inventory', ['Job ID', 'Item / Door Description']) as $row) {
             $control = $this->imported($imported, $row['Job ID'] ?? '');
@@ -132,22 +255,29 @@ class ProjectControlImporter
                 continue;
             }
 
-            $sort[$control->id] = ($sort[$control->id] ?? 0) + 1;
-            $control->openings()->create([
-                'sort_order' => $sort[$control->id],
-                'category' => $this->text($row['Category'] ?? ''),
+            $attributes = [
                 'description' => $description,
-                'mark' => $this->text($row['Mark / Building'] ?? ''),
-                'size' => $this->text($row['Size'] ?? ''),
-                'quantity' => $this->money($row['Qty'] ?? ''),
-                'requirement' => $this->text($row['Fire / Acoustic / Blast Requirement'] ?? ''),
-                'hardware' => $this->text($row['Included Hardware / Accessories'] ?? ''),
-                'additional_needed' => $this->text($row['Additional Inventory Needed'] ?? ''),
-                'procurement_status' => $this->text($row['Procurement Status'] ?? ''),
-                'supplier' => $this->text($row['Supplier / Basis'] ?? ''),
-                'unit_sell' => $this->money($row['Quoted Unit Sell'] ?? ''),
-                'notes' => $this->text($row['Notes'] ?? ''),
-            ]);
+            ];
+            foreach ([
+                'Category' => 'category',
+                'Mark / Building' => 'mark',
+                'Size' => 'size',
+                'Fire / Acoustic / Blast Requirement' => 'requirement',
+                'Included Hardware / Accessories' => 'hardware',
+                'Additional Inventory Needed' => 'additional_needed',
+                'Procurement Status' => 'procurement_status',
+                'Supplier / Basis' => 'supplier',
+                'Notes' => 'notes',
+            ] as $column => $field) {
+                $this->mapColumn($attributes, $row, $column, $field, $this->text(...));
+            }
+            $this->mapColumn($attributes, $row, 'Qty', 'quantity', $this->money(...));
+            $this->mapColumn($attributes, $row, 'Quoted Unit Sell', 'unit_sell', $this->money(...));
+            $rows[$control->job_code][] = $attributes;
+        }
+
+        foreach ($rows as $code => $items) {
+            $this->syncRelated($imported[$code], 'openings', $items, ['description', 'mark', 'size']);
         }
     }
 
@@ -156,7 +286,7 @@ class ProjectControlImporter
      */
     private function importProcurements(array $book, array $imported): void
     {
-        $sort = [];
+        $rows = [];
 
         foreach ($this->table($book, 'Procurement Tracker', ['Job ID', 'Door / Assembly']) as $row) {
             $control = $this->imported($imported, $row['Job ID'] ?? '');
@@ -166,20 +296,27 @@ class ProjectControlImporter
                 continue;
             }
 
-            $sort[$control->id] = ($sort[$control->id] ?? 0) + 1;
-            $control->procurements()->create([
-                'sort_order' => $sort[$control->id],
+            $attributes = [
                 'assembly' => $assembly,
-                'quantity' => $this->money($row['Qty'] ?? ''),
-                'manufacturer' => $this->text($row['Manufacturer / Vendor'] ?? ''),
-                'quote_number' => $this->text($row['Quote / Bid #'] ?? ''),
-                'quoted_on' => $this->date($row['Manufacturer Quote Date'] ?? ''),
-                'supplier_cost' => $this->money($row['Supplier Quote / Cost Basis'] ?? ''),
-                'order_status' => $this->text($row['Order Status'] ?? ''),
-                'po_number' => $this->text($row['PO #'] ?? ''),
-                'lead_time' => $this->text($row['Expected Lead Time'] ?? ''),
-                'next_action' => $this->text($row['Evidence / Next Action'] ?? ''),
-            ]);
+            ];
+            foreach ([
+                'Manufacturer / Vendor' => 'manufacturer',
+                'Quote / Bid #' => 'quote_number',
+                'Order Status' => 'order_status',
+                'PO #' => 'po_number',
+                'Expected Lead Time' => 'lead_time',
+                'Evidence / Next Action' => 'next_action',
+            ] as $column => $field) {
+                $this->mapColumn($attributes, $row, $column, $field, $this->text(...));
+            }
+            $this->mapColumn($attributes, $row, 'Qty', 'quantity', $this->money(...));
+            $this->mapColumn($attributes, $row, 'Manufacturer Quote Date', 'quoted_on', $this->date(...));
+            $this->mapColumn($attributes, $row, 'Supplier Quote / Cost Basis', 'supplier_cost', $this->money(...));
+            $rows[$control->job_code][] = $attributes;
+        }
+
+        foreach ($rows as $code => $items) {
+            $this->syncRelated($imported[$code], 'procurements', $items, ['assembly', 'manufacturer']);
         }
     }
 
@@ -201,7 +338,7 @@ class ProjectControlImporter
             return;
         }
 
-        $sort = (int) $control->openings()->max('sort_order');
+        $rows = [];
 
         foreach ($this->table($book, 'Parker-Lord Blast Detail', ['Building', 'Door Size / Description']) as $row) {
             $building = $this->text($row['Building'] ?? '');
@@ -220,9 +357,7 @@ class ProjectControlImporter
                 $buildingTotal !== null ? 'Building total '.$buildingTotal.' is a subset and stays out of the project value.' : null,
             ]);
 
-            $sort++;
-            $control->openings()->create([
-                'sort_order' => $sort,
+            $rows[] = [
                 'category' => 'Blast door',
                 'description' => $description,
                 'mark' => $building,
@@ -231,8 +366,119 @@ class ProjectControlImporter
                 'unit_sell' => $this->money($row['Door Material Unit Price'] ?? ''),
                 'procurement_status' => 'Building detail',
                 'notes' => $parts === [] ? null : implode(' ', $parts),
-            ]);
+            ];
         }
+
+        if ($rows !== []) {
+            $sortStart = (int) $control->openings()
+                ->where(function ($query): void {
+                    $query->whereNull('category')->orWhere('category', '!=', 'Blast door');
+                })
+                ->max('sort_order');
+            $this->syncRelated($control, 'openings', $rows, ['description', 'mark', 'size'], $sortStart);
+        }
+    }
+
+    /**
+     * Synchronize rows present in the workbook without deleting manually added
+     * database rows that are absent from it.
+     *
+     * @param  list<array<string, mixed>>  $rows
+     * @param  list<string>  $identityFields
+     */
+    private function syncRelated(
+        ProjectControl $control,
+        string $relation,
+        array $rows,
+        array $identityFields,
+        int $sortStart = 0,
+    ): void {
+        /** @var HasMany<Model, ProjectControl> $query */
+        $query = $control->{$relation}();
+        $existing = $query->orderBy('sort_order')->orderBy('id')->get()->values();
+        $uniqueRows = [];
+        $fingerprints = [];
+
+        foreach ($rows as $row) {
+            $fingerprint = hash('sha256', json_encode($row, JSON_THROW_ON_ERROR));
+
+            if (isset($fingerprints[$fingerprint])) {
+                $this->result['duplicates']++;
+
+                continue;
+            }
+
+            $fingerprints[$fingerprint] = true;
+            $row['sort_order'] = $sortStart + count($uniqueRows) + 1;
+            $uniqueRows[] = $row;
+        }
+
+        $existingByKey = [];
+
+        foreach ($existing as $model) {
+            $existingByKey[$this->lineKey($model->getAttributes(), $identityFields)][] = $model;
+        }
+
+        $used = [];
+        $sameCount = $existing->count() === count($uniqueRows);
+
+        foreach ($uniqueRows as $index => $attributes) {
+            $key = $this->lineKey($attributes, $identityFields);
+            $model = null;
+
+            while (($existingByKey[$key] ?? []) !== []) {
+                $candidate = array_shift($existingByKey[$key]);
+
+                if (! isset($used[$candidate->getKey()])) {
+                    $model = $candidate;
+                    break;
+                }
+            }
+
+            if ($model === null && $sameCount) {
+                $expectedSort = $sortStart + $index + 1;
+                $model = $existing->first(
+                    fn (Model $candidate): bool => ! isset($used[$candidate->getKey()])
+                        && (int) $candidate->getAttribute('sort_order') === $expectedSort,
+                );
+            }
+
+            if ($model === null) {
+                $query->create($attributes);
+                $this->result['related_created']++;
+
+                continue;
+            }
+
+            $used[$model->getKey()] = true;
+            $model->fill($attributes);
+
+            if ($model->isDirty()) {
+                $model->save();
+                $this->result['related_updated']++;
+            } else {
+                $this->result['related_unchanged']++;
+            }
+        }
+    }
+
+    /**
+     * @param  array<string, mixed>  $attributes
+     * @param  list<string>  $fields
+     */
+    private function lineKey(array $attributes, array $fields): string
+    {
+        return implode('|', array_map(
+            fn (string $field): string => $this->normalizedKey($attributes[$field] ?? null),
+            $fields,
+        ));
+    }
+
+    private function normalizedKey(mixed $value): string
+    {
+        $value = mb_strtolower(trim((string) $value));
+
+        return preg_replace('/\s+/', ' ', $value) ?? $value;
     }
 
     /**
@@ -311,20 +557,6 @@ class ProjectControlImporter
         $code = strtoupper(trim($code));
 
         return $imported[$code] ?? null;
-    }
-
-    /**
-     * @param  array<string, string>  $row
-     */
-    private function columnStarting(array $row, string $prefix): string
-    {
-        foreach ($row as $header => $value) {
-            if (str_starts_with($header, $prefix)) {
-                return $value;
-            }
-        }
-
-        return '';
     }
 
     private function text(mixed $value): ?string

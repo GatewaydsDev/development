@@ -246,7 +246,7 @@ export default function Index({
                                 accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                                 required
                                 className="h-11 min-w-0 w-full text-xs text-muted-foreground file:mr-2 file:h-11 file:rounded-md file:border-0 file:bg-amber-100 file:px-2 file:text-xs file:font-medium file:text-amber-900 sm:h-8 sm:max-w-40 sm:text-sm sm:file:h-8 sm:file:text-sm"
-                                aria-label="September workbook"
+                                aria-label="Project control workbook"
                             />
                             <Button type="submit" className="min-h-11 bg-amber-600 text-white hover:bg-amber-700 sm:min-h-9" disabled={importing}>
                                 <UploadIcon className="h-4 w-4" />
@@ -344,7 +344,7 @@ export default function Index({
                 </div>
                 {errors.workbook ? <p className="text-sm text-destructive">{errors.workbook}</p> : null}
                 <p className="text-sm text-muted-foreground">
-                    Import the September workbook once. Jobs already here are left as you saved them. Demonstrated value in this set is {money(summary.demonstrated_value)}. On hold: {summary.hold_count}. Lost: {summary.lost_count}.
+                    Super administrators can upload the latest workbook at any time. Jobs are matched by Job ID, changed fields and related rows are updated, and duplicate spreadsheet rows are ignored. Records added manually are not deleted. Demonstrated value in this set is {money(summary.demonstrated_value)}. On hold: {summary.hold_count}. Lost: {summary.lost_count}.
                 </p>
 
                 {report === 'queue' ? <CallList calls={calls} /> : null}
