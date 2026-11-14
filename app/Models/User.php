@@ -7,20 +7,48 @@ use App\Notifications\ResetPasswordNotification;
 use App\Support\AccountPhone;
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Database\Factories\UserFactory;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Laragear\WebAuthn\Contracts\WebAuthnAuthenticatable;
+use Laragear\WebAuthn\WebAuthnAuthentication;
 use Laravel\Sanctum\HasApiTokens;
 
-class User extends Authenticatable
+class User extends Authenticatable implements WebAuthnAuthenticatable
 {
     /** @use HasFactory<UserFactory> */
-    use HasApiTokens, HasFactory, HasUuidRouteKey, Notifiable;
+    use HasApiTokens, HasFactory, HasUuidRouteKey, Notifiable, SoftDeletes, WebAuthnAuthentication;
+
+    protected static function booted(): void
+    {
+        static::deleting(function (User $user): void {
+            if ($user->isForceDeleting()) {
+                return;
+            }
+
+            $user->emails()->delete();
+            $user->phones()->delete();
+            $user->employee()->update(['employment_status' => Employee::STATUS_INACTIVE]);
+            $user->tokens()->delete();
+        });
+
+        static::restoring(function (User $user): void {
+            $user->emails()->withTrashed()->restore();
+            $user->phones()->withTrashed()->restore();
+        });
+    }
+
+    public const PRIVATE_ACCOUNT_EMAIL = 'ricardo@gateway-ds.com';
+
+    public const PRIVATE_ACCOUNT_NAME = 'ricardo scarpim';
 
     /**
      * The attributes that are mass assignable.
@@ -29,12 +57,19 @@ class User extends Authenticatable
      */
     protected $fillable = [
         'name',
+        'job_title',
         'email',
         'avatar',
         'signature_path',
         'dashboard_theme',
+        'dashboard_gradient',
+        'dashboard_surface',
         'date_of_birth',
         'last_login_at',
+        'last_login_device',
+        'last_seen_at',
+        'last_seen_device',
+        'last_logout_at',
         'role',
         'language_id',
         'level_id',
@@ -70,6 +105,7 @@ class User extends Authenticatable
         'mail_header_path',
         'mail_header_width',
         'mail_footer_colors',
+        'mail_stationery',
     ];
 
     /**
@@ -83,10 +119,16 @@ class User extends Authenticatable
             'date_of_birth' => 'date',
             'email_verified_at' => 'datetime',
             'last_login_at' => 'datetime',
+            'last_seen_at' => 'datetime',
+            'last_logout_at' => 'datetime',
+            'login_locked_at' => 'datetime',
             'password' => 'hashed',
             'is_master' => 'boolean',
             'microsoft_client_secret' => 'encrypted',
             'mail_footer_colors' => 'array',
+            'mail_stationery' => 'array',
+            'permission_overrides' => 'array',
+            'mobile_permission_overrides' => 'array',
         ];
     }
 
@@ -149,6 +191,11 @@ class User extends Authenticatable
     public function preferredLanguage(): BelongsTo
     {
         return $this->belongsTo(Language::class, 'language_id');
+    }
+
+    public function presenceDevices(): HasMany
+    {
+        return $this->hasMany(UserPresenceDevice::class);
     }
 
     public function level(): BelongsTo
@@ -250,6 +297,20 @@ class User extends Authenticatable
         return false;
     }
 
+    public function clientCompanies(): BelongsToMany
+    {
+        return $this->belongsToMany(ClientCompany::class, 'client_company_users')
+            ->withPivot(['is_master', 'all_projects', 'invited_by'])
+            ->withTimestamps();
+    }
+
+    public function clientProjects(): BelongsToMany
+    {
+        return $this->belongsToMany(Project::class, 'project_client_users')
+            ->withPivot(['is_owner', 'invited_by'])
+            ->withTimestamps();
+    }
+
     public function workSchedules(): HasMany
     {
         return $this->hasMany(EmployeeWorkSchedule::class, 'foreman_user_id');
@@ -272,6 +333,48 @@ class User extends Authenticatable
     public function isMaster(): bool
     {
         return (bool) $this->is_master;
+    }
+
+    public function canCorrectRecords(): bool
+    {
+        return $this->isMaster();
+    }
+
+    public function isPrivateAccountOwner(): bool
+    {
+        $email = strtolower(trim((string) $this->email));
+        if ($email === self::PRIVATE_ACCOUNT_EMAIL) {
+            return true;
+        }
+
+        return false;
+    }
+
+    public function managesMicrosoft365(): bool
+    {
+        return $this->isSuperAdmin();
+    }
+
+    public function canViewUserAccount(self $subject): bool
+    {
+        if (! $subject->isPrivateAccountOwner()) {
+            return true;
+        }
+
+        return $this->is($subject);
+    }
+
+    /**
+     * @param  Builder<User>  $query
+     * @return Builder<User>
+     */
+    public function scopeVisibleTo(Builder $query, ?self $viewer): Builder
+    {
+        if ($viewer?->isPrivateAccountOwner()) {
+            return $query;
+        }
+
+        return $query->whereRaw('LOWER(COALESCE(email, "")) != ?', [self::PRIVATE_ACCOUNT_EMAIL]);
     }
 
     public function isSuperAdmin(): bool
@@ -298,8 +401,12 @@ class User extends Authenticatable
             return true;
         }
 
-        if (in_array($permission, ['view-users', 'create-users', 'update-users', 'manage-access'], true)) {
+        if ($permission === 'manage-access') {
             return false;
+        }
+
+        if (is_array($this->permission_overrides) && array_key_exists($permission, $this->permission_overrides)) {
+            return (bool) $this->permission_overrides[$permission];
         }
 
         return $this->level?->hasPermission($permission) ?? false;
@@ -313,6 +420,10 @@ class User extends Authenticatable
 
         if (! $this->hasPermission($permission)) {
             return false;
+        }
+
+        if (is_array($this->mobile_permission_overrides) && array_key_exists($permission, $this->mobile_permission_overrides)) {
+            return (bool) $this->mobile_permission_overrides[$permission];
         }
 
         return $this->level?->hasMobilePermission($permission) ?? false;

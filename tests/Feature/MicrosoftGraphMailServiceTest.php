@@ -1,5 +1,6 @@
 <?php
 
+use App\Exceptions\MicrosoftGraphException;
 use App\Models\User;
 use App\Models\UserLevel;
 use App\Services\MicrosoftGraphMailService;
@@ -59,6 +60,44 @@ test('microsoft graph mail service sends html mail through azure', function () {
             && str_contains($message['body']['content'], '<!DOCTYPE html>')
             && $message['toRecipients'][0]['emailAddress']['address'] === 'sales@gateway-ds.com'
             && $message['replyTo'][0]['emailAddress']['address'] === 'buyer@example.com';
+    });
+});
+
+test('outbound mail keeps a readable logo and replies to the sending mailbox', function () {
+    Http::fake(function ($request) {
+        if (str_contains($request->url(), 'login.microsoftonline.com')) {
+            return Http::response([
+                'access_token' => 'graph-token',
+                'expires_in' => 3600,
+            ], 200);
+        }
+
+        return Http::response('', 202);
+    });
+
+    app(MicrosoftGraphMailService::class)->send(
+        'buyer@example.com',
+        'Project update',
+        '<p style="display:none">Hidden offer</p><img src="/images/Gateway_Door_Systems_Logo.png"><p>The opening is ready.</p>',
+    );
+
+    Http::assertSent(function ($request) {
+        $path = rawurldecode((string) (parse_url($request->url(), PHP_URL_PATH) ?? ''));
+
+        if ($request->method() !== 'POST' || ! str_ends_with($path, '/sendMail')) {
+            return false;
+        }
+
+        $message = $request->data()['message'];
+        $content = $message['body']['content'];
+
+        return $message['replyTo'][0]['emailAddress']['address'] === 'sales@gateway-ds.com'
+            && ! isset($message['attachments'])
+            && str_contains($content, 'The opening is ready.')
+            && str_contains($content, 'charset=utf-8')
+            && str_contains($content, 'alt="Gateway Door Systems"')
+            && str_contains($content, 'Gateway_Door_Systems_Logo.png')
+            && ! str_contains($content, 'display:none');
     });
 });
 
@@ -124,6 +163,142 @@ test('microsoft graph tokens are cached and refreshed after they are rejected', 
     Http::assertSent(fn ($request) => $request->hasHeader('Authorization', 'Bearer second-token'));
 });
 
+test('mailbox read status filters are sent to microsoft graph', function () {
+    Http::fake(function ($request) {
+        if (str_contains($request->url(), 'login.microsoftonline.com')) {
+            return Http::response([
+                'access_token' => 'graph-token',
+                'expires_in' => 3600,
+            ]);
+        }
+
+        return Http::response(['value' => []]);
+    });
+
+    $mail = app(MicrosoftGraphMailService::class);
+    $mail->listFolder('sales@gateway-ds.com', 'inbox', status: 'unread');
+    $mail->listFolder('sales@gateway-ds.com', 'inbox', status: 'read');
+    $mail->listFolder('sales@gateway-ds.com', 'sent', status: 'unread');
+
+    $filters = collect(Http::recorded())
+        ->map(function (array $pair): ?string {
+            if (! str_contains($pair[0]->url(), 'graph.microsoft.com')) {
+                return null;
+            }
+
+            parse_str((string) parse_url($pair[0]->url(), PHP_URL_QUERY), $query);
+
+            return $query['$filter'] ?? null;
+        })
+        ->filter()
+        ->values();
+
+    expect($filters)->toHaveCount(2)
+        ->and($filters[0])->toContain('isRead eq false')
+        ->and($filters[1])->toContain('isRead eq true');
+});
+
+test('all inbox messages can be marked read through microsoft graph', function () {
+    Http::fake(function ($request) {
+        if (str_contains($request->url(), 'login.microsoftonline.com')) {
+            return Http::response([
+                'access_token' => 'graph-token',
+                'expires_in' => 3600,
+            ]);
+        }
+
+        if ($request->method() === 'GET' && str_contains($request->url(), '/mailFolders/inbox')) {
+            return Http::response(['id' => 'actual-inbox-folder-id']);
+        }
+
+        return Http::response('', 202);
+    });
+
+    app(MicrosoftGraphMailService::class)
+        ->setAllInboxRead('sales@gateway-ds.com', true);
+
+    Http::assertSent(function ($request) {
+        return $request->method() === 'POST'
+            && $request->url() === 'https://graph.microsoft.com/beta/users/sales%40gateway-ds.com/mailFolders/actual-inbox-folder-id/updateAllMessagesReadState'
+            && $request['isRead'] === true
+            && $request['suppressReadReceipts'] === true;
+    });
+});
+
+test('bulk read falls back to graph batches when the folder action is denied', function () {
+    Http::fake(function ($request) {
+        if (str_contains($request->url(), 'login.microsoftonline.com')) {
+            return Http::response(['access_token' => 'graph-token', 'expires_in' => 3600]);
+        }
+
+        if ($request->method() === 'GET' && str_contains($request->url(), '/mailFolders/inbox?')) {
+            return Http::response(['id' => 'actual-inbox-folder-id']);
+        }
+
+        if ($request->method() === 'POST' && str_contains($request->url(), 'updateAllMessagesReadState')) {
+            return Http::response(['error' => ['message' => 'Access denied']], 403);
+        }
+
+        if ($request->method() === 'GET' && str_contains($request->url(), '/messages?')) {
+            return Http::response(['value' => [['id' => 'message-1'], ['id' => 'message-2']]]);
+        }
+
+        if ($request->method() === 'POST' && str_ends_with($request->url(), '/$batch')) {
+            return Http::response([
+                'responses' => [
+                    ['id' => '1', 'status' => 200],
+                    ['id' => '2', 'status' => 200],
+                ],
+            ]);
+        }
+
+        return Http::response([], 500);
+    });
+
+    app(MicrosoftGraphMailService::class)
+        ->setAllInboxRead('sales@gateway-ds.com', true);
+
+    Http::assertSent(function ($request) {
+        if ($request->method() !== 'POST' || ! str_ends_with($request->url(), '/$batch')) {
+            return false;
+        }
+
+        $requests = $request['requests'];
+
+        return count($requests) === 2
+            && $requests[0]['method'] === 'PATCH'
+            && $requests[0]['body']['isRead'] === true
+            && str_contains($requests[0]['url'], '/messages/message-1');
+    });
+});
+
+test('bulk read returns local message ids when graph write access is denied', function () {
+    Http::fake(function ($request) {
+        if (str_contains($request->url(), 'login.microsoftonline.com')) {
+            return Http::response(['access_token' => 'graph-token', 'expires_in' => 3600]);
+        }
+
+        if ($request->method() === 'GET' && str_contains($request->url(), '/mailFolders/inbox?')) {
+            return Http::response(['error' => ['message' => 'Access denied']], 403);
+        }
+
+        if ($request->method() === 'GET' && str_contains($request->url(), '/mailFolders/inbox/messages?')) {
+            return Http::response(['value' => [['id' => 'message-1'], ['id' => 'message-2']]]);
+        }
+
+        if ($request->method() === 'POST' && str_ends_with($request->url(), '/$batch')) {
+            return Http::response(['error' => ['message' => 'Access denied']], 403);
+        }
+
+        return Http::response([], 500);
+    });
+
+    $localIds = app(MicrosoftGraphMailService::class)
+        ->setAllInboxRead('sales@gateway-ds.com', true);
+
+    expect($localIds)->toBe(['message-1', 'message-2']);
+});
+
 test('a super admin sends mail with that persons microsoft credentials', function () {
     $level = UserLevel::firstOrCreate(['name' => UserLevel::SUPER_ADMIN]);
     $admin = User::factory()->create([
@@ -152,6 +327,29 @@ test('a super admin sends mail with that persons microsoft credentials', functio
             && $request['client_id'] === 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb'
             && $request['client_secret'] === 'super-admin-secret-value';
     });
+});
+
+test('system emails sent with no signed-in user use the mailbox owners microsoft credentials', function () {
+    $level = UserLevel::firstOrCreate(['name' => UserLevel::SUPER_ADMIN]);
+    User::factory()->create([
+        'level_id' => $level->id,
+        'role' => 'super_admin',
+        'microsoft_tenant_id' => 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+        'microsoft_client_id' => 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
+        'microsoft_client_secret' => 'ricardo-secret-value',
+        'microsoft_mailbox' => 'ricardo@gateway-ds.com',
+    ]);
+
+    Http::fake([
+        'https://login.microsoftonline.com/*' => Http::response(['access_token' => 'graph-token', 'expires_in' => 3600], 200),
+        'https://graph.microsoft.com/*' => Http::response('', 202),
+    ]);
+
+    app(MicrosoftGraphMailService::class)
+        ->sendFromMailbox('ricardo@gateway-ds.com', 'ricardo@gateway-ds.com', 'Sign-up request', '<p>Hi</p>', 'Ricardo Scarpim');
+
+    Http::assertSent(fn ($request) => str_contains($request->url(), 'oauth2/v2.0/token')
+        && $request['client_secret'] === 'ricardo-secret-value');
 });
 
 test('impersonating a super admin without app credentials uses the master app on that mailbox', function () {
@@ -194,4 +392,24 @@ test('impersonating a super admin without app credentials uses the master app on
     Http::assertSent(function ($request) {
         return str_contains($request->url(), '/users/'.rawurlencode('larryd@gateway-ds.com').'/mailFolders/inbox/messages');
     });
+});
+
+test('a microsoft outage opens the circuit so later requests fail immediately', function () {
+    Http::fake([
+        'https://login.microsoftonline.com/*' => Http::response([
+            'access_token' => 'graph-token',
+            'expires_in' => 3600,
+        ]),
+        'https://graph.microsoft.com/*' => Http::response([], 503),
+    ]);
+
+    $graph = app(MicrosoftGraphMailService::class);
+
+    expect(fn () => $graph->unreadInboxCount('ricardo@gateway-ds.com'))
+        ->toThrow(MicrosoftGraphException::class, 'Other features are still available');
+
+    expect(fn () => $graph->recentUnread('ricardo@gateway-ds.com'))
+        ->toThrow(MicrosoftGraphException::class, 'Other features are still available');
+
+    Http::assertSentCount(2);
 });

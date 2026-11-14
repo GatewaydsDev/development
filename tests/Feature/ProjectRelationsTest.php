@@ -5,6 +5,7 @@ use App\Models\BidScopeTitle;
 use App\Models\BidStageType;
 use App\Models\Contractor;
 use App\Models\Project;
+use App\Models\ProjectPriority;
 use App\Models\ProjectScopeType;
 use App\Models\ProjectStatus;
 use App\Models\Quotation;
@@ -1139,4 +1140,109 @@ test('the projects list shows the linked quotation bid and takeoff with their st
             ->where('summary.in_bid', 1)
             ->where('summary.in_takeoff', 1)
         );
+});
+
+test('a typed project number is saved and a duplicate number is rejected', function () {
+    $admin = projectAdmin();
+    $payload = [
+        'name' => 'Numbered dock project',
+        'project_number' => 'GDS-CUSTOM-9',
+        'assigned_to' => '',
+        'status_id' => projectStatusId(),
+        'priority' => 'normal',
+        'site_address_line_1' => '',
+        'site_address_line_2' => '',
+        'site_city' => '',
+        'site_state' => '',
+        'site_postal_code' => '',
+        'site_country' => '',
+        'estimated_start_date' => '',
+        'estimated_end_date' => '',
+        'completed_at' => '',
+        'public_notes' => '',
+        'internal_notes' => '',
+        'contractors' => [],
+        'scopes' => [],
+        'revisions' => [],
+    ];
+
+    $this->actingAs($admin)
+        ->post(route('admin.projects.store'), $payload)
+        ->assertSessionHasNoErrors();
+
+    expect(Project::query()->where('name', 'Numbered dock project')->value('project_number'))
+        ->toBe('GDS-CUSTOM-9');
+
+    $this->actingAs($admin)
+        ->post(route('admin.projects.store'), [
+            ...$payload,
+            'name' => 'Another dock project',
+        ])
+        ->assertSessionHasErrors('project_number');
+});
+
+test('a new priority can be added and saved on a project', function () {
+    $admin = projectAdmin();
+
+    $this->actingAs($admin)
+        ->post(route('admin.project-priorities.store'), ['name' => 'Rush'])
+        ->assertRedirect()
+        ->assertSessionHas('success', 'Priority added successfully.');
+
+    expect(ProjectPriority::query()->where('name', 'Rush')->value('slug'))->toBe('rush');
+
+    $this->actingAs($admin)
+        ->post(route('admin.projects.store'), [
+            'name' => 'Rush dock project',
+            'project_number' => '',
+            'assigned_to' => '',
+            'status_id' => projectStatusId(),
+            'priority' => 'rush',
+            'site_address_line_1' => '',
+            'site_address_line_2' => '',
+            'site_city' => '',
+            'site_state' => '',
+            'site_postal_code' => '',
+            'site_country' => '',
+            'estimated_start_date' => '',
+            'estimated_end_date' => '',
+            'completed_at' => '',
+            'public_notes' => '',
+            'internal_notes' => '',
+            'contractors' => [],
+            'scopes' => [],
+            'revisions' => [],
+        ])
+        ->assertSessionHasNoErrors();
+
+    expect(Project::query()->where('name', 'Rush dock project')->value('priority'))->toBe('rush');
+});
+
+test('a project can be linked to more than one company and updated', function () {
+    $admin = projectAdmin();
+    $a = \App\Models\ContactDirectory\ContactCompany::create(['name' => 'Alpha Builders']);
+    $b = \App\Models\ContactDirectory\ContactCompany::create(['name' => 'Beta Glazing']);
+    $c = \App\Models\ContactDirectory\ContactCompany::create(['name' => 'Gamma Doors']);
+    $base = [
+        'name' => 'Shared job', 'project_number' => '', 'assigned_to' => '', 'status_id' => projectStatusId(),
+        'priority' => 'normal', 'estimated_start_date' => '', 'estimated_end_date' => '', 'completed_at' => '',
+        'public_notes' => '', 'internal_notes' => '', 'contractors' => [], 'scopes' => [], 'revisions' => [], 'prices' => [],
+    ];
+
+    $this->actingAs($admin)->post(route('admin.projects.store'), [...$base, 'company_uuids' => [$a->uuid, $b->uuid]])
+        ->assertSessionHasNoErrors();
+    $project = Project::where('name', 'Shared job')->firstOrFail();
+    expect($project->contactCompanies->pluck('name')->all())->toBe(['Alpha Builders', 'Beta Glazing']);
+
+    $this->actingAs($admin)->patch(route('admin.projects.update', $project), [...$base, 'company_uuids' => [$c->uuid]])
+        ->assertSessionHasNoErrors();
+    expect($project->fresh()->contactCompanies->pluck('name')->all())->toBe(['Gamma Doors']);
+
+    $this->actingAs($admin)->patch(route('admin.projects.update', $project), [...$base, 'company_uuids' => ['missing']])
+        ->assertSessionHasErrors('company_uuids.0');
+
+    $this->actingAs($admin)->get(route('admin.projects.edit', $project))
+        ->assertInertia(fn ($page) => $page->where('project.companies.0.name', 'Gamma Doors')->has('options.companies', 3));
+    $this->actingAs($admin)->get(route('contact-directory.companies.show', $c))
+        ->assertInertia(fn ($page) => $page->where('projects.0.name', 'Shared job'));
 });

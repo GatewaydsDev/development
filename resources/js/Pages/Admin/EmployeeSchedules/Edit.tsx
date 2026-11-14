@@ -2,6 +2,7 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head, Link } from '@inertiajs/react';
 import ScheduleForm from './Partials/ScheduleForm';
 import type {
+    ScheduleDailyTask,
     ScheduleOption,
     SchedulePayload,
     ScheduleStatusOption,
@@ -11,16 +12,20 @@ type EditProps = {
     projects: ScheduleOption[];
     foremen: ScheduleOption[];
     employees: ScheduleOption[];
+    dailyTasks?: ScheduleDailyTask[];
     statuses: ScheduleStatusOption[];
     schedule: SchedulePayload;
+    crewAssignments?: Record<string, { skill_id: number | null; employee_pay_rate_id: number | null }>;
 };
 
 export default function Edit({
     projects,
     foremen,
     employees,
+    dailyTasks = [],
     statuses,
     schedule,
+    crewAssignments,
 }: EditProps) {
     return (
         <AuthenticatedLayout
@@ -51,7 +56,7 @@ export default function Edit({
         >
             <Head title="Edit Work Schedule" />
             <div className="py-6 sm:py-8">
-                <div className="mx-auto max-w-[96rem] px-4 sm:px-6 lg:px-8">
+                <div className="w-full px-4 sm:px-6 lg:px-8">
                     <ScheduleForm
                         action={route(
                             'admin.employee-schedules.update',
@@ -62,8 +67,10 @@ export default function Edit({
                         projects={projects}
                         foremen={foremen}
                         employees={employees}
+                        dailyTasks={dailyTasks}
                         statuses={statuses}
                         schedule={schedule}
+                        crewAssignments={crewAssignments}
                     />
                 </div>
             </div>

@@ -32,6 +32,10 @@ class UserLevel extends Model
 
     public const VISITOR = 'Visitor';
 
+    public const CLIENT = 'Client';
+
+    public const CLIENT_MANAGER = 'Client Manager';
+
     protected $fillable = [
         'uuid',
         'name',

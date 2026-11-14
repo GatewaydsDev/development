@@ -1,5 +1,8 @@
+import type { CreatableOption } from '@/Components/CreatableSelect';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
-import UserForm from '@/Pages/Admin/Users/Partials/UserForm';
+import UserForm, {
+    type UserDefaultsData,
+} from '@/Pages/Admin/Users/Partials/UserForm';
 import { Head, Link } from '@inertiajs/react';
 
 type Level = {
@@ -28,6 +31,9 @@ type CreateProps = {
     canCreateUserLevel?: boolean;
     canAssignMailbox?: boolean;
     superAdminLevelNames?: string[];
+    positions?: CreatableOption[];
+    userDefaults?: UserDefaultsData | null;
+    clientCompanies?: { uuid: string; name: string }[];
 };
 
 export default function Create({
@@ -37,6 +43,9 @@ export default function Create({
     canCreateUserLevel = false,
     canAssignMailbox = false,
     superAdminLevelNames,
+    positions = [],
+    userDefaults = null,
+    clientCompanies = [],
 }: CreateProps) {
     return (
         <AuthenticatedLayout
@@ -66,7 +75,7 @@ export default function Create({
             <Head title="Add user" />
 
             <div className="py-6 sm:py-8">
-                <div className="mx-auto max-w-[96rem] px-4 sm:px-6 lg:px-8">
+                <div className="w-full px-4 sm:px-6 lg:px-8">
                     <UserForm
                         levels={levels}
                         languages={languages}
@@ -74,6 +83,9 @@ export default function Create({
                         canCreateUserLevel={canCreateUserLevel}
                         canAssignMailbox={canAssignMailbox}
                         superAdminLevelNames={superAdminLevelNames}
+                        positions={positions}
+                        userDefaults={userDefaults}
+                        clientCompanies={clientCompanies}
                         title="Create a team member"
                         description="Invite an internal user and choose the correct access level for Gateway Door Systems."
                         action={route('admin.users.store')}

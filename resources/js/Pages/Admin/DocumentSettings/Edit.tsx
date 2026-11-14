@@ -566,7 +566,7 @@ export default function Edit({
             <Head title="Print layouts" />
 
             <div className="w-full px-4 py-6 sm:px-6 sm:py-8 xl:px-10">
-                <div className="mx-auto max-w-[120rem] space-y-10">
+                <div className="w-full space-y-10">
                     <section aria-labelledby="saved-layouts-heading">
                         <div className="mb-5 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
                             <div>

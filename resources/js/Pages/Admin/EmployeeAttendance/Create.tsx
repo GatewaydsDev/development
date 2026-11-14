@@ -1,14 +1,15 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head, Link } from '@inertiajs/react';
 import AttendanceForm from './Partials/AttendanceForm';
-import type { AttendanceEmployeeOption } from './types';
+import type { AttendanceEmployeeOption, AttendanceScheduleOption } from './types';
 
 type CreateProps = {
     employees: AttendanceEmployeeOption[];
     defaultWeekStart: string;
+    schedules: AttendanceScheduleOption[];
 };
 
-export default function Create({ employees, defaultWeekStart }: CreateProps) {
+export default function Create({ employees, defaultWeekStart, schedules }: CreateProps) {
     return (
         <AuthenticatedLayout
             header={
@@ -37,13 +38,14 @@ export default function Create({ employees, defaultWeekStart }: CreateProps) {
             <Head title="Add Attendance" />
 
             <div className="py-6 sm:py-8">
-                <div className="mx-auto max-w-[96rem] px-4 sm:px-6 lg:px-8">
+                <div className="w-full px-4 sm:px-6 lg:px-8">
                     <AttendanceForm
                         action={route('admin.employee-attendance.store')}
                         method="post"
                         submitLabel="Save week"
                         employees={employees}
                         defaultWeekStart={defaultWeekStart}
+                        schedules={schedules}
                     />
                 </div>
             </div>

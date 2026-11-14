@@ -16,6 +16,8 @@ use App\Models\Skill;
 use App\Models\User;
 use App\Models\UserActivity;
 use App\Models\UserLevel;
+use App\Models\UserLoginLog;
+use App\Models\UserPresenceDevice;
 use App\Observers\AuditModelObserver;
 use App\Observers\BidObserver;
 use App\Observers\EmployeeObserver;
@@ -24,10 +26,16 @@ use App\Observers\QuotationObserver;
 use App\Observers\SkillObserver;
 use App\Services\UserActivityLogger;
 use App\Support\DocumentAppearance;
+use App\Support\LoginAudit;
+use App\Support\LoginDevice;
 use App\Support\TakeoffAccess;
 use Illuminate\Auth\Events\Login;
+use Illuminate\Auth\Events\Logout;
+use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\Facades\Vite;
@@ -51,6 +59,7 @@ class AppServiceProvider extends ServiceProvider
     {
         WordSettings::setOutputEscapingEnabled(true);
         $this->registerActivityAuditing();
+        $this->registerApiRateLimiter();
 
         Gate::before(function (User $user): ?bool {
             return $user->isSuperAdmin() ? true : null;
@@ -84,19 +93,50 @@ class AppServiceProvider extends ServiceProvider
         });
     }
 
+    private function registerApiRateLimiter(): void
+    {
+        RateLimiter::for('api', function (Request $request): Limit {
+            $user = $request->user();
+
+            return $user
+                ? Limit::perMinute(config('api.rate_limits.authenticated_per_minute', 300))
+                    ->by('api:user:'.$user->getAuthIdentifier())
+                : Limit::perMinute(config('api.rate_limits.guest_per_minute', 60))
+                    ->by('api:ip:'.$request->ip());
+        });
+    }
+
     private function registerActivityAuditing(): void
     {
+        Event::listen(Logout::class, function (Logout $event): void {
+            if ($event->user instanceof User) {
+                $event->user->forceFill(['last_logout_at' => now()])->saveQuietly();
+                UserPresenceDevice::markLoggedOut($event->user, LoginDevice::detect(request(), $event->guard));
+                LoginAudit::record($event->user, UserLoginLog::LOGOUT, request(), $event->guard);
+            }
+        });
+
         Event::listen(Login::class, function (Login $event): void {
             if (! $event->user instanceof User) {
                 return;
             }
 
             $user = $event->user;
+            LoginAudit::record($user, UserLoginLog::LOGIN, request(), $event->guard);
 
             if (Schema::hasColumn('users', 'last_login_at')) {
-                $user->forceFill([
-                    'last_login_at' => now(),
-                ])->saveQuietly();
+                $attributes = ['last_login_at' => now()];
+
+                if (Schema::hasColumn('users', 'last_login_device')) {
+                    $attributes['last_login_device'] = LoginDevice::detect(request(), $event->guard);
+                }
+
+                if (Schema::hasColumn('users', 'last_seen_at')) {
+                    $attributes['last_seen_at'] = now();
+                    $attributes['last_seen_device'] = $attributes['last_login_device'] ?? null;
+                }
+
+                $user->forceFill($attributes)->saveQuietly();
             }
 
             app(UserActivityLogger::class)->log(

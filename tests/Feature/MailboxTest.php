@@ -1,6 +1,8 @@
 <?php
 
 use App\Exceptions\MicrosoftGraphException;
+use App\Models\Employee;
+use App\Models\MailMessageState;
 use App\Models\MailSavedRecipient;
 use App\Models\User;
 use App\Models\UserActivity;
@@ -8,6 +10,7 @@ use App\Models\UserLevel;
 use App\Services\MicrosoftGraphMailService;
 use App\Services\MicrosoftGraphPageCursor;
 use App\Support\EmailPlainText;
+use App\Support\MailStationery;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Cache;
@@ -56,6 +59,10 @@ function fakeMailboxGraph(array $pages = []): void
             return Http::response('', 202);
         }
 
+        if ($request->method() === 'GET' && str_ends_with($path, '/mailFolders/inbox')) {
+            return Http::response(['id' => 'actual-inbox-folder-id']);
+        }
+
         if (preg_match('#/messages/[^?]+#', $request->url()) === 1) {
             return Http::response([
                 'id' => 'msg-1',
@@ -63,6 +70,9 @@ function fakeMailboxGraph(array $pages = []): void
                 'from' => ['emailAddress' => ['name' => 'Buyer', 'address' => 'buyer@example.com']],
                 'toRecipients' => [
                     ['emailAddress' => ['address' => 'ricardo@gateway-ds.com']],
+                ],
+                'ccRecipients' => [
+                    ['emailAddress' => ['name' => 'Alex', 'address' => 'alex@example.com']],
                 ],
                 'receivedDateTime' => '2026-10-15T15:00:00Z',
                 'body' => [
@@ -459,7 +469,7 @@ test('mail requests use the signed-in user mailbox and ignore a submitted sender
         return $payload['saveToSentItems'] === true
             && ! array_key_exists('from', $message)
             && ! array_key_exists('sender', $message)
-            && $message['body']['content'] === 'The opening is ready.';
+            && str_contains($message['body']['content'], 'The opening is ready.');
     });
 
     Http::assertNotSent(function ($request) {
@@ -689,6 +699,7 @@ test('incoming mail is shown as plain text and pagination stays on the graph mai
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->where('message.body', 'Hello & welcome')
+            ->where('message.cc.0', 'Alex <alex@example.com>')
             ->where('message.body', fn ($body) => ! str_contains((string) $body, '<script')
                 && ! str_contains((string) $body, '<img')
                 && ! str_contains((string) $body, 'evil.test'))
@@ -708,6 +719,109 @@ test('incoming mail is shown as plain text and pagination stays on the graph mai
     Http::assertNotSent(fn ($request) => str_contains($request->url(), 'evil.example'));
 });
 
+test('inbox status filters use graph and stay bound to their pagination cursor', function () {
+    $user = mailboxUser();
+    $next = 'https://graph.microsoft.com/v1.0/users/'.rawurlencode('ricardo@gateway-ds.com').'/mailFolders/inbox/messages?$skiptoken=unread-page-2';
+    fakeMailboxGraph(['nextLink' => $next]);
+
+    $cursor = null;
+
+    $this->actingAs($user)
+        ->get(route('mailbox.index', ['status' => 'unread']))
+        ->assertOk()
+        ->assertInertia(function (Assert $page) use (&$cursor) {
+            $page->where('folder', 'inbox')
+                ->where('status', 'unread');
+
+            $cursor = $page->toArray()['props']['nextCursor'];
+        });
+
+    expect($cursor)->toBeString()->not->toBe('');
+
+    Http::assertSent(function ($request) {
+        if (! str_contains($request->url(), '/mailFolders/inbox/messages')) {
+            return false;
+        }
+
+        parse_str((string) parse_url($request->url(), PHP_URL_QUERY), $query);
+
+        return str_contains((string) ($query['$filter'] ?? ''), 'isRead eq false');
+    });
+
+    $this->actingAs($user)
+        ->get(route('mailbox.index', ['cursor' => $cursor]))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('status', 'all')
+            ->where('graphError', fn ($error) => is_string($error) && $error !== '')
+        );
+
+    $this->actingAs($user)
+        ->get(route('mailbox.index', ['status' => 'unread', 'cursor' => $cursor]))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page->where('status', 'unread'));
+
+    Http::assertSent(fn ($request) => $request->url() === $next);
+
+    $this->actingAs($user)
+        ->get(route('mailbox.index', ['status' => 'unexpected']))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page->where('status', 'all'));
+
+    $this->actingAs($user)
+        ->get(route('mailbox.index', ['folder' => 'sent', 'status' => 'read']))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page->where('status', 'all'));
+});
+
+test('a message that cannot be opened leaves the rest of the folder on screen', function () {
+    $user = mailboxUser();
+    Cache::flush();
+    config([
+        'services.microsoft.tenant_id' => 'tenant-id',
+        'services.microsoft.client_id' => 'client-id',
+        'services.microsoft.client_secret' => 'client-secret',
+        'services.microsoft.mail_from' => 'sales@gateway-ds.com',
+    ]);
+
+    Http::fake(function ($request) {
+        if (str_contains($request->url(), 'login.microsoftonline.com')) {
+            return Http::response([
+                'access_token' => 'graph-token',
+                'expires_in' => 3600,
+            ]);
+        }
+
+        $path = rawurldecode((string) (parse_url($request->url(), PHP_URL_PATH) ?? ''));
+
+        if (preg_match('#/messages/[^/?]+$#', $path) === 1) {
+            return Http::response(['error' => ['message' => 'ErrorItemNotFound']], 500);
+        }
+
+        return Http::response([
+            'value' => [[
+                'id' => 'msg-1',
+                'subject' => 'Hello',
+                'from' => ['emailAddress' => ['name' => 'Buyer', 'address' => 'buyer@example.com']],
+                'toRecipients' => [],
+                'bodyPreview' => 'Preview text',
+                'receivedDateTime' => '2026-10-15T15:00:00Z',
+                'isRead' => false,
+            ]],
+            'unreadItemCount' => 1,
+        ]);
+    });
+
+    $this->actingAs($user)
+        ->get(route('mailbox.index', ['message' => EmailPlainText::encodeMessageId('msg-1')]))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('messages.0.subject', 'Hello')
+            ->where('message', null)
+            ->where('graphError', fn ($error) => is_string($error) && $error !== '')
+        );
+});
+
 test('a cursor cannot be exchanged for another mailbox or an arbitrary graph url', function () {
     $cursors = app(MicrosoftGraphPageCursor::class);
 
@@ -719,6 +833,36 @@ test('a cursor cannot be exchanged for another mailbox or an arbitrary graph url
         'ricardo@gateway-ds.com',
         'inbox',
     ))->toThrow(MicrosoftGraphException::class);
+
+    expect(fn () => $cursors->assertLink(
+        'https://graph.microsoft.com/v1.0/users/'.rawurlencode('ricardo@gateway-ds.com').'/mailFolders/sentitems/messages',
+        'ricardo@gateway-ds.com',
+        'inbox',
+    ))->toThrow(MicrosoftGraphException::class);
+
+    $folderId = 'AAMkAGI2THVSAAA=';
+    $folderLink = 'https://graph.microsoft.com/v1.0/users/'.rawurlencode('ricardo@gateway-ds.com').'/mailFolders/'.rawurlencode($folderId).'/messages?$skip=25';
+
+    expect($cursors->store(4, 'ricardo@gateway-ds.com', 'sent', $folderLink))->toBeString();
+
+    expect($cursors->store(
+        4,
+        'ricardo@gateway-ds.com',
+        'inbox',
+        "https://graph.microsoft.com/v1.0/users('ricardo@gateway-ds.com')/mailFolders('".$folderId."')/messages?%24skip=25",
+    ))->toBeString();
+
+    $user = mailboxUser();
+    fakeMailboxGraph(['nextLink' => $folderLink]);
+
+    $this->actingAs($user)
+        ->get(route('mailbox.index', ['folder' => 'sent']))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('folder', 'sent')
+            ->where('messages.0.subject', 'Hello')
+            ->where('nextCursor', fn ($cursor) => is_string($cursor) && $cursor !== '')
+        );
 
     $token = $cursors->store(
         4,
@@ -772,6 +916,34 @@ test('mailbox assignment is explicit, unique, and not mass assignable', function
     ])->assertFailed();
 
     expect($other->fresh()->microsoft_mailbox)->toBeNull();
+});
+
+test('reply all drops this mailbox and keeps a name that contains a comma', function () {
+    $user = mailboxUser();
+    fakeMailboxGraph();
+
+    $this->actingAs($user)
+        ->post(route('mailbox.send'), [
+            'to' => 'Doe, Jane <jane@example.com>',
+            'cc' => 'ricardo@gateway-ds.com, jane@example.com, Bob Smith <bob@example.com>',
+            'subject' => 'Re: Project update',
+            'body' => '<p>Replying to everyone on this thread.</p>',
+        ])
+        ->assertRedirect(route('mailbox.index', ['folder' => 'sent']))
+        ->assertSessionHas('success');
+
+    Http::assertSent(function ($request) {
+        if (! savedMailboxMessage($request, 'ricardo@gateway-ds.com')) {
+            return false;
+        }
+
+        $message = $request->data()['message'];
+        $to = array_column(array_column($message['toRecipients'], 'emailAddress'), 'address');
+        $cc = array_column(array_column($message['ccRecipients'] ?? [], 'emailAddress'), 'address');
+
+        return $to === ['jane@example.com']
+            && $cc === ['bob@example.com'];
+    });
 });
 
 test('an uncertain graph send is not retried', function () {
@@ -966,7 +1138,106 @@ test('a message can be marked unread and archived', function () {
         && ($request['destinationId'] ?? null) === 'archive');
 });
 
-test('outgoing mail includes the saved signature and header image', function () {
+test('every inbox message can be marked read while archived state is retained', function () {
+    $user = mailboxUser();
+    fakeMailboxGraph();
+
+    MailMessageState::query()->create([
+        'user_id' => $user->id,
+        'mailbox' => 'ricardo@gateway-ds.com',
+        'message_key' => hash('sha256', 'inbox-message'),
+        'message_id' => 'inbox-message',
+        'is_read' => false,
+        'is_archived' => false,
+    ]);
+    $archived = MailMessageState::query()->create([
+        'user_id' => $user->id,
+        'mailbox' => 'ricardo@gateway-ds.com',
+        'message_key' => hash('sha256', 'archived-message'),
+        'message_id' => 'archived-message',
+        'is_read' => false,
+        'is_archived' => true,
+    ]);
+
+    $this->actingAs($user)
+        ->post(route('mailbox.state.all'), ['is_read' => 1])
+        ->assertRedirect()
+        ->assertSessionHas('success', 'Microsoft 365 is marking every inbox email as read.');
+
+    expect(MailMessageState::query()->whereKey($archived->id)->exists())->toBeTrue()
+        ->and(MailMessageState::query()->where('message_id', 'inbox-message')->exists())->toBeFalse();
+
+    Http::assertSent(fn ($request) => $request->method() === 'POST'
+        && str_contains($request->url(), '/mailFolders/actual-inbox-folder-id/updateAllMessagesReadState')
+        && $request['isRead'] === true);
+});
+
+test('bulk read is tracked locally when microsoft denies mailbox write access', function () {
+    $user = mailboxUser();
+    Cache::flush();
+    config([
+        'services.microsoft.tenant_id' => 'tenant-id',
+        'services.microsoft.client_id' => 'client-id',
+        'services.microsoft.client_secret' => 'client-secret',
+    ]);
+
+    Http::fake(function ($request) {
+        if (str_contains($request->url(), 'login.microsoftonline.com')) {
+            return Http::response(['access_token' => 'graph-token', 'expires_in' => 3600]);
+        }
+
+        if ($request->method() === 'GET' && str_contains($request->url(), '/mailFolders/inbox?')) {
+            return Http::response(['error' => ['message' => 'Access denied']], 403);
+        }
+
+        if ($request->method() === 'GET' && str_contains($request->url(), '/mailFolders/inbox/messages?')) {
+            return Http::response(['value' => [['id' => 'message-1'], ['id' => 'message-2']]]);
+        }
+
+        return Http::response(['error' => ['message' => 'Access denied']], 403);
+    });
+
+    $this->actingAs($user)
+        ->post(route('mailbox.state.all'), ['is_read' => 1])
+        ->assertRedirect()
+        ->assertSessionHas('success');
+
+    expect(MailMessageState::query()
+        ->where('user_id', $user->id)
+        ->where('mailbox', 'ricardo@gateway-ds.com')
+        ->where('is_read', true)
+        ->where('counts_in_graph_unread', true)
+        ->count())->toBe(2);
+});
+
+test('a microsoft bulk read failure returns to the mailbox instead of a server error', function () {
+    $user = mailboxUser();
+    Cache::flush();
+    config([
+        'services.microsoft.tenant_id' => 'tenant-id',
+        'services.microsoft.client_id' => 'client-id',
+        'services.microsoft.client_secret' => 'client-secret',
+    ]);
+
+    Http::fake(function ($request) {
+        if (str_contains($request->url(), 'login.microsoftonline.com')) {
+            return Http::response(['access_token' => 'graph-token', 'expires_in' => 3600]);
+        }
+
+        if ($request->method() === 'GET') {
+            return Http::response(['id' => 'actual-inbox-folder-id']);
+        }
+
+        return Http::response(['error' => ['message' => 'Service unavailable']], 500);
+    });
+
+    $this->actingAs($user)
+        ->post(route('mailbox.state.all'), ['is_read' => 1])
+        ->assertRedirect()
+        ->assertSessionHas('error', fn (string $message) => str_contains($message, 'HTTP 500'));
+});
+
+test('outgoing mail writes the signature into the message and does not attach a logo', function () {
     Storage::fake('public');
     $user = mailboxUser();
     $user->mail_signature = "Ricardo Scarpim\nGateway Door Systems";
@@ -992,24 +1263,109 @@ test('outgoing mail includes the saved signature and header image', function () 
 
         $message = $request->data()['message'];
         $content = $message['body']['content'];
-        $header = $message['attachments'][0];
 
         return $message['body']['contentType'] === 'HTML'
-            && str_contains($content, 'cid:gateway-mail-header')
+            && ! str_contains($content, 'cid:gateway-mail-header')
+            && str_contains($content, 'Gateway_Door_Systems_Logo.png')
+            && str_contains($content, 'alt="Gateway Door Systems"')
+            && ! isset($message['attachments'])
             && str_contains($content, 'The opening is ready.')
             && str_contains($content, 'Ricardo Scarpim')
             && str_contains($content, 'Gateway Door Systems')
-            && str_contains($content, 'width="240"')
-            && str_contains($content, 'alt="Gateway Door Systems"')
             && str_contains($content, '<!DOCTYPE html>')
             && str_contains($content, 'bgcolor="#047857"')
             && str_contains($content, 'bgcolor="#b45309"')
-            && ! str_contains($content, 'font-size:0')
-            && $header['isInline'] === true
-            && $header['contentId'] === 'gateway-mail-header'
             && ! isset($message['from'])
             && ! isset($message['sender']);
     });
+});
+
+test('saved stationery is part of the message and a placed signature is not added twice', function () {
+    $user = mailboxUser();
+    fakeMailboxGraph();
+
+    $this->actingAs($user)
+        ->put(route('mailbox.stationery'), [
+            'header' => '<p>Project desk</p><img src="https://example.test/logo.png" alt="Gateway"><img src="'.asset('images/Gateway_Door_Systems_Logo.png').'" alt="Gateway Door Systems">',
+            'footer' => '<p>Sent from the project desk</p>',
+            'signatures' => [[
+                'id' => 'ricardo',
+                'name' => 'Ricardo',
+                'html' => '<p>Ricardo Scarpim<br>Estimator</p><script>alert(1)</script>',
+            ]],
+            'new_signature_id' => 'ricardo',
+            'reply_signature_id' => 'ricardo',
+        ])
+        ->assertRedirect();
+
+    $stored = $user->fresh()->mail_stationery;
+    expect($stored['header'])->toContain('Project desk')
+        ->and($stored['header'])->toContain('Gateway_Door_Systems_Logo.png')
+        ->and($stored['header'])->not->toContain('example.test')
+        ->and($stored['signatures'][0]['html'])->not->toContain('<script')
+        ->and($stored['signatures'][0]['html'])->toContain('Estimator');
+
+    $this->actingAs($user)
+        ->post(route('mailbox.send'), [
+            'to' => 'buyer@example.com',
+            'subject' => 'Project update',
+            'body' => '<div data-gateway-mail="letter"><p>The opening is ready.</p><div data-mail-section="signature"><p>Ricardo Scarpim</p></div></div>',
+        ])
+        ->assertRedirect();
+
+    Http::assertSent(function ($request) {
+        if (! savedMailboxMessage($request, 'ricardo@gateway-ds.com')) {
+            return false;
+        }
+
+        $content = $request->data()['message']['body']['content'];
+
+        return substr_count($content, 'Ricardo Scarpim') === 1
+            && ! str_contains($content, 'Project desk')
+            && ! isset($request->data()['message']['attachments']);
+    });
+});
+
+test('a super admin gets one logo header and a signature with name, phone, and position', function () {
+    $level = UserLevel::firstOrCreate(['name' => UserLevel::SUPER_ADMIN]);
+    $user = mailboxUser();
+    $user->forceFill([
+        'name' => 'Ricardo Scarpim',
+        'role' => 'super_admin',
+        'level_id' => $level->id,
+    ])->save();
+    Employee::query()->create([
+        'first_name' => 'Ricardo',
+        'last_name' => 'Scarpim',
+        'email' => 'ricardo-staff-'.$user->id.'@gateway-ds.com',
+        'phone_number' => '305-555-0100',
+        'job_title' => 'Estimator',
+        'user_id' => $user->id,
+    ]);
+
+    $stationery = app(MailStationery::class);
+    $payload = $stationery->payload($user->fresh());
+
+    expect($payload['header'])->toContain('Gateway_Door_Systems_Logo.png')
+        ->and($payload['header'])->not->toContain('>Gateway Door Systems<')
+        ->and($payload['footer'])->toBe('')
+        ->and($payload['signatures'][0]['html'])->toContain('Ricardo Scarpim')
+        ->and($payload['signatures'][0]['html'])->toContain('305-555-0100')
+        ->and($payload['signatures'][0]['html'])->toContain('Estimator')
+        ->and($user->fresh()->mail_stationery['header'])->toContain('Gateway_Door_Systems_Logo.png');
+
+    $composed = $stationery->compose(
+        $user->fresh(),
+        '<p>The opening is ready.</p><p><img src="'.$stationery->logoUrl().'" alt="Gateway Door Systems"></p><p><strong>Ricardo Scarpim</strong><br>305-555-0100<br>Estimator</p>',
+        'HTML',
+        [],
+    );
+    $content = $composed['content'];
+
+    expect(substr_count($content, 'Gateway_Door_Systems_Logo.png'))->toBe(1)
+        ->and(substr_count($content, 'Ricardo Scarpim'))->toBe(1)
+        ->and(substr_count($content, 'Estimator'))->toBe(1)
+        ->and($content)->not->toContain('data-mail-section="footer"');
 });
 
 test('header size and footer color boxes are saved for later messages', function () {
@@ -1076,7 +1432,74 @@ test('the signed in mailbox reports how many emails are unread', function () {
         ->assertOk()
         ->assertJson(['unread' => 3, 'messages' => []]);
 
-    Http::assertSentCount(3);
+    Http::assertSentCount(5);
+});
+
+test('unread polling keeps the last count while microsoft 365 is unavailable', function () {
+    $user = mailboxUser('larryd@gateway-ds.com');
+
+    Cache::flush();
+    config([
+        'services.microsoft.tenant_id' => 'tenant-id',
+        'services.microsoft.client_id' => 'client-id',
+        'services.microsoft.client_secret' => 'client-secret',
+    ]);
+
+    $outage = false;
+
+    Http::fake(function ($request) use (&$outage) {
+        if (str_contains($request->url(), 'login.microsoftonline.com')) {
+            return Http::response([
+                'access_token' => 'graph-token',
+                'expires_in' => 3600,
+            ]);
+        }
+
+        return $outage
+            ? Http::response([], 503)
+            : Http::response(['unreadItemCount' => 3]);
+    });
+
+    $this->actingAs($user)
+        ->getJson(route('mailbox.unread'))
+        ->assertOk()
+        ->assertJson(['unread' => 3]);
+
+    Cache::forget('mailbox-unread:'.$user->id.':larryd@gateway-ds.com');
+    $outage = true;
+
+    $this->getJson(route('mailbox.unread'))
+        ->assertOk()
+        ->assertJson([
+            'unread' => 3,
+            'error' => true,
+        ]);
+});
+
+test('blocked emails are left out of the unread count and reported separately', function () {
+    $user = mailboxUser('larryd@gateway-ds.com');
+
+    Cache::flush();
+    config([
+        'services.microsoft.tenant_id' => 'tenant-id',
+        'services.microsoft.client_id' => 'client-id',
+        'services.microsoft.client_secret' => 'client-secret',
+    ]);
+
+    $bounce = ['subject' => 'Undeliverable: Hello', 'from' => ['emailAddress' => ['address' => 'postmaster@outlook.com']]];
+
+    Http::fake([
+        'https://login.microsoftonline.com/*' => Http::response(['access_token' => 't', 'expires_in' => 3600]),
+        'https://graph.microsoft.com/*' => Http::response([
+            'unreadItemCount' => 5,
+            'value' => [$bounce, $bounce],
+        ], 200),
+    ]);
+
+    $this->actingAs($user)
+        ->getJson(route('mailbox.unread'))
+        ->assertOk()
+        ->assertJson(['unread' => 3, 'blocked' => 2]);
 });
 
 test('unread email count stays at zero when the user has no mailbox', function () {
@@ -1107,6 +1530,43 @@ test('an unread inbox message keeps the mail count when the badge cache is empty
             ->where('messages.0.is_read', false)
             ->where('unreadCount', 1)
         );
+});
+
+test('a new unread message lights the mail count even when the folder count is still zero', function () {
+    $user = mailboxUser();
+    Cache::flush();
+    config([
+        'services.microsoft.tenant_id' => 'tenant-id',
+        'services.microsoft.client_id' => 'client-id',
+        'services.microsoft.client_secret' => 'client-secret',
+    ]);
+
+    Http::fake(function ($request) {
+        if (str_contains($request->url(), 'login.microsoftonline.com')) {
+            return Http::response(['access_token' => 'graph-token', 'expires_in' => 3600]);
+        }
+
+        if (str_contains($request->url(), 'unreadItemCount')) {
+            return Http::response(['unreadItemCount' => 0]);
+        }
+
+        return Http::response([
+            'value' => [[
+                'id' => 'msg-new',
+                'subject' => 'New shop drawing',
+                'from' => ['emailAddress' => ['name' => 'Site', 'address' => 'site@example.com']],
+                'bodyPreview' => 'Please review.',
+                'isRead' => false,
+                'receivedDateTime' => '2026-11-14T16:00:00Z',
+            ]],
+        ]);
+    });
+
+    $this->actingAs($user)
+        ->getJson(route('mailbox.unread'))
+        ->assertOk()
+        ->assertJsonPath('unread', 1)
+        ->assertJsonPath('messages.0.subject', 'New shop drawing');
 });
 
 test('unread mail includes the message that can be opened', function () {

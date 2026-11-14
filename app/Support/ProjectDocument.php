@@ -304,13 +304,13 @@ class ProjectDocument
 
         if ($this->plainText($this->project->public_notes)) {
             $section->addText('Project notes', ['bold' => true, 'size' => 13, 'color' => $this->wordColor('brand')]);
-            $section->addText((string) $this->project->public_notes, ['size' => 10, 'color' => '111827']);
+            $section->addText((string) $this->plainText($this->project->public_notes), ['size' => 10, 'color' => '111827']);
             $section->addTextBreak(1);
         }
 
         if ($this->showSensitiveFields && $this->plainText($this->project->internal_notes)) {
             $section->addText('Internal notes', ['bold' => true, 'size' => 13, 'color' => $this->wordColor('brand')]);
-            $section->addText((string) $this->project->internal_notes, ['size' => 10, 'color' => '111827']);
+            $section->addText((string) $this->plainText($this->project->internal_notes), ['size' => 10, 'color' => '111827']);
         }
 
         $path = tempnam(sys_get_temp_dir(), 'project-document-').'.docx';
@@ -440,7 +440,15 @@ class ProjectDocument
             return null;
         }
 
-        return trim($value);
+        $text = html_entity_decode(strip_tags(str_replace(
+            ['<br>', '<br/>', '<br />', '</p>', '</div>', '</li>', '</h1>', '</h2>', '</h3>'],
+            ["\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n"],
+            $value,
+        )));
+        $text = trim(preg_replace("/[ \t]+\n/", "\n", $text) ?? $text);
+        $text = trim(preg_replace("/\n{3,}/", "\n\n", $text) ?? $text);
+
+        return $text === '' ? null : $text;
     }
 
     private function projectAddress(): string

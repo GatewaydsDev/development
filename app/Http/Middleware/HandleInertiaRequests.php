@@ -3,15 +3,21 @@
 namespace App\Http\Middleware;
 
 use App\Models\Company;
+use App\Models\SystemUpdate;
 use App\Models\User;
 use App\Support\BidAccess;
+use App\Support\ClientPortalAccess;
 use App\Support\ContractorAccess;
+use App\Support\DailyTaskAccess;
 use App\Support\EmployeeAccess;
+use App\Support\JobProgressAccess;
 use App\Support\ProductAccess;
 use App\Support\ProjectAccess;
+use App\Support\QualityControlAssignments;
 use App\Support\QuotationAccess;
 use App\Support\QuotationRevisionAssignments;
 use App\Support\ServiceAccess;
+use App\Support\SystemUpdateAccess;
 use App\Support\TakeoffAccess;
 use Closure;
 use Illuminate\Http\Request;
@@ -83,6 +89,9 @@ class HandleInertiaRequests extends Middleware
             ],
             'companyPhoneNumber' => $company?->contact_phone_number,
             'companyEmail' => $company?->email,
+            'dailyTasksPending' => fn (): int => $request->user() instanceof User
+                ? DailyTaskAccess::pendingCount($request->user())
+                : 0,
             'session' => [
                 'idleTimeoutMinutes' => max(0, (int) config('session.idle_timeout_minutes')),
             ],
@@ -121,6 +130,10 @@ class HandleInertiaRequests extends Middleware
                         : false,
                     'viewUserActivity' => $request->user()?->isSuperAdmin() ?? false,
                     'manageExpenses' => $request->user()?->isSuperAdmin() ?? false,
+                    'manageProjectControl' => $request->user()?->isSuperAdmin() ?? false,
+                    'openDailyTasks' => $request->user() instanceof User
+                        && DailyTaskAccess::canOpen($request->user()),
+                    'correctRecords' => $request->user()?->canCorrectRecords() ?? false,
                     'manageDocumentColors' => $request->user()?->isSuperAdmin() ?? false,
                     'useInternalChat' => $request->user()?->isSuperAdmin() ?? false,
                     'viewCompany' => $request->user()
@@ -128,6 +141,24 @@ class HandleInertiaRequests extends Middleware
                         : false,
                     'manageAccess' => $request->user()
                         ? Gate::forUser($request->user())->allows('manage-access')
+                        : false,
+                    'viewContactsDirectory' => $request->user()
+                        ? Gate::forUser($request->user())->allows('view-contacts-directory')
+                        : false,
+                    'manageContactsDirectory' => $request->user()
+                        ? Gate::forUser($request->user())->allows('manage-contacts-directory')
+                        : false,
+                    'manageFollowUps' => $request->user()
+                        ? Gate::forUser($request->user())->allows('manage-follow-ups')
+                        : false,
+                    'managePriceRequests' => $request->user()
+                        ? Gate::forUser($request->user())->allows('manage-price-requests')
+                        : false,
+                    'manageEmailTemplates' => $request->user()
+                        ? Gate::forUser($request->user())->allows('manage-email-templates')
+                        : false,
+                    'logCommunications' => $request->user()
+                        ? Gate::forUser($request->user())->allows('log-communications')
                         : false,
                     'manageNotifications' => $request->user()
                         ? Gate::forUser($request->user())->allows('manage-notifications')
@@ -207,6 +238,39 @@ class HandleInertiaRequests extends Middleware
                     'deleteContractors' => $request->user()
                         ? ContractorAccess::canDelete($request->user())
                         : false,
+                    'viewSystemUpdates' => $request->user()
+                        ? SystemUpdateAccess::canView($request->user())
+                        : false,
+                    'viewDashboard' => $request->user()
+                        ? Gate::forUser($request->user())->allows('view-dashboard')
+                        : false,
+                    'manageClientTeam' => $request->user()
+                        ? ClientPortalAccess::canManageTeam($request->user())
+                        : false,
+                    'viewClientPortal' => $request->user()
+                        ? ClientPortalAccess::canOpen($request->user())
+                        : false,
+                    'viewJobProgress' => $request->user() instanceof User
+                        ? JobProgressAccess::canOpen($request->user())
+                        : false,
+                    'sendQualityControlReports' => $request->user() instanceof User
+                        ? QualityControlAssignments::canSend($request->user())
+                        : false,
+                    'createScheduleTasks' => $request->user()
+                        ? Gate::forUser($request->user())->allows('create-schedule-tasks')
+                        : false,
+                    'updateScheduleTasks' => $request->user()
+                        ? Gate::forUser($request->user())->allows('update-schedule-tasks')
+                        : false,
+                    'viewWorkSchedule' => $request->user()
+                        ? Gate::forUser($request->user())->allows('view-work-schedule')
+                        : false,
+                    'viewAttendance' => $request->user()
+                        ? Gate::forUser($request->user())->allows('view-attendance')
+                        : false,
+                    'viewMySchedule' => $request->user()
+                        ? Gate::forUser($request->user())->allows('view-my-schedule')
+                        : false,
                     'viewEmployees' => $request->user()
                         ? EmployeeAccess::canView($request->user())
                         : false,
@@ -241,6 +305,9 @@ class HandleInertiaRequests extends Middleware
                         ? TakeoffAccess::canConvert($request->user())
                         : false,
                 ],
+                'systemUpdatesUnread' => fn (): int => $request->user()
+                    ? SystemUpdate::unreadCountFor($request->user())
+                    : 0,
                 'notifications' => $request->user() && Gate::forUser($request->user())->allows('manage-notifications')
                     ? [
                         'unreadCount' => $request->user()->unreadNotifications()->count(),

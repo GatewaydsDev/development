@@ -35,7 +35,18 @@ function applyTheme(theme: ThemeMode) {
     const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
     const resolvedTheme = theme === 'system' && prefersDark ? 'dark' : theme;
 
-    root.classList.toggle('dark', resolvedTheme === 'dark');
+    const surfaceTone = (root.dataset.dashboardSurface ?? 'default') === 'default'
+        ? ''
+        : window.getComputedStyle(root).getPropertyValue('--dashboard-surface-tone').trim();
+
+    root.classList.toggle(
+        'dark',
+        surfaceTone ? surfaceTone === 'dark' : resolvedTheme === 'dark',
+    );
+}
+
+export function syncThemeMode() {
+    applyTheme(getStoredTheme());
 }
 
 export function ThemeProvider({ children }: PropsWithChildren) {

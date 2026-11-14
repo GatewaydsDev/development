@@ -2,14 +2,22 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Events\ExpenseChanged;
 use App\Http\Controllers\Controller;
+use App\Models\Contact;
 use App\Models\Expense;
 use App\Models\ExpensePayment;
 use App\Models\User;
+use App\Exceptions\AiDraftException;
+use App\Services\ReceiptScanService;
 use App\Support\ExpenseReceiptFile;
+use App\Support\ExpenseShareMail;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
@@ -25,19 +33,27 @@ class ExpenseController extends Controller
         $this->authorizeExpenses($request);
 
         $search = trim((string) $request->query('search', ''));
-        $category = (string) $request->query('category', '');
+        $category = trim((string) $request->query('category', ''));
+        $group = trim((string) $request->query('group', ''));
 
-        if (! array_key_exists($category, Expense::CATEGORIES)) {
+        if (strlen($category) > 80) {
             $category = '';
+        }
+
+        if (strlen($group) > 160) {
+            $group = '';
         }
 
         $filtered = Expense::query()
             ->when($category !== '', fn ($query) => $query->where('category', $category))
+            ->when($group !== '', fn ($query) => $query->where('group_name', $group))
             ->when($search !== '', function ($query) use ($search): void {
                 $query->where(function ($query) use ($search): void {
                     $query
                         ->where('payee', 'like', "%{$search}%")
+                        ->orWhere('person_name', 'like', "%{$search}%")
                         ->orWhere('description', 'like', "%{$search}%")
+                        ->orWhere('group_name', 'like', "%{$search}%")
                         ->orWhere('notes', 'like', "%{$search}%");
                 });
             });
@@ -57,21 +73,53 @@ class ExpenseController extends Controller
             'filters' => [
                 'search' => $search,
                 'category' => $category,
+                'group' => $group,
             ],
-            'categories' => Expense::CATEGORIES,
-            'paymentStatuses' => ExpensePayment::STATUSES,
-            'paymentMethods' => ExpensePayment::METHODS,
+            'categories' => $this->categoryLabels(),
+            'groups' => $this->groupSummaries($filtered),
             'total' => number_format((float) $total, 2, '.', ''),
             'paid' => number_format((float) $paid, 2, '.', ''),
             'scheduled' => number_format((float) $scheduled, 2, '.', ''),
             'count' => $filtered->clone()->count(),
             'expenses' => $filtered
                 ->with(['recorder:id,name', 'payments'])
+                ->orderByRaw('case when group_name is null or group_name = ? then 1 else 0 end', [''])
+                ->orderBy('group_name')
                 ->orderByDesc('spent_on')
                 ->orderByDesc('id')
                 ->paginate(15)
                 ->withQueryString()
                 ->through(fn (Expense $expense): array => $this->payload($expense)),
+        ]);
+    }
+
+    public function scan(Request $request, ReceiptScanService $scanner): JsonResponse
+    {
+        $this->authorizeExpenses($request);
+        $request->validate(['receipt' => ['required', 'file', 'mimes:jpeg,jpg,png,webp,gif', 'max:5120']]);
+
+        try {
+            return response()->json(['fields' => $scanner->scan($request->file('receipt'))]);
+        } catch (AiDraftException $exception) {
+            return response()->json(['message' => $exception->getMessage()], $exception->status);
+        }
+    }
+
+    public function create(Request $request): Response
+    {
+        $this->authorizeExpenses($request);
+
+        return Inertia::render('Admin/Expenses/Create', $this->formOptions());
+    }
+
+    public function edit(Request $request, Expense $expense): Response
+    {
+        $this->authorizeExpenses($request);
+        $expense->load(['recorder:id,name', 'payments']);
+
+        return Inertia::render('Admin/Expenses/Edit', [
+            ...$this->formOptions(),
+            'expense' => $this->payload($expense),
         ]);
     }
 
@@ -86,6 +134,7 @@ class ExpenseController extends Controller
         ]);
         $this->syncPayments($expense, $validated['payments']);
         $this->storeReceipt($expense, $request->file('receipt'));
+        $this->publishExpense('saved', $expense);
 
         return redirect()
             ->route('admin.expenses.index')
@@ -108,6 +157,7 @@ class ExpenseController extends Controller
         $expense->save();
         $this->syncPayments($expense, $validated['payments']);
         $this->storeReceipt($expense, $request->file('receipt'));
+        $this->publishExpense('saved', $expense);
 
         return redirect()
             ->route('admin.expenses.index')
@@ -117,6 +167,7 @@ class ExpenseController extends Controller
     public function destroy(Request $request, Expense $expense): RedirectResponse
     {
         $this->authorizeExpenses($request);
+        $this->publishExpense('removed', $expense);
         $this->deleteReceipt($expense);
         $expense->delete();
 
@@ -151,6 +202,92 @@ class ExpenseController extends Controller
         return $this->inlineFile($path, $type, $name);
     }
 
+    public function shareGroup(Request $request): JsonResponse
+    {
+        $this->authorizeExpenses($request);
+        $group = trim((string) $request->query('group', ''));
+
+        if (strlen($group) > 160) {
+            $group = '';
+        }
+
+        $expenses = Expense::query()
+            ->with('payments')
+            ->when(
+                $group === '',
+                fn (Builder $query) => $query->where(fn (Builder $inner) => $inner
+                    ->whereNull('group_name')
+                    ->orWhere('group_name', '')),
+                fn (Builder $query) => $query->where('group_name', $group),
+            )
+            ->orderByDesc('spent_on')
+            ->orderByDesc('id')
+            ->limit(51)
+            ->get();
+        $truncated = $expenses->count() > 50;
+        $expenses = $expenses->take(50);
+
+        $contacts = Contact::query()
+            ->where('is_active', true)
+            ->whereNotNull('email')
+            ->where('email', '!=', '')
+            ->orderBy('name')
+            ->limit(200)
+            ->get(['id', 'name', 'email', 'company'])
+            ->filter(fn (Contact $contact): bool => filter_var($contact->email, FILTER_VALIDATE_EMAIL) !== false)
+            ->map(fn (Contact $contact): array => [
+                'id' => $contact->id,
+                'name' => $contact->name,
+                'email' => $contact->email,
+                'company' => $contact->company ?: '',
+            ])
+            ->values();
+
+        return response()->json([
+            'group' => $group,
+            'truncated' => $truncated,
+            'expenses' => $expenses->map(fn (Expense $expense): array => [
+                'id' => $expense->id,
+                'spent_on' => $expense->spent_on?->toDateString(),
+                'person_name' => $expense->person_name ?: '',
+                'payee' => $expense->payee,
+                'description' => $expense->description,
+                'category_label' => Expense::CATEGORIES[$expense->category] ?? $expense->category,
+                'amount' => $expense->amount,
+                'notes' => $expense->notes ?: '',
+                'payment_count' => $expense->payments->count(),
+                'receipt_name' => $expense->receipt_name,
+                'has_receipt' => is_string($expense->receipt_path) && $expense->receipt_path !== '',
+            ])->values(),
+            'contacts' => $contacts,
+        ]);
+    }
+
+    public function share(Request $request, ExpenseShareMail $mail): RedirectResponse
+    {
+        $user = $this->authorizeExpenses($request);
+        $validated = $request->validate([
+            'email' => ['required', 'email', 'max:255'],
+            'message' => ['nullable', 'string', 'max:2000'],
+            'group' => ['nullable', 'string', 'max:160'],
+            'expenses' => ['required', 'array', 'min:1', 'max:50'],
+            'expenses.*' => ['integer', 'distinct'],
+            'receipts' => ['nullable', 'array', 'max:50'],
+            'receipts.*' => ['integer', 'distinct'],
+        ]);
+
+        $mail->send(
+            $user,
+            array_map('intval', $validated['expenses']),
+            array_map('intval', $validated['receipts'] ?? []),
+            $validated['email'],
+            $validated['message'] ?? null,
+            $validated['group'] ?? null,
+        );
+
+        return back()->with('success', 'The expense details were emailed.');
+    }
+
     private function authorizeExpenses(Request $request): User
     {
         $user = $request->user();
@@ -160,16 +297,23 @@ class ExpenseController extends Controller
     }
 
     /**
-     * @return array{expense: array{spent_on: string, payee: string, description: string, category: string, amount: string, notes: ?string}, payments: list<array{id: ?int, due_on: string, paid_on: ?string, amount: string, status: string, method: string}>}
+     * @return array{expense: array{spent_on: string, person_name: string, payee: string, description: string, category: string, group_name: ?string, amount: string, notes: ?string}, payments: list<array{id: ?int, due_on: string, paid_on: ?string, amount: string, status: string, method: string}>}
      */
     private function validated(Request $request): array
     {
         $validated = $request->validate([
             'spent_on' => ['required', 'date'],
+            'person_name' => ['required', 'string', 'max:160'],
             'payee' => ['required', 'string', 'max:160'],
             'description' => ['required', 'string', 'max:255'],
-            'category' => ['required', Rule::in(array_keys(Expense::CATEGORIES))],
+            'category' => ['required', 'string', 'max:80'],
+            'group_name' => ['nullable', 'string', 'max:160'],
             'amount' => ['required', 'numeric', 'min:0.01', 'max:99999999.99'],
+            'tax_amount' => ['nullable', 'numeric', 'min:0', 'max:99999999.99'],
+            'address' => ['nullable', 'string', 'max:255'],
+            'recurring_frequency' => ['nullable', Rule::in(array_keys(Expense::FREQUENCIES))],
+            'recurring_starts_on' => ['nullable', 'required_with:recurring_frequency', 'date'],
+            'recurring_ends_on' => ['nullable', 'date', 'after_or_equal:recurring_starts_on'],
             'notes' => ['nullable', 'string', 'max:2000'],
             'receipt' => ['nullable', 'file', 'mimes:pdf,jpeg,jpg,png,webp,gif', 'max:5120'],
             'remove_receipt' => ['sometimes', 'boolean'],
@@ -182,7 +326,9 @@ class ExpenseController extends Controller
             'payments.*.method' => ['required', Rule::in(array_keys(ExpensePayment::METHODS))],
         ]);
 
+        $recurring = filled($validated['recurring_frequency'] ?? null);
         $notes = trim((string) ($validated['notes'] ?? ''));
+        $groupName = trim((string) ($validated['group_name'] ?? ''));
         $payments = [];
 
         foreach ($validated['payments'] ?? [] as $payment) {
@@ -202,10 +348,17 @@ class ExpenseController extends Controller
         return [
             'expense' => [
                 'spent_on' => $validated['spent_on'],
+                'person_name' => trim($validated['person_name']),
                 'payee' => trim($validated['payee']),
                 'description' => trim($validated['description']),
-                'category' => $validated['category'],
+                'category' => $this->categoryValue(trim($validated['category'])),
+                'group_name' => $groupName === '' ? null : $groupName,
                 'amount' => number_format((float) $validated['amount'], 2, '.', ''),
+                'tax_amount' => filled($validated['tax_amount'] ?? null) ? number_format((float) $validated['tax_amount'], 2, '.', '') : null,
+                'address' => filled($validated['address'] ?? null) ? trim($validated['address']) : null,
+                'recurring_frequency' => $recurring ? $validated['recurring_frequency'] : null,
+                'recurring_starts_on' => $recurring ? $validated['recurring_starts_on'] : null,
+                'recurring_ends_on' => $recurring ? ($validated['recurring_ends_on'] ?? null) : null,
                 'notes' => $notes === '' ? null : $notes,
             ],
             'payments' => $payments,
@@ -246,6 +399,23 @@ class ExpenseController extends Controller
             ->delete();
     }
 
+    private function publishExpense(string $action, Expense $expense): void
+    {
+        $expenseId = $expense->id;
+        $summary = trim(implode(' ', array_filter([
+            $expense->group_name,
+            $expense->description,
+        ])));
+
+        DB::afterCommit(function () use ($action, $expenseId, $summary): void {
+            rescue(fn () => broadcast(new ExpenseChanged(
+                $action,
+                $expenseId,
+                $summary !== '' ? $summary : 'Expense',
+            ))->toOthers());
+        });
+    }
+
     private function storeReceipt(Expense $expense, ?UploadedFile $file): void
     {
         if (! $file instanceof UploadedFile) {
@@ -280,6 +450,173 @@ class ExpenseController extends Controller
     /**
      * @return array<string, mixed>
      */
+    private function formOptions(): array
+    {
+        return [
+            'categoryChoices' => $this->categoryChoices(),
+            'groups' => $this->namedOptions('group_name'),
+            'payees' => $this->namedOptions('payee'),
+            'paymentStatuses' => ExpensePayment::STATUSES,
+            'paymentMethods' => ExpensePayment::METHODS,
+            'people' => $this->people(),
+        ];
+    }
+
+    /**
+     * @param  Builder<Expense>  $filtered
+     * @return list<array{name: string, count: int, total: string}>
+     */
+    private function groupSummaries($filtered): array
+    {
+        return $filtered->clone()
+            ->reorder()
+            ->select('group_name')
+            ->selectRaw('COUNT(*) as expense_count, SUM(amount) as total')
+            ->groupBy('group_name')
+            ->orderBy('group_name')
+            ->get()
+            ->map(fn (Expense $row): array => [
+                'name' => (string) ($row->group_name ?? ''),
+                'count' => (int) $row->expense_count,
+                'total' => number_format((float) $row->total, 2, '.', ''),
+            ])
+            ->sortBy(fn (array $group): string => $group['name'] === '' ? '1' : '0'.$group['name'])
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    private function categoryLabels(): array
+    {
+        $labels = Expense::CATEGORIES;
+
+        Expense::query()
+            ->whereNotNull('category')
+            ->distinct()
+            ->orderBy('category')
+            ->pluck('category')
+            ->each(function (string $category) use (&$labels): void {
+                if ($category === '' || array_key_exists($category, $labels) || in_array($category, $labels, true)) {
+                    return;
+                }
+
+                $labels[$category] = $category;
+            });
+
+        return $labels;
+    }
+
+    /**
+     * @return list<array{id: int, name: string, slug: string}>
+     */
+    private function categoryChoices(): array
+    {
+        $options = [];
+        $id = 1;
+
+        foreach (Expense::CATEGORIES as $key => $label) {
+            $options[] = ['id' => $id, 'name' => $label, 'slug' => $key];
+            $id++;
+        }
+
+        $known = [];
+
+        foreach (Expense::CATEGORIES as $key => $label) {
+            $known[] = mb_strtolower($key);
+            $known[] = mb_strtolower($label);
+        }
+
+        Expense::query()
+            ->whereNotNull('category')
+            ->distinct()
+            ->orderBy('category')
+            ->pluck('category')
+            ->each(function (string $category) use (&$options, $known): void {
+                if ($category === '' || in_array(mb_strtolower($category), $known, true)) {
+                    return;
+                }
+
+                $options[] = [
+                    'id' => -1 * (abs(crc32('category|'.$category)) % 1000000000 + 1),
+                    'name' => $category,
+                    'slug' => $category,
+                ];
+            });
+
+        return $options;
+    }
+
+    private function categoryValue(string $value): string
+    {
+        if (array_key_exists($value, Expense::CATEGORIES)) {
+            return $value;
+        }
+
+        foreach (Expense::CATEGORIES as $key => $label) {
+            if (mb_strtolower($label) === mb_strtolower($value)) {
+                return $key;
+            }
+        }
+
+        return $value;
+    }
+
+    /**
+     * @return list<array{id: int, name: string}>
+     */
+    private function namedOptions(string $column): array
+    {
+        return Expense::query()
+            ->whereNotNull($column)
+            ->where($column, '!=', '')
+            ->distinct()
+            ->orderBy($column)
+            ->pluck($column)
+            ->map(fn (string $name): array => [
+                'id' => -1 * (abs(crc32($column.'|'.$name)) % 1000000000 + 1),
+                'name' => $name,
+            ])
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @return list<array{id: int, name: string}>
+     */
+    private function people(): array
+    {
+        $users = User::query()->visibleTo(auth()->user())->orderBy('name')->get(['id', 'name']);
+        $known = $users
+            ->map(fn (User $user): string => mb_strtolower(trim($user->name)))
+            ->all();
+        $options = $users
+            ->map(fn (User $user): array => ['id' => $user->id, 'name' => $user->name])
+            ->all();
+
+        Expense::query()
+            ->whereNotNull('person_name')
+            ->distinct()
+            ->orderBy('person_name')
+            ->pluck('person_name')
+            ->each(function (string $name) use (&$options, $known): void {
+                if (in_array(mb_strtolower(trim($name)), $known, true)) {
+                    return;
+                }
+
+                $options[] = [
+                    'id' => -1 * (abs(crc32($name)) % 1000000000 + 1),
+                    'name' => $name,
+                ];
+            });
+
+        return $options;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
     private function payload(Expense $expense): array
     {
         $this->receipts->normalize($expense);
@@ -288,11 +625,22 @@ class ExpenseController extends Controller
         return [
             'id' => $expense->id,
             'spent_on' => $expense->spent_on?->toDateString(),
+            'person_name' => $expense->person_name ?: ($expense->recorder?->name ?? ''),
             'payee' => $expense->payee,
             'description' => $expense->description,
             'category' => $expense->category,
             'category_label' => Expense::CATEGORIES[$expense->category] ?? $expense->category,
+            'group_name' => $expense->group_name ?: '',
             'amount' => $expense->amount,
+            'tax_amount' => $expense->tax_amount ?? '',
+            'address' => $expense->address ?: '',
+            'recurring_frequency' => $expense->recurring_frequency ?: '',
+            'recurring_label' => $expense->recurring_frequency
+                ? (Expense::FREQUENCIES[$expense->recurring_frequency] ?? $expense->recurring_frequency)
+                : null,
+            'recurring_starts_on' => $expense->recurring_starts_on?->toDateString(),
+            'recurring_ends_on' => $expense->recurring_ends_on?->toDateString(),
+            'next_charge_on' => $expense->nextChargeOn()?->toDateString(),
             'notes' => $expense->notes,
             'receipt_name' => $expense->receipt_name,
             'receipt_is_image' => $preview !== null,

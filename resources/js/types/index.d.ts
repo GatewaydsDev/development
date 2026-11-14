@@ -11,6 +11,8 @@ export interface User {
     initials?: string;
     last_login_at?: string | null;
     dashboard_theme?: string | null;
+    dashboard_gradient?: string | null;
+    dashboard_surface?: string | null;
     level?: {
         id: number;
         name: string;
@@ -73,11 +75,20 @@ export type PageProps<
             updateUsers: boolean;
             viewUserActivity: boolean;
             manageExpenses: boolean;
+            manageProjectControl?: boolean;
+            openDailyTasks?: boolean;
+            correctRecords?: boolean;
             manageDocumentColors: boolean;
             useInternalChat?: boolean;
             viewCompany: boolean;
             manageAccess: boolean;
             manageNotifications: boolean;
+            viewContactsDirectory: boolean;
+            manageContactsDirectory: boolean;
+            manageFollowUps: boolean;
+            managePriceRequests: boolean;
+            manageEmailTemplates: boolean;
+            logCommunications: boolean;
             viewProjects: boolean;
             createProjects: boolean;
             updateProjects: boolean;
@@ -103,6 +114,18 @@ export type PageProps<
             createContractors: boolean;
             updateContractors: boolean;
             deleteContractors: boolean;
+            viewMySchedule?: boolean;
+            viewJobProgress?: boolean;
+            sendQualityControlReports?: boolean;
+            createScheduleTasks?: boolean;
+            updateScheduleTasks?: boolean;
+            deleteScheduleTasks?: boolean;
+            viewWorkSchedule?: boolean;
+            viewAttendance?: boolean;
+        manageClientTeam?: boolean;
+        viewClientPortal?: boolean;
+            viewDashboard?: boolean;
+            viewSystemUpdates?: boolean;
             viewEmployees: boolean;
             createEmployees: boolean;
             updateEmployees: boolean;
@@ -115,6 +138,7 @@ export type PageProps<
             exportTakeoffs: boolean;
             convertTakeoffs: boolean;
         };
+        systemUpdatesUnread?: number;
         notifications: {
             unreadCount: number;
             latestUnread: AppNotification[];
@@ -135,6 +159,7 @@ export type PageProps<
     flash?: {
         success?: string | null;
         error?: string | null;
+        counted_opening_id?: number | null;
         importedScopeText?: string | null;
         importedScopeTextTemplateId?: number | null;
         importedShippingText?: string | null;

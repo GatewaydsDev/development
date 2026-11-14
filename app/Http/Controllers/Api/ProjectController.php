@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Admin\ProjectController as AdminProjectController;
 use App\Http\Controllers\Controller;
 use App\Models\Project;
+use App\Models\ProjectOverview;
 use App\Models\User;
 use App\Support\ProjectAccess;
 use App\Support\ProjectDocument;
@@ -29,6 +30,38 @@ class ProjectController extends Controller
             ->paginate($perPage)
             ->withQueryString()
             ->through(fn (Project $project): array => $this->admin()->projectPayload($project, $user, summary: true));
+
+        return response()->json([
+            'data' => $projects->items(),
+            'meta' => [
+                'current_page' => $projects->currentPage(),
+                'from' => $projects->firstItem(),
+                'last_page' => $projects->lastPage(),
+                'per_page' => $projects->perPage(),
+                'to' => $projects->lastItem(),
+                'total' => $projects->total(),
+                'version' => ProjectListVersion::current(),
+            ],
+            'can' => $this->capabilities($user),
+        ]);
+    }
+
+    public function overview(Request $request): JsonResponse
+    {
+        $user = $this->authorizeProject($request, 'view-projects');
+        $perPage = min(100, max(1, $request->integer('per_page', 15)));
+        $search = trim((string) $request->query('search', ''));
+        $status = $request->integer('status');
+
+        $projects = ProjectOverview::query()
+            ->when($search !== '', fn ($query) => $query->where(fn ($query) => $query
+                ->where('name', 'like', "%{$search}%")
+                ->orWhere('project_number', 'like', "%{$search}%")
+                ->orWhere('contractors', 'like', "%{$search}%")))
+            ->when($status > 0, fn ($query) => $query->where('status_id', $status))
+            ->orderByDesc('id')
+            ->paginate($perPage)
+            ->withQueryString();
 
         return response()->json([
             'data' => $projects->items(),

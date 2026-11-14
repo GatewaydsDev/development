@@ -28,7 +28,7 @@ class TakeoffScopeImporter
 
         return [
             'scope' => $scope,
-            'import' => self::import($takeoff, $document, $scope),
+            'import' => ['created' => [], 'skipped' => 0, 'markers_added' => 0],
         ];
     }
 
@@ -38,26 +38,97 @@ class TakeoffScopeImporter
     public static function scan(Takeoff $takeoff, TakeoffDocument $document): array
     {
         $disk = Storage::disk(config('takeoffs.disk'));
-        $cache = self::cachePath($document);
-
-        if ($disk->exists($cache)) {
-            $scope = [
-                'sheet_number' => $document->sheet_number,
-                'sheet_title' => $document->sheet_title,
-                'page_count' => $document->page_count,
-                'document_type' => $document->document_type,
-                'openings' => self::cachedOpenings($document),
-                'notes' => [],
-            ];
-        } else {
-            $scope = TakeoffPdfScope::read($disk->path($document->storage_path));
-            self::remember($document, $scope['openings'] ?? []);
-        }
+        $disk->delete(self::cachePath($document));
+        $scope = TakeoffPdfScope::read($disk->path($document->storage_path));
+        self::remember($document, $scope['openings'] ?? []);
+        $document->fill([
+            'page_count' => $scope['page_count'] ?? $document->page_count,
+            'document_type' => $document->document_type === 'drawing' && ($scope['document_type'] ?? null) === 'schedule'
+                ? 'schedule'
+                : $document->document_type,
+            'sheet_number' => $document->sheet_number ?: ($scope['sheet_number'] ?? null),
+            'sheet_title' => $document->sheet_title ?: ($scope['sheet_title'] ?? null),
+            'revision_label' => $document->revision_label ?: ($scope['revision_label'] ?? null),
+        ])->save();
 
         return [
             'scope' => $scope,
-            'import' => self::import($takeoff, $document, $scope),
+            'import' => ['created' => [], 'skipped' => 0, 'markers_added' => 0],
         ];
+    }
+
+    /**
+     * @return list<array<string, mixed>>
+     */
+    public static function proposalsFor(Takeoff $takeoff): array
+    {
+        $taken = [];
+
+        foreach ($takeoff->openings as $opening) {
+            $tag = strtoupper(trim((string) $opening->tag));
+
+            if ($tag !== '') {
+                $taken[$tag] = true;
+            }
+        }
+
+        $rows = [];
+
+        foreach ($takeoff->documents as $document) {
+            $dismissed = self::dismissedTags($document);
+
+            foreach (self::storedOpenings($document) as $row) {
+                $tag = strtoupper(trim((string) ($row['tag'] ?? '')));
+
+                if ($tag === '' || isset($taken[$tag]) || isset($dismissed[$tag])) {
+                    continue;
+                }
+
+                $rows[] = self::proposalPayload($document, $row);
+            }
+        }
+
+        return $rows;
+    }
+
+    public static function confirm(Takeoff $takeoff, TakeoffDocument $document, string $tag, string $type): ?TakeoffOpening
+    {
+        $row = self::storedRow($document, $tag);
+
+        if ($row === null) {
+            return null;
+        }
+
+        $row['opening_type'] = $type === 'window' ? 'window' : 'door';
+        self::import($takeoff, $document, ['openings' => [$row]]);
+        $opening = $takeoff->openings()->whereRaw('upper(tag) = ?', [strtoupper(trim($tag))])->first();
+
+        if ($opening) {
+            $opening->update([
+                'opening_type' => $row['opening_type'],
+                'assumptions' => 'Read from the drawing and confirmed before it was added.',
+                'needs_review' => false,
+            ]);
+            $takeoff->resequenceCounts();
+        }
+
+        return $opening;
+    }
+
+    public static function dismiss(TakeoffDocument $document, string $tag): void
+    {
+        $tag = strtoupper(trim($tag));
+
+        if ($tag === '') {
+            return;
+        }
+
+        $tags = self::dismissedTags($document);
+        $tags[$tag] = true;
+        Storage::disk(config('takeoffs.disk'))->put(
+            self::dismissedPath($document),
+            json_encode(array_keys($tags)) ?: '[]',
+        );
     }
 
     /**
@@ -105,6 +176,123 @@ class TakeoffScopeImporter
     private static function cachePath(TakeoffDocument $document): string
     {
         return $document->storage_path.'.scope.json';
+    }
+
+    private static function dismissedPath(TakeoffDocument $document): string
+    {
+        return $document->storage_path.'.dismissed.json';
+    }
+
+    /**
+     * @return list<array<string, mixed>>
+     */
+    private static function storedOpenings(TakeoffDocument $document): array
+    {
+        $disk = Storage::disk(config('takeoffs.disk'));
+        $cache = self::cachePath($document);
+
+        if (! $disk->exists($cache)) {
+            return [];
+        }
+
+        $decoded = json_decode($disk->get($cache) ?: '[]', true);
+
+        return is_array($decoded) ? array_values(array_filter($decoded, 'is_array')) : [];
+    }
+
+    /**
+     * @return array<string, true>
+     */
+    private static function dismissedTags(TakeoffDocument $document): array
+    {
+        $disk = Storage::disk(config('takeoffs.disk'));
+        $path = self::dismissedPath($document);
+
+        if (! $disk->exists($path)) {
+            return [];
+        }
+
+        $decoded = json_decode($disk->get($path) ?: '[]', true);
+        $tags = [];
+
+        foreach (is_array($decoded) ? $decoded : [] as $tag) {
+            $tag = strtoupper(trim((string) $tag));
+
+            if ($tag !== '') {
+                $tags[$tag] = true;
+            }
+        }
+
+        return $tags;
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    private static function storedRow(TakeoffDocument $document, string $tag): ?array
+    {
+        $wanted = strtoupper(trim($tag));
+
+        foreach (self::storedOpenings($document) as $row) {
+            if (strtoupper(trim((string) ($row['tag'] ?? ''))) === $wanted) {
+                return $row;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * @param  array<string, mixed>  $row
+     * @return array<string, mixed>
+     */
+    private static function proposalPayload(TakeoffDocument $document, array $row): array
+    {
+        $markers = [];
+
+        foreach ($row['markers'] ?? [] as $marker) {
+            if (! is_array($marker) || (int) ($marker['page'] ?? 0) < 1) {
+                continue;
+            }
+
+            $markers[] = [
+                'page' => (int) $marker['page'],
+                'x' => min(1, max(0, (float) ($marker['x'] ?? 0))),
+                'y' => min(1, max(0, (float) ($marker['y'] ?? 0))),
+            ];
+        }
+
+        $type = ($row['opening_type'] ?? '') === 'window' ? 'window' : 'door';
+
+        return [
+            'document_id' => $document->id,
+            'tag' => trim((string) ($row['tag'] ?? '')),
+            'opening_type' => $type,
+            'location' => self::text($row['location'] ?? null),
+            'quantity' => self::text($row['quantity'] ?? null),
+            'width' => self::text($row['width'] ?? null),
+            'height' => self::text($row['height'] ?? null),
+            'depth' => self::text($row['depth'] ?? null),
+            'dimension_unit' => self::text($row['dimension_unit'] ?? null) ?? 'in',
+            'frame_type' => self::text($row['frame_type'] ?? null),
+            'handing' => self::text($row['handing'] ?? null),
+            'hardware_set' => self::text($row['hardware_set'] ?? null),
+            'glazing' => self::text($row['glazing'] ?? null),
+            'finish' => self::text($row['finish'] ?? null),
+            'acoustic_requirement' => self::text($row['acoustic_requirement'] ?? null),
+            'fire_requirement' => self::text($row['fire_requirement'] ?? null),
+            'notes' => self::text($row['notes'] ?? null),
+            'requirement_page' => isset($row['requirement_page']) ? (int) $row['requirement_page'] : null,
+            'requirement_section' => self::text($row['requirement_section'] ?? null),
+            'markers' => $markers,
+        ];
+    }
+
+    private static function text(mixed $value): ?string
+    {
+        $text = trim((string) ($value ?? ''));
+
+        return $text === '' ? null : $text;
     }
 
     /**
@@ -195,7 +383,7 @@ class TakeoffScopeImporter
             return 'Takeoff created.';
         }
 
-        return self::scanMessage('Takeoff created.', $import, $scope);
+        return self::foundMessage('Takeoff created.', $scope);
     }
 
     /**
@@ -204,7 +392,26 @@ class TakeoffScopeImporter
      */
     public static function uploadedMessage(array $import, array $scope): string
     {
-        return self::scanMessage('Drawing uploaded.', $import, $scope);
+        return self::foundMessage('Drawing uploaded.', $scope);
+    }
+
+    /**
+     * @param  array<string, mixed>  $scope
+     */
+    public static function foundMessage(string $lead, array $scope): string
+    {
+        $count = count(array_filter(
+            $scope['openings'] ?? [],
+            fn (mixed $row): bool => is_array($row) && trim((string) ($row['tag'] ?? '')) !== '',
+        ));
+
+        if ($count === 0) {
+            $note = trim((string) ($scope['notes'][0] ?? ''));
+
+            return $lead.' '.($note !== '' ? $note : 'No doors or windows could be read from this file.');
+        }
+
+        return $lead.' Found '.$count.' possible '.($count === 1 ? 'opening' : 'openings').'. Confirm each one before it is added.';
     }
 
     /**

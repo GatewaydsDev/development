@@ -1,17 +1,17 @@
 {
   "meta": {
     "title": "Certificaciones de construcción de salas SCIF | Gateway Door Systems",
-    "description": "Gateway Door Systems cuenta con credenciales de Lockmasters, RF y construcción de salas SCIF para puertas de alta seguridad, aperturas apantalladas e instalaciones seguras."
+    "description": "Gateway Door Systems cuenta con credenciales de Lockmasters, Kaba Mas X-10, LKM10K, RF y construcción de salas SCIF para cerraduras de alta seguridad, aperturas apantalladas e instalaciones seguras."
   },
   "hero": {
     "badge": "Credenciales verificadas",
-    "title": "Certificados para puertas de alta seguridad, aperturas RF y salas SCIF.",
-    "description": "Gateway Door Systems está certificado por Lockmasters y trabaja con Lockmasters. También cuenta con credenciales para puertas apantalladas de radiofrecuencia y construcción de salas SCIF."
+    "title": "Certificados para cerraduras de alta seguridad, aperturas RF y salas SCIF.",
+    "description": "Gateway Door Systems está certificado por Lockmasters, incluyendo las credenciales de fábrica Kaba Mas X-10 y LKM10K, y trabaja con Lockmasters. También cuenta con credenciales para puertas apantalladas de radiofrecuencia y construcción de salas SCIF."
   },
   "preview": {
     "badge": "Certificaciones",
-    "title": "Certificados en Lockmasters, RF y construcción de salas SCIF.",
-    "description": "Nuestras credenciales respaldan herrajes de alta seguridad, aperturas apantalladas de radiofrecuencia y la construcción de salas SCIF para instalaciones de acceso controlado.",
+    "title": "Certificados en Lockmasters, Kaba Mas X-10, LKM10K, RF y salas SCIF.",
+    "description": "Nuestras credenciales cubren las cerraduras Kaba Mas X-10 y Lockmasters LKM10K, aperturas apantalladas de radiofrecuencia y la construcción de salas SCIF para instalaciones de acceso controlado.",
     "viewAll": "Ver certificaciones"
   },
   "items": {
@@ -23,6 +23,26 @@
       "websiteLabel": "Visitar Lockmasters",
       "logoAlt": "Logotipo de Lockmasters Security Institute",
       "imageAlt": "Puerta reforzada de alta seguridad y herrajes de cierre",
+      "issuedBy": "Emitida por Lockmasters Security Institute"
+    },
+    "kabaMasX10": {
+      "issuer": "Kaba Mas",
+      "title": "Certificación de cerradura Kaba Mas X-10",
+      "summary": "Certificación de fábrica para instalar y dar servicio a la cerradura de alta seguridad Kaba Mas X-10, FF-L-2740B.",
+      "description": "Esta certificación de fábrica de Kaba Mas cubre la cerradura de combinación electromecánica X-10 usada en aperturas GSA y SCIF. La formación incluye medición y ajuste de la cerradura, modos de operación, recuperación de una combinación perdida y los requisitos de instalación FF-L-2740B. Gateway Door Systems cuenta con esta credencial para trabajos de cerraduras de alta seguridad.",
+      "websiteLabel": "Visitar Kaba Mas",
+      "logoAlt": "Marca de certificación Kaba Mas",
+      "imageAlt": "Marca de certificación Kaba Mas X-10",
+      "issuedBy": "Certificación de fábrica de Kaba Mas"
+    },
+    "lkm10k": {
+      "issuer": "Lockmasters",
+      "title": "Certificación de la serie de cerraduras LKM10K",
+      "summary": "Certificación de fábrica de Lockmasters para la serie LockOne LKM10K en aperturas FF-L-2890C.",
+      "description": "La certificación LKM10K de Lockmasters Security Institute habilita a un técnico para instalar, dar servicio y mantener la serie de cerraduras LockOne LKM10K. Cubre la especificación FF-L-2890C, la instalación en puertas de madera y metal hueco, y las partes mecánicas y electromecánicas de los modelos de pánico y push/pull. Gateway Door Systems cuenta con esta credencial de fábrica de Lockmasters.",
+      "websiteLabel": "Visitar Lockmasters Security Institute",
+      "logoAlt": "Marca de certificación Lockmasters LKM10K",
+      "imageAlt": "Marca de certificación Lockmasters LKM10K",
       "issuedBy": "Emitida por Lockmasters Security Institute"
     },
     "rf": {
@@ -48,6 +68,14 @@
     "factory": {
       "title": "Herrajes autorizados de fábrica",
       "description": "Gateway está certificado por Lockmasters y trabaja con Lockmasters en cerraduras, pestillos y herrajes especializados de alta seguridad."
+    },
+    "kabaMasX10": {
+      "title": "Kaba Mas X-10",
+      "description": "Certificación de fábrica para instalar y dar servicio a la cerradura de alta seguridad Kaba Mas X-10, FF-L-2740B."
+    },
+    "lkm10k": {
+      "title": "LKM10K de Lockmasters",
+      "description": "Certificación de fábrica en la serie LockOne LKM10K para aperturas seguras FF-L-2890C."
     },
     "rf": {
       "title": "Aperturas apantalladas RF",

@@ -91,6 +91,7 @@ export default function Index({
     const canViewBids = Boolean(auth.can?.viewBids);
     const canViewQuotations = Boolean(auth.can?.viewQuotations);
     const canViewTakeoffs = Boolean(auth.can?.viewTakeoffs);
+    const canViewSchedules = Boolean(auth.can?.viewEmployees);
     const [search, setSearch] = useState(filters.search ?? '');
     const [status, setStatus] = useState(filters.status ?? '');
     const highlightedProjectUuid = filters.highlight ?? null;
@@ -130,6 +131,7 @@ export default function Index({
 
     return (
         <AuthenticatedLayout
+            fullWidth
             header={
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <div>
@@ -144,7 +146,7 @@ export default function Index({
                     </div>
 
                     {options.can.create && (
-                        <Button asChild variant="create">
+                        <Button asChild variant="create" className="w-full sm:w-auto">
                             <Link href={route('admin.projects.create')}>
                                 <PlusIcon className="size-4" />
                                 Add project
@@ -156,14 +158,14 @@ export default function Index({
         >
             <Head title="Projects" />
 
-            <div className="py-6 sm:py-8">
-                <div className="mx-auto flex max-w-[96rem] flex-col gap-6 px-4 sm:px-6 lg:px-8">
-                    <div className="grid w-full grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <div className="py-3 sm:py-8">
+                <div className="flex w-full flex-col gap-4 px-3 sm:gap-6 sm:px-6 lg:px-8">
+                    <div className="grid w-full grid-cols-2 items-stretch gap-2 sm:gap-3 xl:grid-cols-4">
                         <ProjectTotal
                             label="Total"
                             value={summary.total}
                             amount={summary.amount}
-                            className="border-emerald-300 bg-emerald-50 text-emerald-950 dark:border-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-100"
+                            className="col-span-2 border-emerald-300 bg-emerald-50 text-emerald-950 dark:border-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-100 sm:col-span-1"
                             ruleClassName="border-emerald-200 dark:border-emerald-800"
                         />
                         <ProjectTotal
@@ -183,8 +185,8 @@ export default function Index({
                         />
                     </div>
 
-                    <Card className="shadow-sm">
-                        <CardHeader className="gap-4 md:grid-cols-[1fr_auto] md:items-center">
+                    <Card className="border-sky-200 bg-sky-50/70 shadow-sm max-sm:rounded-none max-sm:border-x-0 dark:border-sky-900 dark:bg-sky-950/30">
+                        <CardHeader className="gap-4 p-3 sm:p-6 md:grid-cols-[1fr_auto] md:items-center">
                             <div>
                                 <CardTitle>Project directory</CardTitle>
                                 <CardDescription>
@@ -196,7 +198,7 @@ export default function Index({
                                     onSubmit={submit}
                                     className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row"
                                 >
-                                    <div className="relative">
+                                    <div className="relative w-full">
                                         <SearchIcon className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
                                         <input
                                             value={search}
@@ -212,7 +214,7 @@ export default function Index({
                                         onChange={(event) =>
                                             setStatus(event.target.value)
                                         }
-                                        className="h-11 min-w-[8.5rem] rounded-md border border-border bg-background px-4 text-sm text-foreground"
+                                        className="h-11 w-full min-w-[8.5rem] rounded-md border border-border bg-background px-4 text-sm text-foreground sm:w-auto"
                                     >
                                         <option value="">All statuses</option>
                                         {options.statuses.map((item) => (
@@ -224,13 +226,13 @@ export default function Index({
                                             </option>
                                         ))}
                                     </select>
-                                    <Button type="submit" variant="outline" size="sm" className="self-center">
+                                    <Button type="submit" variant="outline" className="min-h-11 w-full sm:w-auto">
                                         <SearchIcon data-icon="inline-start" />
                                         Search
                                     </Button>
                                 </form>
-                                <div className="flex flex-wrap gap-2 sm:justify-end">
-                                    <Button variant="outline" asChild>
+                                <div className="grid grid-cols-3 gap-2 sm:flex sm:flex-wrap sm:justify-end">
+                                    <Button variant="outline" className="min-w-0 px-2" asChild>
                                         <a
                                             href={route(
                                                 'admin.projects.print',
@@ -243,7 +245,7 @@ export default function Index({
                                             Print
                                         </a>
                                     </Button>
-                                    <Button variant="outline" asChild>
+                                    <Button variant="outline" className="min-w-0 px-2" asChild>
                                         <a
                                             href={route(
                                                 'admin.projects.export.pdf',
@@ -254,7 +256,7 @@ export default function Index({
                                             PDF
                                         </a>
                                     </Button>
-                                    <Button variant="outline" asChild>
+                                    <Button variant="outline" className="min-w-0 px-2 text-xs sm:text-sm" asChild>
                                         <a
                                             href={route(
                                                 'admin.projects.export.word',
@@ -269,18 +271,18 @@ export default function Index({
                             </div>
                         </CardHeader>
 
-                        <CardContent>
-                            <div className="overflow-x-auto rounded-lg border border-border">
-                                <div className="xl:min-w-[92rem]">
+                        <CardContent className="p-2 pt-0 sm:p-6 sm:pt-0">
+                            <div className="rounded-lg border border-emerald-200 bg-card max-xl:border-0 max-xl:bg-transparent dark:border-emerald-900">
+                                <div className="grid gap-3 xl:block xl:min-w-[92rem]">
                                 <div
                                     className={cn(
-                                        'hidden items-center gap-6 border-b border-border bg-muted/50 px-5 py-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground xl:grid',
+                                        'hidden items-center gap-6 border-b border-emerald-200 bg-emerald-50 px-5 py-4 text-xs font-semibold uppercase tracking-wide text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-200 xl:grid',
                                         projectRowGridClassName,
                                     )}
                                 >
                                     <div>Project</div>
                                     <div>Contractors</div>
-                                    <div>Quotation, bid, takeoff</div>
+                                    <div>Quotation, bid, takeoff, schedule</div>
                                     <div>Bid scope</div>
                                     <div>Status</div>
                                     <div>Priority</div>
@@ -293,7 +295,7 @@ export default function Index({
                                             id={`project-row-${project.uuid}`}
                                             key={project.id}
                                             className={cn(
-                                                'grid gap-4 border-b border-border px-5 py-6 last:border-b-0 xl:min-h-24 xl:items-start xl:gap-6',
+                                                'grid gap-4 rounded-xl border border-border bg-card p-4 shadow-sm md:grid-cols-2 xl:min-h-24 xl:rounded-none xl:border-x-0 xl:border-t-0 xl:border-b xl:px-5 xl:py-6 xl:shadow-none xl:last:border-b-0 xl:items-start xl:gap-6',
                                                 projectRowGridClassName,
                                                 highlightedProjectUuid ===
                                                     project.uuid &&
@@ -304,10 +306,10 @@ export default function Index({
                                                 <DirectoryFieldLabel hideFrom="xl">
                                                     Project
                                                 </DirectoryFieldLabel>
-                                                <p className="truncate font-medium text-foreground">
+                                                <p className="break-words text-base font-semibold text-foreground xl:truncate xl:text-sm xl:font-medium">
                                                     {project.name}
                                                 </p>
-                                                <p className="truncate text-sm text-muted-foreground">
+                                                <p className="break-words text-sm text-muted-foreground xl:truncate">
                                                     {project.project_number ||
                                                         'No project number'}
                                                 </p>
@@ -316,6 +318,11 @@ export default function Index({
                                                 <DirectoryFieldLabel hideFrom="xl">
                                                     Contractors
                                                 </DirectoryFieldLabel>
+                                                {project.companies?.length ? (
+                                                    <p className="mb-2 break-words font-medium text-foreground xl:truncate">
+                                                        {project.companies.map((company) => company.name).join(', ')}
+                                                    </p>
+                                                ) : null}
                                                 {project.contractors?.length ? (
                                                     <div className="flex flex-col gap-3">
                                                         {project.contractors.map(
@@ -325,14 +332,14 @@ export default function Index({
                                                                         contractor.id
                                                                     }
                                                                 >
-                                                                    <p className="truncate font-medium text-foreground">
+                                                                    <p className="break-words font-medium text-foreground xl:truncate">
                                                                         {contractor.name}
                                                                     </p>
-                                                                    <p className="truncate">
+                                                                    <p className="break-all xl:truncate">
                                                                         {contractor.phone_number ||
                                                                             'No phone'}
                                                                     </p>
-                                                                    <p className="truncate">
+                                                                    <p className="break-all xl:truncate">
                                                                         {contractor.email ||
                                                                             'No email'}
                                                                     </p>
@@ -346,7 +353,7 @@ export default function Index({
                                             </div>
                                             <div className="flex min-w-0 flex-col gap-2">
                                                 <DirectoryFieldLabel hideFrom="xl">
-                                                    Quotation, bid, takeoff
+                                                    Quotation, bid, takeoff, schedule
                                                 </DirectoryFieldLabel>
                                                 <LinkedRecord
                                                     label="Quotation"
@@ -380,6 +387,21 @@ export default function Index({
                                                             : null
                                                     }
                                                     className="border-amber-200 bg-amber-50 text-amber-950 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-100"
+                                                />
+                                                <LinkedRecord
+                                                    label="Schedule"
+                                                    name={
+                                                        project.work_schedule
+                                                            ? `${project.work_schedule.starts_on ?? '—'} → ${project.work_schedule.ends_on ?? '—'} · ${project.work_schedule.employees_count} crew${project.work_schedule.schedules_count > 1 ? ` · latest of ${project.work_schedule.schedules_count}` : ''}`
+                                                            : null
+                                                    }
+                                                    status={project.work_schedule?.status_label}
+                                                    href={
+                                                        canViewSchedules && project.work_schedule
+                                                            ? route('admin.employee-schedules.edit', project.work_schedule.uuid)
+                                                            : null
+                                                    }
+                                                    className="border-emerald-200 bg-emerald-50 text-emerald-950 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-100"
                                                 />
                                             </div>
                                             <div className="min-w-0">
@@ -456,16 +478,16 @@ export default function Index({
                                                         'Normal'}
                                                 </Badge>
                                             </div>
-                                            <div className="flex shrink-0 flex-col gap-1 md:items-end">
+                                            <div className="flex shrink-0 flex-col gap-2 md:col-span-2 xl:col-span-1 xl:items-end">
                                                 <DirectoryFieldLabel hideFrom="xl">
                                                     Actions
                                                 </DirectoryFieldLabel>
-                                                <div className="flex flex-nowrap items-center justify-end gap-1.5 [&>*]:shrink-0">
+                                                <div className="grid grid-cols-5 gap-2 xl:flex xl:flex-nowrap xl:items-center xl:justify-end xl:gap-1.5 [&>*]:shrink-0">
                                                 <ActionHint hint="Print this project">
                                                     <Button
                                                         variant="outline"
                                                         size="icon-sm"
-                                                        className="border-sky-200 text-sky-600 hover:bg-sky-50 hover:text-sky-700 dark:border-sky-800/60 dark:text-sky-400 dark:hover:bg-sky-950/40"
+                                                        className="size-11 border-sky-200 text-sky-600 hover:bg-sky-50 hover:text-sky-700 dark:border-sky-800/60 dark:text-sky-400 dark:hover:bg-sky-950/40 xl:size-8"
                                                         asChild
                                                     >
                                                         <a
@@ -485,7 +507,7 @@ export default function Index({
                                                     <Button
                                                         variant="outline"
                                                         size="icon-sm"
-                                                        className="border-rose-200 text-rose-600 hover:bg-rose-50 hover:text-rose-700 dark:border-rose-800/60 dark:text-rose-400 dark:hover:bg-rose-950/40"
+                                                        className="size-11 border-rose-200 text-rose-600 hover:bg-rose-50 hover:text-rose-700 dark:border-rose-800/60 dark:text-rose-400 dark:hover:bg-rose-950/40 xl:size-8"
                                                         asChild
                                                     >
                                                         <a
@@ -503,7 +525,7 @@ export default function Index({
                                                     <Button
                                                         variant="outline"
                                                         size="icon-sm"
-                                                        className="border-blue-200 text-blue-600 hover:bg-blue-50 hover:text-blue-700 dark:border-blue-800/60 dark:text-blue-400 dark:hover:bg-blue-950/40"
+                                                        className="size-11 border-blue-200 text-blue-600 hover:bg-blue-50 hover:text-blue-700 dark:border-blue-800/60 dark:text-blue-400 dark:hover:bg-blue-950/40 xl:size-8"
                                                         asChild
                                                     >
                                                         <a
@@ -521,7 +543,7 @@ export default function Index({
                                                     <Button
                                                         variant="outline"
                                                         size="icon-sm"
-                                                        className="border-indigo-200 text-indigo-600 hover:bg-indigo-50 hover:text-indigo-700 dark:border-indigo-800/60 dark:text-indigo-400 dark:hover:bg-indigo-950/40"
+                                                        className="size-11 border-indigo-200 text-indigo-600 hover:bg-indigo-50 hover:text-indigo-700 dark:border-indigo-800/60 dark:text-indigo-400 dark:hover:bg-indigo-950/40 xl:size-8"
                                                         asChild
                                                     >
                                                         <Link
@@ -540,7 +562,7 @@ export default function Index({
                                                         <Button
                                                             variant="outline"
                                                             size="icon-sm"
-                                                            className="border-amber-200 text-amber-600 hover:bg-amber-50 hover:text-amber-700 dark:border-amber-800/60 dark:text-amber-400 dark:hover:bg-amber-950/40"
+                                                            className="size-11 border-amber-200 text-amber-600 hover:bg-amber-50 hover:text-amber-700 dark:border-amber-800/60 dark:text-amber-400 dark:hover:bg-amber-950/40 xl:size-8"
                                                             asChild
                                                         >
                                                             <Link

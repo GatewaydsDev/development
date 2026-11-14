@@ -1,11 +1,17 @@
 <!DOCTYPE html>
-<html lang="{{ str_replace('_', '-', app()->getLocale()) }}" data-dashboard-theme="{{ \App\Support\DashboardTheme::forPage($page['component'] ?? null, auth()->user()?->dashboard_theme) }}">
+@php($dashboardGradient = \App\Support\DashboardTheme::gradientForPage($page['component'] ?? null, auth()->user()?->dashboard_gradient))
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}" data-dashboard-theme="{{ \App\Support\DashboardTheme::forPage($page['component'] ?? null, auth()->user()?->dashboard_theme) }}" data-dashboard-gradient="{{ $dashboardGradient }}" data-dashboard-surface="{{ \App\Support\DashboardTheme::surfaceForPage($page['component'] ?? null, auth()->user()?->dashboard_surface) }}">
     <head>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 
         <title inertia>{{ config('app.name', 'Laravel') }}</title>
         <link rel="icon" type="image/png" href="/images/Gateway_Door_Systems_Logo.png">
+
+        <link rel="manifest" href="/manifest.webmanifest">
+        <link rel="apple-touch-icon" href="/images/App-Logo.png">
+        <meta name="theme-color" content="#047857">
+        <meta name="vapid-public-key" content="{{ config('webpush.public_key') }}">
 
         <!-- Scripts -->
         @routes

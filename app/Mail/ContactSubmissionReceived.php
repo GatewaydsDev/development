@@ -19,16 +19,18 @@ class ContactSubmissionReceived extends Mailable
 
     public function envelope(): Envelope
     {
+        $metadata = array_filter([
+            'email_type' => 'contact-request',
+            'submission_id' => (string) $this->submission->id,
+            'sender' => str($this->submission->email)->limit(80, '')->toString(),
+            'source' => str((string) $this->submission->source_url)->limit(80, '')->toString(),
+        ], fn (string $value): bool => $value !== '');
+
         return new Envelope(
             replyTo: [$this->submission->email],
             subject: 'New secure door contact request from '.$this->submission->name,
             tags: ['contact-request'],
-            metadata: [
-                'email_type' => 'contact-request',
-                'submission_id' => (string) $this->submission->id,
-                'sender' => str($this->submission->email)->limit(80, '')->toString(),
-                'source' => str((string) $this->submission->source_url)->limit(80, '')->toString(),
-            ],
+            metadata: $metadata,
         );
     }
 

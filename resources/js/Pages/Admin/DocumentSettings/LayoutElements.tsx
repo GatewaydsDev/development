@@ -3,6 +3,7 @@ import InspectorSelect from "@/Components/InspectorSelect";
 import { parseLayoutCommand } from "@/lib/layoutCommands";
 import DateMaskInput from "@/Components/DateMaskInput";
 import { Button } from "@/Components/ui/button";
+import ResizableWorkspace from "@/Components/ResizableWorkspace";
 import StickyDocumentToolbar from "@/Components/StickyDocumentToolbar";
 import InsertBidTextFieldMenu from "@/Components/InsertBidTextFieldMenu";
 import { BID_TEXT_PLACEHOLDERS, BID_TEXT_FIELD_GROUP_ORDER, placeholderToken } from "@/Pages/Admin/Bids/bidText";
@@ -160,7 +161,12 @@ const tools: Array<{
 
 const solidTool = "text-white hover:text-white";
 const menuLabel = "px-2 text-[11px] font-semibold uppercase tracking-wide text-[#0a2540]";
-const fieldInk = { color: "#111827", WebkitTextFillColor: "#111827", backgroundColor: "#ffffff" } as const;
+// Fixed ink keeps native selects readable on every browser; the CSS variables switch it for dark mode.
+const fieldInk = {
+    color: "var(--inspector-text, #111827)",
+    WebkitTextFillColor: "var(--inspector-text, #111827)",
+    backgroundColor: "var(--inspector-surface, #ffffff)",
+} as const;
 
 const zones: Array<{ id: ElementZone; label: string; hint: string }> = [
     {
@@ -2432,8 +2438,8 @@ export default function LayoutElementsEditor({
                     });
                 }}
             />
-            <StickyDocumentToolbar scopeRef={editorRef} className="rounded-xl border border-[#c5d0dc] bg-[#eef3f8] text-[#111827]">
-            <div role="toolbar" aria-label="Print layout tools" className="flex flex-col">
+            <StickyDocumentToolbar scopeRef={editorRef} className="rounded-xl border border-[#c5d0dc] bg-[#eef3f8] text-[#111827] dark:border-[#353a42] dark:bg-[#212429] dark:text-[#e6e8eb]">
+            <div role="toolbar" aria-label="Print layout tools" className="object-inspector flex flex-col">
             <div className="flex items-center justify-between gap-3 border-b border-[#c5d0dc] px-2 py-2">
                 <p className="px-2 text-sm font-semibold text-[#0a2540]">Layout</p>
                 <Button
@@ -2660,7 +2666,7 @@ export default function LayoutElementsEditor({
                 </p>
             ) : null}
 
-            <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_28rem]">
+            <ResizableWorkspace id="print-layout" sideDefault={448}>
                 <div className="min-w-0">{children}</div>
 
                 <div className="min-w-0">
@@ -2707,7 +2713,7 @@ export default function LayoutElementsEditor({
                 </aside>
                 </StickyDocumentToolbar>
                 </div>
-            </div>
+            </ResizableWorkspace>
         </div>
         <LayoutPreviewDialog open={previewOpen} onClose={() => setPreviewOpen(false)} controller={controller} />
         </openLayoutPreview.Provider>

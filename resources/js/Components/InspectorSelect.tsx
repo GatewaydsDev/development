@@ -1,3 +1,4 @@
+import { dropdownMaxHeight, dropdownOpensUp } from '@/lib/dropdownMenuFrame';
 import { cn } from '@/lib/utils';
 import { ChevronDownIcon } from 'lucide-react';
 import {
@@ -105,10 +106,8 @@ export default function InspectorSelect({
             return;
         }
 
-        const roomBelow = window.innerHeight - rect.bottom - 8;
-        const roomAbove = rect.top - 8;
-        const openUp = roomBelow < 160 && roomAbove > roomBelow;
-        const maxHeight = Math.max(120, Math.min(240, openUp ? roomAbove : roomBelow));
+        const openUp = dropdownOpensUp(rect);
+        const maxHeight = dropdownMaxHeight(rect, openUp);
 
         setBox({
             top: openUp ? Math.max(8, rect.top - maxHeight - 4) : rect.bottom + 4,
@@ -177,18 +176,19 @@ export default function InspectorSelect({
                 aria-haspopup="listbox"
                 aria-expanded={open}
                 aria-controls={listId}
-                style={{ ...style, color: '#0a2540', WebkitTextFillColor: '#0a2540' }}
-                className={cn(className, 'flex w-full items-center justify-between gap-1 text-left disabled:text-neutral-500')}
+                style={{ ...style, color: 'var(--inspector-ink, #0a2540)', WebkitTextFillColor: 'var(--inspector-ink, #0a2540)' }}
+                // `flex` goes last so a caller's `block` (shared field classes) can't push the arrow onto its own line.
+                className={cn('min-h-12 w-full items-center justify-between gap-1 text-left disabled:text-neutral-500', className, 'flex')}
                 onClick={() => {
                     if (!disabled) {
                         setOpen((currentOpen) => !currentOpen);
                     }
                 }}
             >
-                <span className="min-w-0 flex-1 truncate text-left" style={{ color: '#0a2540', WebkitTextFillColor: '#0a2540' }}>
+                <span className="min-w-0 flex-1 whitespace-normal break-words py-1 text-left leading-6" style={{ color: 'var(--inspector-ink, #0a2540)', WebkitTextFillColor: 'var(--inspector-ink, #0a2540)' }}>
                     {label || ' '}
                 </span>
-                <ChevronDownIcon className="size-3.5 shrink-0" style={{ color: '#0a2540' }} />
+                <ChevronDownIcon className="size-3.5 shrink-0" style={{ color: 'var(--inspector-ink, #0a2540)' }} />
             </button>
             {open && typeof document !== 'undefined'
                 ? createPortal(
@@ -197,7 +197,7 @@ export default function InspectorSelect({
                         id={listId}
                         role="listbox"
                         aria-label={ariaLabel}
-                        className="fixed z-[80] overflow-y-auto rounded-md border border-[#b0b0b0] bg-white py-1 text-[#0a2540] shadow-lg"
+                        className="object-inspector-menu fixed z-[80] overflow-y-auto rounded-md border border-[#b0b0b0] bg-white py-1 text-[#0a2540] shadow-lg"
                         style={{ top: box.top, left: box.left, width: box.width, maxHeight: box.maxHeight }}
                     >
                         {options.map((option) => {
@@ -217,12 +217,12 @@ export default function InspectorSelect({
                                         disabled={option.disabled}
                                         style={{
                                             ...option.style,
-                                            color: '#0a2540',
-                                            WebkitTextFillColor: '#0a2540',
+                                            color: 'var(--inspector-ink, #0a2540)',
+                                            WebkitTextFillColor: 'var(--inspector-ink, #0a2540)',
                                             fontWeight: isSelected ? 700 : 400,
-                                            backgroundColor: isSelected ? '#d6e6f8' : undefined,
+                                            backgroundColor: isSelected ? 'var(--inspector-selected, #d6e6f8)' : undefined,
                                         }}
-                                        className="block w-full bg-white px-2 py-1 text-left text-[13px] hover:bg-[#e7f0fb] disabled:text-neutral-400"
+                                        className="block min-h-12 w-full whitespace-normal break-words bg-white px-2 py-2.5 text-left text-sm leading-6 hover:bg-[#e7f0fb] disabled:text-neutral-400"
                                         onMouseDown={(event) => {
                                             event.preventDefault();
                                             event.stopPropagation();

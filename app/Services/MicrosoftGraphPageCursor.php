@@ -8,8 +8,13 @@ use Illuminate\Support\Str;
 
 class MicrosoftGraphPageCursor
 {
-    public function store(int $userId, string $mailbox, string $folder, ?string $nextLink): ?string
-    {
+    public function store(
+        int $userId,
+        string $mailbox,
+        string $folder,
+        ?string $nextLink,
+        string $status = 'all',
+    ): ?string {
         if ($nextLink === null || $nextLink === '') {
             return null;
         }
@@ -21,14 +26,20 @@ class MicrosoftGraphPageCursor
             'user_id' => $userId,
             'mailbox' => strtolower($mailbox),
             'folder' => $folder,
+            'status' => $status,
             'url' => $nextLink,
         ], now()->addMinutes(20));
 
         return $token;
     }
 
-    public function resolve(int $userId, string $mailbox, string $folder, string $token): string
-    {
+    public function resolve(
+        int $userId,
+        string $mailbox,
+        string $folder,
+        string $token,
+        string $status = 'all',
+    ): string {
         $payload = Cache::get($this->key($token));
 
         if (
@@ -36,6 +47,7 @@ class MicrosoftGraphPageCursor
             || ($payload['user_id'] ?? null) !== $userId
             || ($payload['mailbox'] ?? null) !== strtolower($mailbox)
             || ($payload['folder'] ?? null) !== $folder
+            || ($payload['status'] ?? 'all') !== $status
             || ! is_string($payload['url'] ?? null)
         ) {
             throw new MicrosoftGraphException('That mail page is no longer available. Refresh the folder and try again.');
@@ -49,22 +61,67 @@ class MicrosoftGraphPageCursor
     public function assertLink(string $url, string $mailbox, string $folder): void
     {
         $parts = parse_url($url);
+
+        if (! is_array($parts)) {
+            throw new MicrosoftGraphException('The mail page address is not a Microsoft Graph mailbox link.');
+        }
+
         $scheme = strtolower((string) ($parts['scheme'] ?? ''));
         $host = strtolower((string) ($parts['host'] ?? ''));
-        $path = rawurldecode((string) ($parts['path'] ?? ''));
+        $port = $parts['port'] ?? null;
+        $path = (string) ($parts['path'] ?? '');
+        $decoded = rawurldecode($path);
+
+        if (
+            $scheme !== 'https'
+            || $host !== 'graph.microsoft.com'
+            || isset($parts['user'])
+            || ($port !== null && (int) $port !== 443)
+        ) {
+            throw new MicrosoftGraphException('The mail page address is not a Microsoft Graph mailbox link.');
+        }
+
+        if ($decoded === '' || str_contains($path, '..') || str_contains($decoded, '..') || str_contains($decoded, '\\')) {
+            throw new MicrosoftGraphException('The mail page address does not match this mailbox folder.');
+        }
+
+        $normalized = strtolower($decoded);
+        $normalized = preg_replace("#/users\\('([^']*)'\\)#", '/users/$1', $normalized) ?? $normalized;
+        $normalized = preg_replace("#/mailfolders\\('([^']*)'\\)#", '/mailfolders/$1', $normalized) ?? $normalized;
+
+        if (! preg_match('#/users/([^/]+)/mailfolders/(.+)/messages/?$#', $normalized, $matches)) {
+            throw new MicrosoftGraphException('The mail page address does not match this mailbox folder.');
+        }
+
         $graphFolder = match ($folder) {
             'sent' => 'sentitems',
             'archive' => 'archive',
             default => 'inbox',
         };
-        $expected = '/users/'.strtolower($mailbox).'/mailfolders/'.$graphFolder.'/messages';
+        $folderSegments = array_values(array_filter(explode('/', $matches[2]), fn (string $segment): bool => $segment !== ''));
+        $knownFolders = [
+            'archive',
+            'clutter',
+            'conflicts',
+            'conversationhistory',
+            'deleteditems',
+            'drafts',
+            'inbox',
+            'junkemail',
+            'outbox',
+            'scheduled',
+            'sentitems',
+            'syncissues',
+        ];
 
-        if ($scheme !== 'https' || $host !== 'graph.microsoft.com') {
-            throw new MicrosoftGraphException('The mail page address is not a Microsoft Graph mailbox link.');
+        if ($matches[1] !== strtolower($mailbox) || $folderSegments === []) {
+            throw new MicrosoftGraphException('The mail page address does not match this mailbox folder.');
         }
 
-        if (! str_contains(strtolower($path), $expected) || str_contains($path, '..')) {
-            throw new MicrosoftGraphException('The mail page address does not match this mailbox folder.');
+        foreach ($folderSegments as $segment) {
+            if (in_array($segment, $knownFolders, true) && $segment !== $graphFolder) {
+                throw new MicrosoftGraphException('The mail page address does not match this mailbox folder.');
+            }
         }
     }
 

@@ -11,6 +11,7 @@ type EditProps = {
 export default function Edit({ project, options }: EditProps) {
     return (
         <AuthenticatedLayout
+            fullWidth
             stickyTitle={`Edit project — ${project.name}`}
             header={
                 <div>
@@ -38,7 +39,7 @@ export default function Edit({ project, options }: EditProps) {
             <Head title={`Edit ${project.name}`} />
 
             <div className="py-6 sm:py-8">
-                <div className="mx-auto max-w-[96rem] px-4 sm:px-6 lg:px-8">
+                <div className="w-full px-4 sm:px-6 lg:px-8">
                     <ProjectForm
                         action={route('admin.projects.update', project.uuid)}
                         method="patch"

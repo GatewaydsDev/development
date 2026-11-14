@@ -49,6 +49,7 @@ export type AttendanceWeekPayload = {
         id: number;
         full_name: string;
         email: string;
+        skills?: string[];
     } | null;
     week_start: string;
     week_end: string;
@@ -88,7 +89,17 @@ export type AttendanceDayForm = {
     notes: string;
 };
 
+export type AttendanceScheduleOption = {
+    uuid: string;
+    project: string;
+    project_number: string | null;
+    starts_on: string;
+    ends_on: string;
+    employee_ids: number[];
+};
+
 export type AttendanceFormData = {
+    schedule_uuid: string;
     employee_id: string;
     week_start: string;
     notes: string;
@@ -240,6 +251,7 @@ export function attendanceToFormData(
     );
 
     return {
+        schedule_uuid: '',
         employee_id: attendance ? String(attendance.employee_id) : '',
         week_start: weekStart,
         notes: attendance?.notes ?? '',

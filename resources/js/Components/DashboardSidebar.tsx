@@ -6,12 +6,15 @@ import { useUnreadMail } from '@/lib/unreadMail';
 import { cn } from '@/lib/utils';
 import { PageProps } from '@/types';
 import { Link, usePage } from '@inertiajs/react';
-import { useEffect, useRef } from 'react';
+import LogoutConfirmDialog from '@/Components/LogoutConfirmDialog';
+import { useEffect, useRef, useState } from 'react';
 import {
     ActivityIcon,
     BriefcaseIcon,
     Building2Icon,
+    FileCodeIcon,
     CalendarClockIcon,
+    SparklesIcon,
     CalendarDaysIcon,
     ClipboardListIcon,
     ClockIcon,
@@ -20,15 +23,21 @@ import {
     HardHatIcon,
     IdCardIcon,
     LayoutDashboardIcon,
+    KeyRoundIcon,
     LockKeyholeIcon,
     LogOutIcon,
     MailIcon,
+    MessageSquareIcon,
     PackageIcon,
     PaletteIcon,
     PanelLeftCloseIcon,
+    ChartLineIcon,
+    ClipboardCheckIcon,
+    GaugeIcon,
     ReceiptIcon,
     PanelLeftOpenIcon,
     ShieldCheckIcon,
+    SunIcon,
     UserCogIcon,
     UsersIcon,
     WrenchIcon,
@@ -107,7 +116,9 @@ export default function DashboardSidebar({
     const page = usePage<PageProps>();
     const { auth } = page.props;
     const unreadMail = useUnreadMail();
+    const systemUpdatesUnread = usePage<PageProps>().props.auth.systemUpdatesUnread ?? 0;
     const navRef = useRef<HTMLElement>(null);
+    const [confirmLogout, setConfirmLogout] = useState(false);
     const user = auth.user;
     const can = auth.can ?? {};
 
@@ -115,15 +126,29 @@ export default function DashboardSidebar({
     const canViewProjects = Boolean(can.viewProjects);
     const canViewBids = Boolean(can.viewBids);
     const canViewQuotations = Boolean(can.viewQuotations);
+    const canViewContactsDirectory = Boolean(can.viewContactsDirectory);
     const canViewTakeoffs = Boolean(can.viewTakeoffs);
     const canViewProducts = Boolean(can.viewProducts);
     const canViewServices = Boolean(can.viewServices);
     const canViewContractors = Boolean(can.viewContractors);
     const canViewEmployees = Boolean(can.viewEmployees);
+    const canViewMySchedule = Boolean(can.viewMySchedule);
+    const canViewClientPortal = Boolean(can.viewClientPortal);
+    const canManageClientTeam = Boolean(can.manageClientTeam);
+    const canViewDashboard = Boolean(can.viewDashboard);
+    const isClientOnly = canViewClientPortal && !canViewDashboard;
     const canViewUsers = Boolean(can.viewUsers);
     const canManageAccess = Boolean(can.manageAccess);
     const canViewUserActivity = Boolean(can.viewUserActivity);
     const canManageExpenses = Boolean(can.manageExpenses);
+    const canManageProjectControl = Boolean(can.manageProjectControl);
+    const canOpenDailyTasks = Boolean(can.openDailyTasks);
+    const canViewJobProgress = Boolean(can.viewJobProgress);
+    const canViewWorkSchedule =
+        canViewEmployees && Boolean(can.viewWorkSchedule);
+    const canViewAttendance = canViewEmployees && Boolean(can.viewAttendance);
+    const dailyTasksPending = Number(page.props.dailyTasksPending ?? 0);
+    const canCorrectRecords = Boolean(can.correctRecords);
     const canViewCompany = Boolean(can.viewCompany);
     const canManageDocumentColors = Boolean(can.manageDocumentColors);
 
@@ -139,21 +164,49 @@ export default function DashboardSidebar({
         {
             label: 'Overview',
             items: [
-                {
-                    title: 'Dashboard',
-                    href: route('dashboard'),
-                    icon: LayoutDashboardIcon,
-                    active: isRouteActive('dashboard'),
-                },
-                {
-                    title: 'Email',
-                    href: route('mailbox.index'),
-                    icon: MailIcon,
-                    active: isRouteActive('mailbox.*'),
-                    alert: unreadMail > 0,
-                    badge: unreadMail > 0 ? unreadMail : undefined,
-                    badgeVariant: 'destructive',
-                },
+                ...(canViewClientPortal
+                    ? [
+                          {
+                              title: 'My projects',
+                              href: route('portal.index'),
+                              icon: BriefcaseIcon,
+                              active: isRouteActive('portal.*'),
+                          },
+                      ]
+                    : []),
+                ...(canManageClientTeam
+                    ? [
+                          {
+                              title: 'Company team',
+                              href: route('portal.team.index'),
+                              icon: UsersIcon,
+                              active: isRouteActive('portal.team.*'),
+                          },
+                      ]
+                    : []),
+                ...(canViewDashboard
+                    ? [
+                          {
+                              title: 'Dashboard',
+                              href: route('dashboard'),
+                              icon: LayoutDashboardIcon,
+                              active: isRouteActive('dashboard'),
+                          },
+                      ]
+                    : []),
+                ...(!isClientOnly
+                    ? [
+                          {
+                              title: 'Email',
+                              href: route('mailbox.index'),
+                              icon: MailIcon,
+                              active: isRouteActive('mailbox.*'),
+                              alert: unreadMail > 0,
+                              badge: unreadMail > 0 ? unreadMail : undefined,
+                              badgeVariant: 'destructive' as const,
+                          },
+                      ]
+                    : []),
             ],
         },
         {
@@ -166,6 +219,16 @@ export default function DashboardSidebar({
                               href: route('admin.projects.index'),
                               icon: BriefcaseIcon,
                               active: isRouteActive('admin.projects.*'),
+                          },
+                      ]
+                    : []),
+                ...(canManageProjectControl
+                    ? [
+                          {
+                              title: 'Project control',
+                              href: route('admin.project-control.index'),
+                              icon: ChartLineIcon,
+                              active: isRouteActive('admin.project-control.*'),
                           },
                       ]
                     : []),
@@ -202,6 +265,138 @@ export default function DashboardSidebar({
             ],
         },
         {
+            label: 'Field operations',
+            items: [
+                ...(canViewWorkSchedule
+                    ? [
+                          {
+                              title: 'Work Schedule',
+                              href: route('admin.employee-schedules.index'),
+                              icon: CalendarClockIcon,
+                              active: isRouteActive(
+                                  'admin.employee-schedules.*',
+                              ),
+                          },
+                      ]
+                    : []),
+                ...(canViewJobProgress
+                    ? [
+                          {
+                              title: 'Job progress',
+                              href: route('admin.job-progress.index'),
+                              icon: GaugeIcon,
+                              active: isRouteActive('admin.job-progress.*'),
+                          },
+                      ]
+                    : []),
+                ...(canOpenDailyTasks
+                    ? [
+                          {
+                              title: 'Daily tasks',
+                              href: route('admin.daily-tasks.index'),
+                              icon: ClipboardCheckIcon,
+                              active: isRouteActive('admin.daily-tasks.*'),
+                              alert: dailyTasksPending > 0,
+                              badge:
+                                  dailyTasksPending > 0
+                                      ? dailyTasksPending
+                                      : undefined,
+                              badgeVariant: 'destructive' as const,
+                          },
+                      ]
+                    : []),
+                ...(canViewAttendance
+                    ? [
+                          {
+                              title: 'Attendance',
+                              href: route('admin.employee-attendance.index'),
+                              icon: CalendarDaysIcon,
+                              active: isRouteActive(
+                                  'admin.employee-attendance.*',
+                              ),
+                          },
+                      ]
+                    : []),
+                ...(canViewMySchedule && !canViewWorkSchedule
+                    ? [
+                          {
+                              title: 'My schedule',
+                              href: route('admin.my-schedule.index'),
+                              icon: CalendarClockIcon,
+                              active: isRouteActive('admin.my-schedule.*'),
+                          },
+                      ]
+                    : []),
+            ],
+        },
+        {
+            label: 'Contacts & follow-ups',
+            items: [
+                ...(canViewContactsDirectory
+                    ? [
+                          {
+                              title: 'My Day',
+                              href: route('contact-directory.my-day.index'),
+                              icon: SunIcon,
+                              active: isRouteActive('contact-directory.my-day.*'),
+                          },
+                          {
+                              title: 'Inquiries',
+                              href: route('contact-directory.inquiries.index'),
+                              icon: MessageSquareIcon,
+                              active: isRouteActive(
+                                  'contact-directory.inquiries.*',
+                              ),
+                          },
+                          {
+                              title: 'Follow-ups',
+                              href: route('contact-directory.follow-ups.index'),
+                              icon: CalendarClockIcon,
+                              active: isRouteActive(
+                                  'contact-directory.follow-ups.*',
+                              ),
+                          },
+                          {
+                              title: 'Price requests',
+                              href: route(
+                                  'contact-directory.price-requests.index',
+                              ),
+                              icon: FileSpreadsheetIcon,
+                              active: isRouteActive(
+                                  'contact-directory.price-requests.*',
+                              ),
+                          },
+                          {
+                              title: 'Directory contacts',
+                              href: route('contact-directory.contacts.index'),
+                              icon: IdCardIcon,
+                              active: isRouteActive(
+                                  'contact-directory.contacts.*',
+                              ),
+                          },
+                          {
+                              title: 'Companies',
+                              href: route('contact-directory.companies.index'),
+                              icon: Building2Icon,
+                              active: isRouteActive(
+                                  'contact-directory.companies.*',
+                              ),
+                          },
+                          {
+                              title: 'Email templates',
+                              href: route(
+                                  'contact-directory.email-templates.index',
+                              ),
+                              icon: FileCodeIcon,
+                              active: isRouteActive(
+                                  'contact-directory.email-templates.*',
+                              ),
+                          },
+                      ]
+                    : []),
+            ],
+        },
+        {
             label: 'Catalog',
             items: [
                 ...(canViewProducts
@@ -227,7 +422,7 @@ export default function DashboardSidebar({
             ],
         },
         {
-            label: 'People',
+            label: 'People & team',
             items: [
                 ...(canViewContractors
                     ? [
@@ -239,12 +434,6 @@ export default function DashboardSidebar({
                           },
                       ]
                     : []),
-                {
-                    title: 'Contacts',
-                    href: route('admin.contacts.index'),
-                    icon: IdCardIcon,
-                    active: isRouteActive('admin.contacts.*'),
-                },
                 ...(canViewEmployees
                     ? [
                           {
@@ -252,22 +441,6 @@ export default function DashboardSidebar({
                               href: route('admin.employees.index'),
                               icon: UsersIcon,
                               active: isRouteActive('admin.employees.*'),
-                          },
-                          {
-                              title: 'Attendance',
-                              href: route('admin.employee-attendance.index'),
-                              icon: CalendarDaysIcon,
-                              active: isRouteActive(
-                                  'admin.employee-attendance.*',
-                              ),
-                          },
-                          {
-                              title: 'Work Schedule',
-                              href: route('admin.employee-schedules.index'),
-                              icon: CalendarClockIcon,
-                              active: isRouteActive(
-                                  'admin.employee-schedules.*',
-                              ),
                           },
                       ]
                     : []),
@@ -289,8 +462,14 @@ export default function DashboardSidebar({
                 ...(canManageAccess
                     ? [
                           {
+                              title: 'User Defaults',
+                              href: route('admin.user-defaults.edit'),
+                              icon: KeyRoundIcon,
+                              active: isRouteActive('admin.user-defaults.*'),
+                          },
+                          {
                               title: 'Access Control',
-                              href: route('admin.access-control.edit'),
+                              href: route('admin.access-control.index'),
                               icon: LockKeyholeIcon,
                               active: isRouteActive('admin.access-control.*'),
                           },
@@ -335,6 +514,33 @@ export default function DashboardSidebar({
                               active: isRouteActive(
                                   'admin.document-settings.*',
                               ),
+                          },
+                      ]
+                    : []),
+                ...(canCorrectRecords
+                    ? [
+                          {
+                              title: 'Record corrections',
+                              href: route('admin.record-corrections.index'),
+                              icon: ShieldCheckIcon,
+                              active: isRouteActive(
+                                  'admin.record-corrections.*',
+                              ),
+                          },
+                      ]
+                    : []),
+                ...(can.viewSystemUpdates
+                    ? [
+                          {
+                              title: 'System updates',
+                              href: route('admin.system-updates.index'),
+                              icon: SparklesIcon,
+                              active: isRouteActive('admin.system-updates.*'),
+                              alert: systemUpdatesUnread > 0,
+                              badge:
+                                  systemUpdatesUnread > 0
+                                      ? systemUpdatesUnread
+                                      : undefined,
                           },
                       ]
                     : []),
@@ -385,6 +591,7 @@ export default function DashboardSidebar({
 
     return (
         <aside
+            data-app-sidebar
             className={cn(
                 'flex h-full w-full flex-col overflow-hidden rounded-2xl border border-[#cfe0d6] bg-[linear-gradient(180deg,#f4faf6_0%,#d7e8df_100%)] shadow-sm transition-[padding] duration-500 ease-in-out motion-reduce:transition-none dark:border-white/10 dark:bg-[linear-gradient(180deg,#1b342b_0%,#102019_100%)]',
                 collapsed ? 'p-2' : 'p-4 sm:p-5',
@@ -473,7 +680,7 @@ export default function DashboardSidebar({
                         <div className="overflow-hidden">
                             <div className="dash-soft dash-border flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs text-foreground">
                                 <ClockIcon className="dash-icon size-3.5 shrink-0" />
-                                <div className="min-w-0 flex-1 truncate">
+                                <div className="min-w-0 flex-1 leading-snug">
                                     <span className="font-medium text-foreground">
                                         Last login:
                                     </span>{' '}
@@ -569,26 +776,18 @@ export default function DashboardSidebar({
 
             {/* Bottom Actions & User Account */}
             <div className="mt-4 flex shrink-0 flex-col gap-2 border-t border-[#cfe0d6] pt-4 dark:border-white/10">
-                {/* Log out */}
+                {/* Log out (desktop uses the top navbar) */}
                 <Button
-                    asChild
+                    type="button"
                     variant="ghost"
                     size="sm"
-                    className="w-full justify-start px-2.5 text-xs text-rose-600 hover:bg-rose-50 hover:text-rose-700 dark:text-rose-400 dark:hover:bg-rose-950/40"
+                    onClick={() => setConfirmLogout(true)}
+                    className="w-full justify-start px-2.5 text-xs text-rose-600 hover:bg-rose-50 hover:text-rose-700 dark:text-rose-400 dark:hover:bg-rose-950/40 lg:hidden"
                 >
-                    <Link
-                        href={route('logout')}
-                        method="post"
-                        as="button"
-                        onClick={onNavigate}
-                        title={collapsed ? 'Log out' : undefined}
-                    >
-                        <LogOutIcon className="size-3.5 shrink-0" />
-                        <SidebarLabel collapsed={collapsed} className={collapsed ? '' : 'ml-2'}>
-                            Log out
-                        </SidebarLabel>
-                    </Link>
+                    <LogOutIcon className="size-3.5 shrink-0" />
+                    <span className="ml-2">Log out</span>
                 </Button>
+                <LogoutConfirmDialog open={confirmLogout} onOpenChange={setConfirmLogout} />
 
                 {/* Show/Hide sidebar toggle (desktop) */}
                 {onToggleCollapse && (
@@ -598,7 +797,7 @@ export default function DashboardSidebar({
                         size="sm"
                         onClick={onToggleCollapse}
                         title={collapsed ? 'Show sidebar' : 'Hide sidebar'}
-                        className="mt-1 w-full justify-start gap-2 px-2.5 text-xs text-muted-foreground hover:text-foreground"
+                        className="mt-1 w-full justify-start gap-2 border-primary/50 bg-primary/10 px-2.5 text-xs font-semibold text-primary shadow-sm hover:bg-primary/20 hover:text-primary"
                     >
                         <span className="relative size-3.5 shrink-0">
                             <PanelLeftOpenIcon

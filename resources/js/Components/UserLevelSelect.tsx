@@ -1,6 +1,6 @@
-import InputError from '@/Components/InputError';
-import InputLabel from '@/Components/InputLabel';
-import TextInput from '@/Components/TextInput';
+import InputError from "@/Components/InputError";
+import InputLabel from "@/Components/InputLabel";
+import TextInput from "@/Components/TextInput";
 import {
     AlertDialog,
     AlertDialogAction,
@@ -10,10 +10,11 @@ import {
     AlertDialogFooter,
     AlertDialogHeader,
     AlertDialogTitle,
-} from '@/Components/ui/alert-dialog';
-import { router } from '@inertiajs/react';
-import { ChevronDownIcon, SparklesIcon } from 'lucide-react';
-import { useEffect, useMemo, useRef, useState } from 'react';
+} from "@/Components/ui/alert-dialog";
+import { router } from "@inertiajs/react";
+import { ChevronDownIcon, PlusIcon, SparklesIcon } from "lucide-react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { createPortal } from "react-dom";
 
 export type UserLevelOption = {
     id: number;
@@ -40,26 +41,26 @@ type UserLevelSelectProps = {
     onChange: (levelId: string) => void;
 };
 
-const reservedLevelNames = ['super admin', 'super administrator'];
+const reservedLevelNames = ["super admin", "super administrator"];
 
 export default function UserLevelSelect({
     id,
-    label = 'User level',
+    label = "User level",
     value,
     levels,
     permissions = [],
     canCreate = false,
-    reloadOnly = 'levels',
+    reloadOnly = "levels",
     emptyLabel,
     error,
     onChange,
 }: UserLevelSelectProps) {
     const selected = levels.find((level) => String(level.id) === value);
-    const [query, setQuery] = useState(selected?.name ?? '');
+    const [query, setQuery] = useState(selected?.name ?? "");
     const [open, setOpen] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
     const [dialogOpen, setDialogOpen] = useState(false);
-    const [pendingName, setPendingName] = useState('');
+    const [pendingName, setPendingName] = useState("");
     const [grantMobile, setGrantMobile] = useState(true);
     const [selectedPermissions, setSelectedPermissions] = useState<
         Record<string, boolean>
@@ -68,6 +69,7 @@ export default function UserLevelSelect({
     const [saving, setSaving] = useState(false);
     const blurTimer = useRef<number | null>(null);
     const inputRef = useRef<HTMLInputElement>(null);
+    const [menuStyle, setMenuStyle] = useState<CSSProperties>({});
 
     const cancelClose = () => {
         if (blurTimer.current !== null) {
@@ -78,7 +80,7 @@ export default function UserLevelSelect({
 
     useEffect(() => {
         if (!dialogOpen && !open) {
-            setQuery(selected?.name ?? '');
+            setQuery(selected?.name ?? "");
             setIsEditing(false);
         }
     }, [dialogOpen, open, selected?.name]);
@@ -109,12 +111,62 @@ export default function UserLevelSelect({
 
     const normalizedQuery = query.trim().toLowerCase();
     const matches =
-        !isEditing || normalizedQuery === ''
+        !isEditing || normalizedQuery === ""
             ? levels
             : levels.filter((level) =>
                   level.name.toLowerCase().includes(normalizedQuery),
               );
-    const showMatches = open && matches.length > 0;
+    const typedName = query.trim();
+    const canAddTyped =
+        canCreate &&
+        isEditing &&
+        typedName.length >= 2 &&
+        !reservedLevelNames.includes(typedName.toLowerCase()) &&
+        !levels.some(
+            (level) => level.name.toLowerCase() === typedName.toLowerCase(),
+        );
+    const showMatches = open && (matches.length > 0 || canAddTyped);
+
+    useLayoutEffect(() => {
+        if (!showMatches) {
+            return;
+        }
+
+        const update = () => {
+            const rect = inputRef.current?.getBoundingClientRect();
+
+            if (!rect) {
+                return;
+            }
+
+            const below = window.innerHeight - rect.bottom - 8;
+            const above = rect.top - 8;
+            const openUp = below < 224 && above > below;
+            const maxHeight = Math.max(
+                120,
+                Math.min(320, openUp ? above : below),
+            );
+
+            setMenuStyle({
+                position: "fixed",
+                left: rect.left,
+                width: rect.width,
+                maxHeight,
+                ...(openUp
+                    ? { bottom: window.innerHeight - rect.top + 4 }
+                    : { top: rect.bottom + 4 }),
+            });
+        };
+
+        update();
+        window.addEventListener("resize", update);
+        window.addEventListener("scroll", update, true);
+
+        return () => {
+            window.removeEventListener("resize", update);
+            window.removeEventListener("scroll", update, true);
+        };
+    }, [showMatches, matches.length]);
 
     const chooseLevel = (level: UserLevelOption) => {
         cancelClose();
@@ -127,18 +179,28 @@ export default function UserLevelSelect({
 
     const clearLevel = () => {
         cancelClose();
-        onChange('');
-        setQuery('');
+        onChange("");
+        setQuery("");
         setIsEditing(false);
         setOpen(false);
         setNameError(undefined);
     };
 
     const restoreSelection = () => {
-        setQuery(selected?.name ?? '');
+        setQuery(selected?.name ?? "");
         setDialogOpen(false);
-        setPendingName('');
+        setPendingName("");
         setNameError(undefined);
+    };
+
+    const openCreateDialog = (name: string) => {
+        cancelClose();
+        setOpen(false);
+        setPendingName(name);
+        setGrantMobile(true);
+        setSelectedPermissions({});
+        setNameError(undefined);
+        setDialogOpen(true);
     };
 
     const finishTyping = () => {
@@ -147,9 +209,9 @@ export default function UserLevelSelect({
             (level) => level.name.toLowerCase() === typed.toLowerCase(),
         );
 
-        if (typed === '') {
-            onChange('');
-            setQuery('');
+        if (typed === "") {
+            onChange("");
+            setQuery("");
             return;
         }
 
@@ -163,22 +225,18 @@ export default function UserLevelSelect({
             typed.length >= 2 &&
             !reservedLevelNames.includes(typed.toLowerCase())
         ) {
-            setPendingName(typed);
-            setGrantMobile(true);
-            setSelectedPermissions({});
-            setNameError(undefined);
-            setDialogOpen(true);
+            openCreateDialog(typed);
             return;
         }
 
-        setQuery(selected?.name ?? '');
+        setQuery(selected?.name ?? "");
         setIsEditing(false);
         setNameError(
             reservedLevelNames.includes(typed.toLowerCase())
-                ? 'Super Admin already exists.'
+                ? "Super Admin already exists."
                 : canCreate
                   ? undefined
-                  : 'Choose a user level that already exists.',
+                  : "Choose a user level that already exists.",
         );
     };
 
@@ -207,7 +265,7 @@ export default function UserLevelSelect({
         setNameError(undefined);
 
         router.post(
-            route('admin.access-control.levels.store'),
+            route("admin.access-control.levels.store"),
             {
                 name: levelName,
                 grant_mobile: grantMobile,
@@ -221,8 +279,7 @@ export default function UserLevelSelect({
                         only: [reloadOnly],
                         onSuccess: (page) => {
                             const updated = page.props[reloadOnly] as
-                                | UserLevelOption[]
-                                | undefined;
+                                UserLevelOption[] | undefined;
                             const created = updated?.find(
                                 (level) =>
                                     level.name.toLowerCase() ===
@@ -233,7 +290,7 @@ export default function UserLevelSelect({
                                 onChange(String(created.id));
                                 setQuery(created.name);
                                 setDialogOpen(false);
-                                setPendingName('');
+                                setPendingName("");
                             }
                         },
                     });
@@ -278,14 +335,14 @@ export default function UserLevelSelect({
                     }}
                     onBlur={scheduleClose}
                     onKeyDown={(event) => {
-                        if (event.key === 'Enter') {
+                        if (event.key === "Enter") {
                             event.preventDefault();
                             setOpen(false);
                             finishTyping();
                         }
 
-                        if (event.key === 'Escape') {
-                            setQuery(selected?.name ?? '');
+                        if (event.key === "Escape") {
+                            setQuery(selected?.name ?? "");
                             setIsEditing(false);
                             setOpen(false);
                         }
@@ -312,56 +369,58 @@ export default function UserLevelSelect({
                 >
                     <ChevronDownIcon className="size-4" />
                 </button>
-                {showMatches && (
-                    <div
-                        id={`${id}-options`}
-                        role="listbox"
-                        className="absolute z-50 mt-1 max-h-56 w-full overflow-y-auto rounded-md border border-border bg-background shadow-md"
-                        onMouseDown={(event) => {
-                            event.preventDefault();
-                            cancelClose();
-                        }}
-                    >
-                        {emptyLabel !== '' && (
-                            <button
-                                type="button"
-                                className="block w-full px-3 py-2 text-left text-sm text-muted-foreground hover:bg-muted"
-                                onClick={clearLevel}
-                            >
-                                {emptyLabel}
-                            </button>
-                        )}
-                        {matches.map((level) => (
-                            <button
-                                key={level.id}
-                                type="button"
-                                role="option"
-                                aria-selected={String(level.id) === value}
-                                className={`block w-full px-3 py-2 text-left text-sm hover:bg-muted ${
-                                    String(level.id) === value
-                                        ? 'bg-muted font-medium text-foreground'
-                                        : 'text-foreground'
-                                }`}
-                                onClick={() => chooseLevel(level)}
-                            >
-                                {level.name}
-                            </button>
-                        ))}
-                    </div>
-                )}
+                {showMatches &&
+                    createPortal(
+                        <div
+                            id={`${id}-options`}
+                            role="listbox"
+                            style={menuStyle}
+                            className="z-[100] overflow-y-auto rounded-md border border-border bg-background shadow-md"
+                            onMouseDown={(event) => {
+                                event.preventDefault();
+                                cancelClose();
+                            }}
+                        >
+                            {emptyLabel !== "" && (
+                                <button
+                                    type="button"
+                                    className="block w-full px-3 py-2 text-left text-sm text-muted-foreground hover:bg-muted"
+                                    onClick={clearLevel}
+                                >
+                                    {emptyLabel}
+                                </button>
+                            )}
+                            {matches.map((level) => (
+                                <button
+                                    key={level.id}
+                                    type="button"
+                                    role="option"
+                                    aria-selected={String(level.id) === value}
+                                    className={`block w-full px-3 py-2 text-left text-sm hover:bg-muted ${
+                                        String(level.id) === value
+                                            ? "bg-muted font-medium text-foreground"
+                                            : "text-foreground"
+                                    }`}
+                                    onClick={() => chooseLevel(level)}
+                                >
+                                    {level.name}
+                                </button>
+                            ))}
+                            {canAddTyped && (
+                                <button
+                                    type="button"
+                                    className="flex w-full items-center gap-2 border-t border-border px-3 py-2 text-left text-sm font-medium text-emerald-700 hover:bg-muted dark:text-emerald-300"
+                                    onClick={() => openCreateDialog(typedName)}
+                                >
+                                    <PlusIcon className="size-4 shrink-0" />
+                                    Add “{typedName}”
+                                </button>
+                            )}
+                        </div>,
+                        document.body,
+                    )}
             </div>
             <InputError message={error ?? nameError} />
-            {open &&
-                isEditing &&
-                normalizedQuery.length >= 2 &&
-                matches.length === 0 &&
-                canCreate && (
-                    <p className="text-sm text-muted-foreground">
-                        No level named {query.trim()}. Leave this field and you
-                        can add it.
-                    </p>
-                )}
-
             <AlertDialog
                 open={dialogOpen}
                 onOpenChange={(open) => {
@@ -375,9 +434,7 @@ export default function UserLevelSelect({
                         <div className="mx-auto flex size-12 items-center justify-center rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 sm:mx-0">
                             <SparklesIcon className="size-5" />
                         </div>
-                        <AlertDialogTitle>
-                            Add {pendingName}?
-                        </AlertDialogTitle>
+                        <AlertDialogTitle>Add {pendingName}?</AlertDialogTitle>
                         <AlertDialogDescription>
                             This user level does not exist yet. Add it and
                             choose its access now.
@@ -420,9 +477,7 @@ export default function UserLevelSelect({
                                                                         .key
                                                                 ] ?? false
                                                             }
-                                                            onChange={(
-                                                                event,
-                                                            ) =>
+                                                            onChange={(event) =>
                                                                 setSelectedPermissions(
                                                                     (
                                                                         current,
@@ -469,7 +524,7 @@ export default function UserLevelSelect({
                                 createLevel();
                             }}
                         >
-                            {saving ? 'Saving...' : 'Yes, add this level'}
+                            {saving ? "Saving..." : "Yes, add this level"}
                         </AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>

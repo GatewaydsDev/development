@@ -15,9 +15,93 @@ let shown = 0;
 let requestSerial = 0;
 let started = false;
 let primed = false;
+let chimeContext: AudioContext | null = null;
 const announced = new Set<string>();
 const acknowledgedIds = new Set<string>();
 const listeners = new Set<(count: number) => void>();
+const errorListeners = new Set<(failing: boolean) => void>();
+let failing = false;
+let unreadMessageIds: string[] = [];
+const messageIdListeners = new Set<(ids: string[]) => void>();
+
+function setFailing(next: boolean): void {
+    if (failing !== next) {
+        failing = next;
+        errorListeners.forEach((listener) => listener(failing));
+    }
+}
+
+function setUnreadMessageIds(messages: UnreadMessage[]): void {
+    const next = messages.map((message) => message.id);
+
+    if (next.length === unreadMessageIds.length && next.every((id, index) => id === unreadMessageIds[index])) {
+        return;
+    }
+
+    unreadMessageIds = next;
+    messageIdListeners.forEach((listener) => listener(unreadMessageIds));
+}
+
+function audioContextConstructor(): typeof AudioContext | null {
+    return window.AudioContext
+        ?? (window as Window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext
+        ?? null;
+}
+
+function unlockMailChime(): void {
+    const Context = audioContextConstructor();
+
+    if (!Context) {
+        return;
+    }
+
+    chimeContext ??= new Context();
+
+    if (chimeContext.state === 'suspended') {
+        void chimeContext.resume();
+    }
+}
+
+function playMailChime(): void {
+    const context = chimeContext;
+
+    if (!context || context.state !== 'running') {
+        return;
+    }
+
+    const now = context.currentTime;
+
+    [659.25, 783.99, 987.77].forEach((frequency, index) => {
+        const start = now + index * 0.1;
+        const oscillator = context.createOscillator();
+        const gain = context.createGain();
+
+        oscillator.type = 'sine';
+        oscillator.frequency.setValueAtTime(frequency, start);
+        gain.gain.setValueAtTime(0.0001, start);
+        gain.gain.exponentialRampToValueAtTime(0.055, start + 0.012);
+        gain.gain.exponentialRampToValueAtTime(0.0001, start + 0.42);
+        oscillator.connect(gain);
+        gain.connect(context.destination);
+        oscillator.start(start);
+        oscillator.stop(start + 0.45);
+    });
+}
+
+export function useUnreadMailFailing(): boolean {
+    const [value, setValue] = useState(failing);
+
+    useEffect(() => {
+        errorListeners.add(setValue);
+        setValue(failing);
+
+        return () => {
+            errorListeners.delete(setValue);
+        };
+    }, []);
+
+    return value;
+}
 
 function notify(): void {
     listeners.forEach((listener) => listener(shown));
@@ -53,6 +137,13 @@ export function setUnreadMail(count: number): void {
     notify();
 }
 
+export function adjustUnreadMail(change: number): void {
+    const next = Math.max(0, shown + change);
+    serverUnread = serverUnread === null ? next : Math.max(0, serverUnread + change);
+    shown = next;
+    notify();
+}
+
 export function acknowledgeUnreadMail(messageId: string): void {
     if (messageId === '' || acknowledgedIds.has(messageId)) {
         return;
@@ -70,7 +161,13 @@ export function acknowledgeUnreadMail(messageId: string): void {
 
     if (serverUnread !== null) {
         shown = Math.max(0, shown - 1);
+        serverUnread = Math.max(0, serverUnread - 1);
         notify();
+    }
+
+    if (unreadMessageIds.includes(messageId)) {
+        unreadMessageIds = unreadMessageIds.filter((id) => id !== messageId);
+        messageIdListeners.forEach((listener) => listener(unreadMessageIds));
     }
 
     void refreshUnreadMail();
@@ -96,7 +193,7 @@ async function refreshUnreadMail(): Promise<void> {
             return;
         }
 
-        const data = (await response.json()) as { unread?: unknown; messages?: unknown };
+        const data = (await response.json()) as { unread?: unknown; messages?: unknown; error?: unknown };
         const count = Number(data.unread);
         const messages = unreadMessages(data.messages);
 
@@ -104,8 +201,12 @@ async function refreshUnreadMail(): Promise<void> {
             return;
         }
 
-        announceNewMail(messages);
-        applyServerCount(Number.isFinite(count) ? Math.max(0, Math.floor(count)) : 0);
+        setFailing(data.error === true);
+        const visibleMessages = messages.filter((message) => !acknowledgedIds.has(message.id));
+        announceNewMail(visibleMessages);
+        setUnreadMessageIds(visibleMessages);
+        const reported = Number.isFinite(count) ? Math.max(0, Math.floor(count)) : 0;
+        applyServerCount(Math.max(reported, visibleMessages.length));
     } catch {
         // Keep the last count when Microsoft 365 does not answer.
     }
@@ -118,8 +219,10 @@ function ensureUnreadMailPolling(): void {
 
     started = true;
     window.sessionStorage.removeItem('mailbox-unread-held');
+    window.addEventListener('pointerdown', unlockMailChime);
+    window.addEventListener('keydown', unlockMailChime);
     void refreshUnreadMail();
-    window.setInterval(() => void refreshUnreadMail(), 20_000);
+    window.setInterval(() => void refreshUnreadMail(), 12_000);
     window.addEventListener('focus', () => void refreshUnreadMail());
     document.addEventListener('visibilitychange', () => {
         if (document.visibilityState === 'visible') {
@@ -163,14 +266,23 @@ function announceNewMail(messages: UnreadMessage[]): void {
         return;
     }
 
-    messages.forEach((message) => {
+    const fresh = messages.filter((message) => {
         if (announced.has(message.id) || readingMessage(message.id)) {
             announced.add(message.id);
 
-            return;
+            return false;
         }
 
         announced.add(message.id);
+
+        return true;
+    });
+
+    if (fresh.length > 0) {
+        playMailChime();
+    }
+
+    fresh.forEach((message) => {
         const href = route('mailbox.index', { folder: 'inbox', message: message.id });
         const subject = message.subject || i18n.t('mail:noSubject');
         const description = message.from ? `${message.from} — ${subject}` : subject;
@@ -230,4 +342,19 @@ export function useUnreadMail(): number {
     }, []);
 
     return count;
+}
+
+export function useUnreadMailMessageIds(): string[] {
+    const [ids, setIds] = useState(unreadMessageIds);
+
+    useEffect(() => {
+        messageIdListeners.add(setIds);
+        setIds(unreadMessageIds);
+
+        return () => {
+            messageIdListeners.delete(setIds);
+        };
+    }, []);
+
+    return ids;
 }

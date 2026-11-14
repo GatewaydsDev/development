@@ -1,5 +1,6 @@
 <?php
 
+use App\Mail\ContactSubmissionReceived;
 use App\Models\Company;
 use App\Models\ContactSubmission;
 use App\Models\User;
@@ -82,7 +83,10 @@ test('contact form submissions are saved before notifications are sent', functio
 test('contact notifications fall back to the active company email', function () {
     $mail = fakeMicrosoftGraphMail();
 
-    config(['contact.recipient' => null]);
+    config([
+        'contact.recipient' => null,
+        'services.microsoft.mail_from' => null,
+    ]);
 
     Company::create([
         'name' => 'Gateway Door Systems',
@@ -136,10 +140,10 @@ test('contact emails fall back to the microsoft mailbox when no company email is
         ->and($mail->messages[0]['replyTo'])->toBe('riley@example.com');
 });
 
-test('contact emails prefer the active company email over configured fallback', function () {
+test('contact emails go to the sales mailbox even when a company email is saved', function () {
     $mail = fakeMicrosoftGraphMail();
 
-    config(['contact.recipient' => 'fallback@gatewaydoors.test']);
+    config(['contact.recipient' => 'sales@gateway-ds.com']);
 
     Company::create([
         'name' => 'Gateway Door Systems',
@@ -163,8 +167,79 @@ test('contact emails prefer the active company email over configured fallback', 
         ->assertSessionHas('contact.status', 'Your message has been sent to Gateway Door Systems.');
 
     expect($mail->messages)->toHaveCount(1)
-        ->and($mail->messages[0]['to'])->toBe('company@gatewaydoors.test')
+        ->and($mail->messages[0]['to'])->toBe('sales@gateway-ds.com')
         ->and($mail->messages[0]['replyTo'])->toBe('taylor@example.com');
+});
+
+test('a quote is sent with the saved sales microsoft account', function () {
+    $capture = new stdClass;
+    $capture->messages = [];
+    $capture->actorId = null;
+
+    $mail = new class($capture) extends MicrosoftGraphMailService
+    {
+        public function __construct(public stdClass $capture) {}
+
+        public function actingAs(?User $user): self
+        {
+            $copy = parent::actingAs($user);
+            $copy->capture->actorId = $user?->id;
+
+            return $copy;
+        }
+
+        public function send(
+            string $to,
+            string $subject,
+            string $html,
+            ?string $replyTo = null
+        ): void {
+            $this->capture->messages[] = compact('to', 'subject', 'html', 'replyTo');
+        }
+    };
+    app()->instance(MicrosoftGraphMailService::class, $mail);
+
+    $level = UserLevel::firstOrCreate(['name' => UserLevel::SUPER_ADMIN]);
+    $sales = User::factory()->create([
+        'level_id' => $level->id,
+        'microsoft_mailbox' => 'sales@gateway-ds.com',
+        'microsoft_client_secret' => 'working-sales-secret~',
+    ]);
+
+    config(['contact.recipient' => 'sales@gateway-ds.com']);
+
+    $this
+        ->post(route('contact.store'), [
+            'name' => 'Casey Buyer',
+            'email' => 'casey@example.com',
+            'phone_number' => '',
+            'organization' => '',
+            'project_type' => '',
+            'message' => 'Please send a quote for a secure door.',
+            'source_url' => 'https://gatewaydoors.test/',
+            'website' => '',
+        ])
+        ->assertRedirect()
+        ->assertSessionHas('contact.success', true);
+
+    expect($capture->actorId)->toBe($sales->id)
+        ->and($capture->messages)->toHaveCount(1)
+        ->and($capture->messages[0]['to'])->toBe('sales@gateway-ds.com')
+        ->and($capture->messages[0]['replyTo'])->toBe('casey@example.com')
+        ->and($capture->messages[0]['html'])->toContain('Please send a quote for a secure door.');
+});
+
+test('the quote email keeps a single tag for the mailer', function () {
+    $submission = ContactSubmission::create([
+        'name' => 'Casey Buyer',
+        'email' => 'casey@example.com',
+        'message' => 'Please send a quote for a secure door.',
+        'source_url' => 'https://gatewaydoors.test/',
+    ]);
+
+    expect((new ContactSubmissionReceived($submission))->envelope()->tags)->toBe([
+        'contact-request',
+    ]);
 });
 
 test('contact form notifications go only to the sales mailbox user', function () {

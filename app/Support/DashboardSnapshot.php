@@ -4,6 +4,8 @@ namespace App\Support;
 
 use App\Models\Bid;
 use App\Models\Project;
+use App\Models\ProjectControl;
+use App\Models\ProjectPriority;
 use App\Models\ProjectStatus;
 use App\Models\Quotation;
 use App\Models\Takeoff;
@@ -19,7 +21,8 @@ class DashboardSnapshot
      *         byPriority: list<array{key: string, label: string, value: int}>,
      *         quotations: list<array{key: string, label: string, value: float, display: string}>|null,
      *         bids: list<array{key: string, label: string, value: float, display: string}>|null,
-     *         takeoffs: list<array{key: string, label: string, value: int}>|null
+     *         takeoffs: list<array{key: string, label: string, value: int}>|null,
+     *         projectControl: list<array{key: string, label: string, value: float, display: string}>|null
      *     },
      *     listVersion: string|null,
      *     bidListVersion: string|null,
@@ -106,6 +109,7 @@ class DashboardSnapshot
                 'quotations' => $canViewQuotations ? self::quotationChart() : null,
                 'bids' => $canViewBids ? self::bidChart() : null,
                 'takeoffs' => $canViewTakeoffs ? self::takeoffChart() : null,
+                'projectControl' => $user->isSuperAdmin() ? self::projectControlChart() : null,
             ],
             'listVersion' => $canViewProjects ? ProjectListVersion::current() : null,
             'bidListVersion' => $canViewBids ? BidListVersion::current() : null,
@@ -153,18 +157,13 @@ class DashboardSnapshot
             ->groupBy('priority')
             ->pluck('project_count', 'priority');
 
-        $priorityLabels = [
-            'low' => 'Low',
-            'normal' => 'Normal',
-            'high' => 'High',
-            'urgent' => 'Urgent',
-        ];
-
-        return collect(Project::PRIORITIES)
-            ->map(fn (string $priority): array => [
-                'key' => $priority,
-                'label' => $priorityLabels[$priority] ?? ucfirst($priority),
-                'value' => (int) ($priorityCounts[$priority] ?? 0),
+        return ProjectPriority::query()
+            ->orderBy('name')
+            ->get(['slug', 'name'])
+            ->map(fn (ProjectPriority $priority): array => [
+                'key' => $priority->slug,
+                'label' => $priority->name,
+                'value' => (int) ($priorityCounts[$priority->slug] ?? 0),
             ])
             ->values()
             ->all();
@@ -227,6 +226,35 @@ class DashboardSnapshot
                 return [
                     'key' => Str::slug($stageName, '_') ?: 'stage',
                     'label' => $stageName.' ('.$rows->count().')',
+                    'value' => $amount,
+                    'display' => '$'.number_format($amount, 2),
+                ];
+            })
+            ->values()
+            ->all();
+    }
+
+    /**
+     * Pipeline dollar value per project control status.
+     *
+     * @return list<array{key: string, label: string, value: float, display: string}>
+     */
+    private static function projectControlChart(): array
+    {
+        $rows = ProjectControl::query()
+            ->selectRaw('pipeline_status, COUNT(*) as job_count, COALESCE(SUM(current_value), 0) as job_value')
+            ->groupBy('pipeline_status')
+            ->get()
+            ->keyBy('pipeline_status');
+
+        return collect(ProjectControl::STATUSES)
+            ->map(function (string $label, string $status) use ($rows): array {
+                $row = $rows->get($status);
+                $amount = round((float) ($row->job_value ?? 0), 2);
+
+                return [
+                    'key' => $status,
+                    'label' => $label.' ('.((int) ($row->job_count ?? 0)).')',
                     'value' => $amount,
                     'display' => '$'.number_format($amount, 2),
                 ];

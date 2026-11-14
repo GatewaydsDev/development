@@ -1,5 +1,6 @@
-import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
+import { isEmptyHtml } from '@/Pages/Admin/Bids/bidText';
 import ActionHint from '@/Components/ActionHint';
+import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import {
     AlertDialog,
     AlertDialogAction,
@@ -19,6 +20,7 @@ import {
     CardHeader,
     CardTitle,
 } from '@/Components/ui/card';
+import ClientCompanyCard, { type ClientCompanyData } from '@/Components/ClientCompanyCard';
 import { Head, Link, router } from '@inertiajs/react';
 import { useState } from 'react';
 import { formatCurrency } from '@/lib/money';
@@ -42,7 +44,36 @@ import {
 type ShowProps = {
     project: ProjectPayload;
     options: ProjectOptions;
+    clientCompany?: ClientCompanyData | null;
+    clientCompanies?: { uuid: string; name: string }[];
 };
+
+function ProjectNote({
+    value,
+    empty,
+}: {
+    value?: string | null;
+    empty: string;
+}) {
+    if (isEmptyHtml(value)) {
+        return <p className="mt-2 text-sm text-muted-foreground">{empty}</p>;
+    }
+
+    if (value && /<[a-z][\s\S]*>/i.test(value)) {
+        return (
+            <div
+                className="rich-text-content mt-2 text-sm text-foreground"
+                dangerouslySetInnerHTML={{ __html: value }}
+            />
+        );
+    }
+
+    return (
+        <p className="mt-2 whitespace-pre-wrap text-sm text-foreground">
+            {value}
+        </p>
+    );
+}
 
 function DetailItem({
     label,
@@ -63,7 +94,7 @@ function DetailItem({
     );
 }
 
-export default function Show({ project, options }: ShowProps) {
+export default function Show({ project, options, clientCompany = null, clientCompanies = [] }: ShowProps) {
     const [isDeleteOpen, setIsDeleteOpen] = useState(false);
     const removeProject = () => {
         router.delete(route('admin.projects.destroy', project.uuid));
@@ -177,8 +208,8 @@ export default function Show({ project, options }: ShowProps) {
             <Head title={project.name} />
 
             <div className="py-6 sm:py-8">
-                <div className="mx-auto flex max-w-[96rem] flex-col gap-6 px-4 sm:px-6 lg:px-8">
-                    <Card>
+                <div className="flex w-full flex-col gap-6 px-4 sm:px-6 lg:px-8">
+                    <Card className="border-emerald-200 bg-emerald-50/70 dark:border-emerald-900 dark:bg-emerald-950/30">
                         <CardHeader className="gap-4 sm:grid sm:grid-cols-[1fr_auto] sm:items-start">
                             <div>
                                 <CardTitle className="flex items-center gap-2">
@@ -306,7 +337,7 @@ export default function Show({ project, options }: ShowProps) {
                         </CardContent>
                     </Card>
 
-                    <Card>
+                    <Card className="border-violet-200 bg-violet-50/70 dark:border-violet-900 dark:bg-violet-950/30">
                         <CardHeader>
                             <CardTitle className="flex items-center gap-2">
                                 <MapPinIcon className="size-5 text-muted-foreground" />
@@ -338,7 +369,7 @@ export default function Show({ project, options }: ShowProps) {
                         </CardContent>
                     </Card>
 
-                    <Card>
+                    <Card className="border-sky-200 bg-sky-50/70 dark:border-sky-900 dark:bg-sky-950/30">
                         <CardHeader>
                             <CardTitle className="flex items-center gap-2">
                                 <HammerIcon className="size-5 text-muted-foreground" />
@@ -349,6 +380,16 @@ export default function Show({ project, options }: ShowProps) {
                             </CardDescription>
                         </CardHeader>
                         <CardContent className="flex flex-col gap-6">
+                            {project.companies && project.companies.length > 0 && (
+                                <div className="flex flex-wrap gap-2">
+                                    {project.companies.map((company) => (
+                                        <Badge key={company.uuid} variant="secondary">
+                                            {company.name}
+                                            {company.main_office ? ` · ${company.main_office}` : ''}
+                                        </Badge>
+                                    ))}
+                                </div>
+                            )}
                             {project.contractors?.length > 0 ? (
                                 <div className="flex flex-col gap-3">
                                     {project.contractors.map(
@@ -393,7 +434,7 @@ export default function Show({ project, options }: ShowProps) {
                         </CardContent>
                     </Card>
 
-                    <Card>
+                    <Card className="border-amber-200 bg-amber-50/70 dark:border-amber-900 dark:bg-amber-950/30">
                             <CardHeader>
                                 <CardTitle className="flex items-center gap-2">
                                     <BriefcaseIcon className="size-5 text-muted-foreground" />
@@ -428,32 +469,41 @@ export default function Show({ project, options }: ShowProps) {
                             </CardContent>
                         </Card>
 
-                    <Card>
+                    <Card className="border-amber-200 bg-amber-50/70 dark:border-amber-900 dark:bg-amber-950/30">
                         <CardHeader>
                             <CardTitle>Notes</CardTitle>
                         </CardHeader>
-                        <CardContent className="grid gap-4 md:grid-cols-2">
+                        <CardContent className="flex flex-col gap-5">
                             <div>
                                 <h3 className="text-sm font-medium text-muted-foreground">
                                     Project notes
                                 </h3>
-                                <p className="mt-2 whitespace-pre-wrap text-sm text-foreground">
-                                    {project.public_notes || 'No notes added.'}
-                                </p>
+                                <ProjectNote
+                                    value={project.public_notes}
+                                    empty="No notes added."
+                                />
                             </div>
                             {options.can.viewSensitiveFields && (
                                 <div>
                                     <h3 className="text-sm font-medium text-muted-foreground">
                                         Internal notes
                                     </h3>
-                                    <p className="mt-2 whitespace-pre-wrap text-sm text-foreground">
-                                        {project.internal_notes ||
-                                            'No internal notes added.'}
-                                    </p>
+                                    <ProjectNote
+                                        value={project.internal_notes}
+                                        empty="No internal notes added."
+                                    />
                                 </div>
                             )}
                         </CardContent>
                     </Card>
+
+                    {options.can.update && (
+                        <ClientCompanyCard
+                            projectUuid={project.uuid}
+                            company={clientCompany}
+                            companies={clientCompanies}
+                        />
+                    )}
                 </div>
             </div>
 

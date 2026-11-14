@@ -1,9 +1,16 @@
 <?php
 
+use App\Events\ExpenseChanged;
+use App\Models\Company;
+use App\Models\Contact;
 use App\Models\Expense;
 use App\Models\User;
 use App\Models\UserLevel;
+use App\Services\MicrosoftGraphMailService;
+use App\Services\ReceiptScanService;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Testing\AssertableInertia as Assert;
 
@@ -33,6 +40,7 @@ test('a super administrator records an expense with a receipt', function () {
         ->post(route('admin.expenses.store'), [
             'spent_on' => '2026-10-16',
             'payee' => 'Training School',
+            'person_name' => 'Alex Rivera',
             'description' => 'New course',
             'category' => 'course',
             'amount' => '250.50',
@@ -47,6 +55,7 @@ test('a super administrator records an expense with a receipt', function () {
     expect($expense)->not->toBeNull()
         ->and($expense->user_id)->toBe($admin->id)
         ->and($expense->payee)->toBe('Training School')
+        ->and($expense->person_name)->toBe('Alex Rivera')
         ->and($expense->description)->toBe('New course')
         ->and($expense->category)->toBe('course')
         ->and($expense->amount)->toBe('250.50')
@@ -78,6 +87,7 @@ test('an expense can keep paid and future monthly payments', function () {
         ->post(route('admin.expenses.store'), [
             'spent_on' => '2026-10-16',
             'payee' => 'Training School',
+            'person_name' => 'Alex Rivera',
             'description' => 'New course',
             'category' => 'course',
             'amount' => '300.00',
@@ -143,6 +153,7 @@ test('an uploaded receipt image can be shown', function () {
         ->post(route('admin.expenses.store'), [
             'spent_on' => '2026-10-16',
             'payee' => 'Office Store',
+            'person_name' => 'Alex Rivera',
             'description' => 'Paper',
             'category' => 'supplies',
             'amount' => '12.00',
@@ -195,6 +206,7 @@ test('a photo receipt is saved as a smaller pdf', function () {
         ->post(route('admin.expenses.store'), [
             'spent_on' => '2026-10-16',
             'payee' => 'Office Store',
+            'person_name' => 'Alex Rivera',
             'description' => 'Large receipt photo',
             'category' => 'supplies',
             'amount' => '18.00',
@@ -231,4 +243,367 @@ test('a regular user cannot download an expense receipt', function () {
     $this->actingAs(User::factory()->create())
         ->get(route('admin.expenses.receipt', $expense))
         ->assertForbidden();
+});
+
+test('a super administrator opens the add and edit expense pages', function () {
+    $admin = expenseAdmin();
+    $expense = Expense::query()->create([
+        'user_id' => $admin->id,
+        'spent_on' => '2026-10-16',
+        'person_name' => 'Alex Rivera',
+        'payee' => 'Training School',
+        'description' => 'New course',
+        'category' => 'course',
+        'amount' => '10.00',
+    ]);
+
+    $this->actingAs($admin)
+        ->get(route('admin.expenses.create'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page->component('Admin/Expenses/Create'));
+
+    $this->actingAs($admin)
+        ->get(route('admin.expenses.edit', $expense))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Admin/Expenses/Edit')
+            ->where('expense.description', 'New course')
+        );
+});
+
+test('a pdf receipt shows its picture on the expense list', function () {
+    Storage::fake('local');
+    $admin = expenseAdmin();
+    $image = imagecreatetruecolor(40, 30);
+    $color = imagecolorallocate($image, 20, 90, 160);
+    imagefill($image, 0, 0, $color);
+    ob_start();
+    imagejpeg($image, null, 80);
+    $jpeg = ob_get_clean();
+    imagedestroy($image);
+
+    $this->actingAs($admin)
+        ->post(route('admin.expenses.store'), [
+            'spent_on' => '2026-10-16',
+            'payee' => 'Office Store',
+            'person_name' => 'Alex Rivera',
+            'description' => 'Scanned receipt',
+            'category' => 'supplies',
+            'amount' => '18.00',
+            'receipt' => UploadedFile::fake()->createWithContent('receipt_scan.pdf', expenseJpegPdf((string) $jpeg, 40, 30)),
+        ])
+        ->assertRedirect()
+        ->assertSessionHasNoErrors();
+
+    $expense = Expense::query()->first();
+
+    $this->actingAs($admin)
+        ->get(route('admin.expenses.index'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('expenses.data.0.receipt_is_image', true)
+            ->where('expenses.data.0.receipt_preview_url', fn ($url) => is_string($url) && str_contains($url, 'preview=1'))
+        );
+
+    expect(Storage::disk('local')->exists('expenses/'.$expense->id.'/preview.jpg'))->toBeTrue();
+});
+
+test('saving an expense tells the other signed-in devices', function () {
+    Event::fake([ExpenseChanged::class]);
+    $admin = expenseAdmin();
+
+    $this->actingAs($admin)
+        ->post(route('admin.expenses.store'), [
+            'spent_on' => '2026-10-20',
+            'payee' => 'Training School',
+            'person_name' => 'Alex Rivera',
+            'description' => 'Tuition',
+            'category' => 'course',
+            'group_name' => 'Course in Maryland',
+            'amount' => '40.00',
+        ])
+        ->assertRedirect(route('admin.expenses.index'));
+
+    Event::assertDispatched(
+        ExpenseChanged::class,
+        fn (ExpenseChanged $event) => $event->action === 'saved'
+            && $event->summary === 'Course in Maryland Tuition'
+            && $event->broadcastAs() === 'expense.changed'
+            && $event->broadcastOn()[0]->name === 'private-expenses',
+    );
+});
+
+test('expenses are saved and listed under a group name', function () {
+    $admin = expenseAdmin();
+
+    foreach ([
+        ['description' => 'Tuition', 'amount' => '800.00'],
+        ['description' => 'Hotel', 'amount' => '220.50'],
+    ] as $purchase) {
+        $this->actingAs($admin)
+            ->post(route('admin.expenses.store'), [
+                'spent_on' => '2026-10-20',
+                'payee' => 'Training School',
+                'person_name' => 'Alex Rivera',
+                'description' => $purchase['description'],
+                'category' => 'course',
+                'group_name' => 'Course in Maryland',
+                'amount' => $purchase['amount'],
+            ])
+            ->assertRedirect(route('admin.expenses.index'));
+    }
+
+    expect(Expense::query()->where('group_name', 'Course in Maryland')->count())->toBe(2);
+
+    $this->actingAs($admin)
+        ->get(route('admin.expenses.index'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('groups.0.name', 'Course in Maryland')
+            ->where('groups.0.count', 2)
+            ->where('groups.0.total', '1020.50')
+            ->where('expenses.data.0.group_name', 'Course in Maryland')
+            ->where('expenses.data.1.group_name', 'Course in Maryland')
+        );
+});
+
+test('a super administrator emails a group of expenses and the receipts they choose', function () {
+    Storage::fake('local');
+    $admin = expenseAdmin();
+    $admin->forceFill([
+        'microsoft_mailbox' => 'ricardo@gateway-ds.com',
+        'job_title' => 'Project Manager',
+    ])->save();
+    $sent = new stdClass;
+    $sent->messages = [];
+    $mail = new class($sent) extends MicrosoftGraphMailService
+    {
+        public function __construct(private stdClass $sent) {}
+
+        public function sendComposed(
+            string $mailbox,
+            array $to,
+            string $subject,
+            string $content,
+            string $contentType = 'Text',
+            array $cc = [],
+            array $bcc = [],
+            string $importance = 'normal',
+            array $attachments = [],
+        ): void {
+            $this->sent->messages[] = compact(
+                'mailbox',
+                'to',
+                'subject',
+                'content',
+                'contentType',
+                'attachments',
+            );
+        }
+    };
+    app()->instance(MicrosoftGraphMailService::class, $mail);
+
+    $course = Expense::query()->create([
+        'user_id' => $admin->id,
+        'spent_on' => '2026-10-16',
+        'person_name' => 'Alex Rivera',
+        'payee' => 'Training School',
+        'description' => 'New course',
+        'category' => 'course',
+        'group_name' => 'Course in Maryland',
+        'amount' => '250.50',
+        'notes' => 'For the office team.',
+    ]);
+    $course->forceFill([
+        'receipt_path' => 'expenses/'.$course->id.'/receipt.pdf',
+        'receipt_name' => 'course.pdf',
+    ])->save();
+    Storage::disk('local')->put($course->receipt_path, '%PDF-1.4 receipt');
+    $course->payments()->create([
+        'due_on' => '2026-10-20',
+        'paid_on' => '2026-10-20',
+        'amount' => '100.00',
+        'status' => 'paid',
+        'method' => 'card',
+    ]);
+    $hotel = Expense::query()->create([
+        'user_id' => $admin->id,
+        'spent_on' => '2026-10-17',
+        'person_name' => 'Alex Rivera',
+        'payee' => 'Hotel',
+        'description' => 'Hotel stay',
+        'category' => 'travel',
+        'group_name' => 'Course in Maryland',
+        'amount' => '180.00',
+    ]);
+    Contact::query()->create([
+        'name' => 'Pat Owner',
+        'email' => 'pat@example.com',
+        'company' => 'North Yard',
+    ]);
+    Company::query()->create([
+        'name' => 'Gateway Door Systems',
+        'logo_path' => 'company-logos/logo.png',
+        'is_active' => true,
+    ]);
+
+    $this->actingAs($admin)
+        ->get(route('admin.expenses.share', ['group' => 'Course in Maryland']))
+        ->assertOk()
+        ->assertJsonPath('group', 'Course in Maryland')
+        ->assertJsonPath('contacts.0.email', 'pat@example.com')
+        ->assertJsonCount(2, 'expenses');
+
+    $this->actingAs($admin)
+        ->post(route('admin.expenses.share.store'), [
+            'email' => 'pat@example.com',
+            'group' => 'Course in Maryland',
+            'message' => 'Please review these.',
+            'expenses' => [$course->id, $hotel->id],
+            'receipts' => [$course->id],
+        ])
+        ->assertRedirect()
+        ->assertSessionHas('success');
+
+    expect($sent->messages)->toHaveCount(1)
+        ->and($sent->messages[0]['mailbox'])->toBe('ricardo@gateway-ds.com')
+        ->and($sent->messages[0]['to'])->toBe(['pat@example.com'])
+        ->and($sent->messages[0]['subject'])->toBe('Expenses: Course in Maryland')
+        ->and($sent->messages[0]['content'])->toContain('<table')
+        ->and($sent->messages[0]['content'])->toContain('width="72"')
+        ->and($sent->messages[0]['content'])->toContain('company-logos/logo.png')
+        ->and($sent->messages[0]['content'])->toContain('Gateway Door Systems')
+        ->and($sent->messages[0]['content'])->toContain($admin->name)
+        ->and($sent->messages[0]['content'])->toContain('Project Manager')
+        ->and($sent->messages[0]['content'])->toContain('Paid to')
+        ->and($sent->messages[0]['content'])->toContain('New course')
+        ->and($sent->messages[0]['content'])->toContain('Hotel stay')
+        ->and($sent->messages[0]['content'])->toContain('Please review these.')
+        ->and($sent->messages[0]['attachments'])->toHaveCount(2)
+        ->and($sent->messages[0]['attachments'][0]['name'])->toBe('QuickBooks-Course-in-Maryland.csv')
+        ->and($sent->messages[0]['attachments'][0]['bytes'])->toContain('Payee,Account,Amount,Memo')
+        ->and($sent->messages[0]['attachments'][0]['bytes'])->toContain('Training School')
+        ->and($sent->messages[0]['attachments'][0]['bytes'])->toContain('250.50')
+        ->and($sent->messages[0]['attachments'][0]['bytes'])->toContain('Hotel')
+        ->and($sent->messages[0]['attachments'][1]['name'])->toContain('course.pdf');
+
+    $this->actingAs(User::factory()->create())
+        ->post(route('admin.expenses.share.store'), [
+            'email' => 'pat@example.com',
+            'expenses' => [$course->id],
+        ])
+        ->assertForbidden();
+
+    $admin->forceFill(['microsoft_mailbox' => null])->save();
+
+    $this->actingAs($admin)
+        ->post(route('admin.expenses.share.store'), [
+            'email' => 'pat@example.com',
+            'expenses' => [$course->id],
+            'receipts' => [$course->id],
+        ])
+        ->assertSessionHasErrors('email');
+
+    expect($sent->messages)->toHaveCount(1);
+});
+
+function expenseJpegPdf(string $jpeg, int $pixelWidth, int $pixelHeight): string
+{
+    $content = "q\n{$pixelWidth} 0 0 {$pixelHeight} 36 36 cm\n/Im0 Do\nQ\n";
+    $objects = [
+        "1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n",
+        "2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n",
+        "3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R /Resources << /XObject << /Im0 5 0 R >> >> >>\nendobj\n",
+        "4 0 obj\n<< /Length ".strlen($content)." >>\nstream\n{$content}endstream\nendobj\n",
+        "5 0 obj\n<< /Type /XObject /Subtype /Image /Width {$pixelWidth} /Height {$pixelHeight} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ".strlen($jpeg)." >>\nstream\n{$jpeg}\nendstream\nendobj\n",
+    ];
+    $pdf = "%PDF-1.4\n";
+    $offsets = [0];
+
+    foreach ($objects as $object) {
+        $offsets[] = strlen($pdf);
+        $pdf .= $object;
+    }
+
+    $xref = strlen($pdf);
+    $count = count($offsets);
+    $pdf .= "xref\n0 {$count}\n0000000000 65535 f \n";
+
+    for ($index = 1; $index < $count; $index++) {
+        $pdf .= sprintf("%010d 00000 n \n", $offsets[$index]);
+    }
+
+    return $pdf."trailer\n<< /Size {$count} /Root 1 0 R >>\nstartxref\n{$xref}\n%%EOF";
+}
+
+test('a recurring subscription saves its schedule and computes the next charge date', function () {
+    $this->travelTo('2026-11-10');
+    $admin = expenseAdmin();
+
+    $this->actingAs($admin)
+        ->post(route('admin.expenses.store'), [
+            'spent_on' => '2026-01-31',
+            'payee' => 'Software Co',
+            'person_name' => 'Alex Rivera',
+            'description' => 'Team subscription',
+            'category' => 'software',
+            'amount' => '29.99',
+            'recurring_frequency' => 'monthly',
+            'recurring_starts_on' => '2026-01-31',
+        ])
+        ->assertRedirect(route('admin.expenses.index'));
+
+    $expense = Expense::firstOrFail();
+
+    expect($expense->recurring_frequency)->toBe('monthly')
+        ->and($expense->nextChargeOn()->toDateString())->toBe('2026-11-30');
+
+    $this->actingAs($admin)
+        ->get(route('admin.expenses.index'))
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('expenses.data.0.recurring_label', 'Monthly')
+            ->where('expenses.data.0.next_charge_on', '2026-11-30'));
+
+    $expense->update(['recurring_ends_on' => '2026-10-31']);
+    expect($expense->fresh()->nextChargeOn())->toBeNull();
+});
+
+test('a recurring expense needs a start date and the end cannot be before it', function () {
+    $admin = expenseAdmin();
+    $base = [
+        'spent_on' => '2026-10-16', 'payee' => 'Co', 'person_name' => 'Alex', 'description' => 'Sub',
+        'category' => 'software', 'amount' => '10', 'recurring_frequency' => 'monthly',
+    ];
+
+    $this->actingAs($admin)->post(route('admin.expenses.store'), $base)
+        ->assertSessionHasErrors('recurring_starts_on');
+
+    $this->actingAs($admin)->post(route('admin.expenses.store'), $base + [
+        'recurring_starts_on' => '2026-10-16', 'recurring_ends_on' => '2026-09-01',
+    ])->assertSessionHasErrors('recurring_ends_on');
+});
+
+test('a receipt picture is read into date, total, tax, address and store', function () {
+    config(['services.ai.base_url' => 'https://ai.test/v1', 'services.ai.model' => 'vision']);
+    Http::fake(['ai.test/*' => Http::response(['choices' => [['message' => ['content' => "```json\n{\"date\":\"2026-10-30\",\"total\":\"\$54.21\",\"tax\":4.01,\"address\":\"12 Main St, Austin, TX 78701\",\"store\":\"Home Depot\"}\n```"]]]])]);
+
+    $this->actingAs(expenseAdmin())
+        ->post(route('admin.expenses.scan'), ['receipt' => UploadedFile::fake()->image('r.jpg')], ['Accept' => 'application/json'])
+        ->assertOk()
+        ->assertJsonPath('fields', [
+            'spent_on' => '2026-10-30', 'amount' => '54.21', 'tax_amount' => '4.01',
+            'address' => '12 Main St, Austin, TX 78701', 'payee' => 'Home Depot',
+        ]);
+});
+
+test('an unreadable receipt returns no fields and tax and address are saved', function () {
+    expect((new ReceiptScanService)->parse('sorry, cannot read'))->toBe([])
+        ->and((new ReceiptScanService)->parse('{"date":"2026-13-40","total":null}'))->toBe([]);
+
+    $this->actingAs(expenseAdmin())->post(route('admin.expenses.store'), [
+        'spent_on' => '2026-10-30', 'payee' => 'Co', 'person_name' => 'Alex', 'description' => 'Parts',
+        'category' => 'software', 'amount' => '54.21', 'tax_amount' => '4.01', 'address' => '12 Main St',
+    ])->assertRedirect();
+
+    expect(Expense::firstOrFail())->tax_amount->toBe('4.01')->address->toBe('12 Main St');
 });

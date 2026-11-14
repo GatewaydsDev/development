@@ -12,7 +12,10 @@ export type SchedulePerson = {
     name?: string;
     full_name?: string;
     email: string;
+    job_title?: string | null;
     certifications?: ScheduleCertification[];
+    skills?: { id: number; name: string }[];
+    employee_uuid?: string | null;
 };
 
 export type ScheduleStatusOption = {
@@ -32,9 +35,34 @@ export type SchedulePayload = {
     notes: string | null;
     requires_competent_person: boolean;
     competent_person: SchedulePerson | null;
+    quality_control?: SchedulePerson | null;
     project: ScheduleProject | null;
     foreman: SchedulePerson | null;
     employees: SchedulePerson[];
+    daily_task_uuids?: string[];
+    daily_tasks?: ScheduleListingTask[];
+};
+
+export type ScheduleListingTask = {
+    uuid: string;
+    title: string;
+    description: string | null;
+    performed_by: string;
+    performed_by_label: string;
+    requires_photo: boolean;
+    requires_quality_control: boolean;
+};
+
+export type ScheduleDailyTask = {
+    id: string;
+    name: string;
+    requires_photo?: boolean;
+    requires_quality_control?: boolean;
+    performed_by?: string;
+    performed_by_label?: string | null;
+    uuid: string;
+    title: string;
+    description: string | null;
 };
 
 export type ScheduleSkill = {
@@ -54,10 +82,14 @@ export type ScheduleOption = {
     name?: string;
     full_name?: string;
     email: string;
+    job_title?: string | null;
+    employee_uuid?: string | null;
+    foreman_user_id?: number | null;
     project_number?: string | null;
     skills?: ScheduleSkill[];
     certifications?: ScheduleCertification[];
     competent_person?: boolean;
+    quality_control?: boolean;
 };
 
 export type SchedulePaginator = {

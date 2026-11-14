@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Models\Concerns\HasUuidRouteKey;
+use App\Models\ContactDirectory\ContactCompany;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -130,6 +131,13 @@ class Project extends Model
             ->orderBy('name');
     }
 
+    public function contactCompanies(): BelongsToMany
+    {
+        return $this->belongsToMany(ContactCompany::class, 'project_contact_company')
+            ->withTimestamps()
+            ->orderBy('contact_companies.name');
+    }
+
     public function scopes(): HasMany
     {
         return $this->hasMany(ProjectScope::class)->orderBy('scope_type');
@@ -155,6 +163,23 @@ class Project extends Model
     public function takeoffs(): HasMany
     {
         return $this->hasMany(Takeoff::class)->latest();
+    }
+
+    public function clientCompany(): BelongsTo
+    {
+        return $this->belongsTo(ClientCompany::class);
+    }
+
+    public function clientUsers(): BelongsToMany
+    {
+        return $this->belongsToMany(User::class, 'project_client_users')
+            ->withPivot(['is_owner', 'invited_by'])
+            ->withTimestamps();
+    }
+
+    public function workSchedules(): HasMany
+    {
+        return $this->hasMany(EmployeeWorkSchedule::class)->latest('id');
     }
 
     public function prices(): HasMany

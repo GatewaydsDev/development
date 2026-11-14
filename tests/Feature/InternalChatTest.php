@@ -111,3 +111,43 @@ test('super administrators can send a message with an image and a document', fun
         ])
         ->assertUnprocessable();
 });
+
+test('three super administrators can chat together in a group', function () {
+    $a = chatAdmin('Ana');
+    $b = chatAdmin('Bruno');
+    $c = chatAdmin('Carla');
+    $d = chatAdmin('Dan');
+
+    $group = $this->actingAs($a)->postJson(route('internal-chat.groups.store'), [
+        'name' => 'Site call',
+        'member_ids' => [$b->id, $c->id],
+    ])->assertCreated()->json('group');
+
+    $this->actingAs($a)->postJson(route('internal-chat.groups.store'), ['member_ids' => [$b->id]])
+        ->assertUnprocessable();
+
+    $this->actingAs($a)->postJson(route('internal-chat.store'), ['group_id' => $group['id'], 'body' => 'Hello all'])
+        ->assertOk();
+
+    foreach ([$b, $c] as $member) {
+        $this->actingAs($member)->getJson(route('internal-chat.unread'))
+            ->assertJsonPath('unread', 1)
+            ->assertJsonPath('latest.name', 'Ana in Site call');
+        $this->actingAs($member)->getJson(route('internal-chat.index', ['group' => $group['id']]))
+            ->assertJsonPath('messages.0.body', 'Hello all')
+            ->assertJsonPath('groups.0.unread', 1);
+    }
+
+    $this->actingAs($b)->postJson(route('internal-chat.read'), ['group_id' => $group['id'], 'message_id' => 999])
+        ->assertJsonPath('unread', 0);
+    $this->actingAs($c)->getJson(route('internal-chat.unread'))->assertJsonPath('unread', 1);
+
+    $this->actingAs($d)->getJson(route('internal-chat.index', ['group' => $group['id']]))->assertNotFound();
+    $this->actingAs($d)->postJson(route('internal-chat.store'), ['group_id' => $group['id'], 'body' => 'hi'])->assertNotFound();
+
+    $this->actingAs($a)->postJson(route('internal-chat.groups.members', $group['id']), ['member_ids' => [$d->id]])->assertOk();
+    $this->actingAs($d)->getJson(route('internal-chat.index', ['group' => $group['id']]))->assertOk();
+
+    $this->actingAs($d)->deleteJson(route('internal-chat.groups.leave', $group['id']))->assertOk();
+    $this->actingAs($d)->getJson(route('internal-chat.index', ['group' => $group['id']]))->assertNotFound();
+});

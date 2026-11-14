@@ -10,6 +10,7 @@ import type {
 
 type CreateProps = {
     languages: NamedOption[];
+    jobTitles?: NamedOption[];
     certifications?: NamedOption[];
     skills: NamedOption[];
     skillsVersion?: string | null;
@@ -22,6 +23,7 @@ type CreateProps = {
 
 export default function Create({
     languages,
+    jobTitles = [],
     certifications = [],
     skills,
     skillsVersion = null,
@@ -59,13 +61,14 @@ export default function Create({
             <Head title="Add Employee" />
 
             <div className="py-6 sm:py-8">
-                <div className="mx-auto max-w-[96rem] px-4 sm:px-6 lg:px-8">
+                <div className="w-full px-4 sm:px-6 lg:px-8">
                     <EmployeeForm
                         action={route('admin.employees.store')}
                         submitLabel="Create employee"
                         title="Employee information"
                         description="Contact details, employment, app login, and skill rates."
                         languages={languages}
+                        jobTitles={jobTitles}
                         certifications={certifications}
                         skills={skills}
                         skillsVersion={skillsVersion}

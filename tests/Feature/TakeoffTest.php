@@ -1,6 +1,8 @@
 <?php
 
 use App\Models\Contractor;
+use App\Models\DoorConfiguration;
+use App\Models\OpeningCategory;
 use App\Models\Project;
 use App\Models\Quotation;
 use App\Models\Takeoff;
@@ -12,7 +14,7 @@ use App\Models\UserLevel;
 use App\Support\TakeoffCsv;
 use App\Support\TakeoffPricing;
 use App\Support\TakeoffReview;
-use App\Support\TakeoffRevision;
+use App\Support\TakeoffRevisionCopies;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -182,6 +184,59 @@ test('extra markers and references do not change opening quantity', function () 
         ->and((string) $opening->quantity)->toBe('1.00');
 });
 
+test('moving a count number keeps the arrow point fixed', function () {
+    Storage::fake('local');
+    $admin = takeoffUser();
+    $takeoff = takeoffRecord($admin);
+    $this->actingAs($admin)->post(route('admin.takeoffs.documents.store', $takeoff), [
+        'file' => takeoffPdf(),
+        'document_type' => 'drawing',
+    ])->assertRedirect();
+    $document = $takeoff->documents()->first();
+    $opening = $takeoff->openings()->create([
+        'tag' => 'D101',
+        'opening_type' => 'door',
+        'quantity' => '1.00',
+        'dimension_unit' => 'in',
+        'scope' => 'both',
+    ]);
+    $this->actingAs($admin)->post(route('admin.takeoffs.markers.store', [$takeoff, $opening]), [
+        'document_id' => $document->id,
+        'page' => 1,
+        'x' => 0.2,
+        'y' => 0.3,
+    ])->assertRedirect();
+    $marker = $opening->markers()->first();
+
+    $this->actingAs($admin)->patch(route('admin.takeoffs.markers.update', [$takeoff, $marker]), [
+        'x' => 0.2,
+        'y' => 0.3,
+        'page' => 1,
+        'label_x' => 0.35,
+        'label_y' => 0.45,
+    ])->assertRedirect();
+
+    $marker->refresh();
+    expect((float) $marker->x)->toEqual(0.2)
+        ->and((float) $marker->y)->toEqual(0.3)
+        ->and((float) $marker->label_x)->toEqual(0.35)
+        ->and((float) $marker->label_y)->toEqual(0.45);
+
+    $this->actingAs($admin)->patch(route('admin.takeoffs.markers.update', [$takeoff, $marker]), [
+        'x' => 0.55,
+        'y' => 0.62,
+        'page' => 1,
+        'label_x' => 0.35,
+        'label_y' => 0.45,
+    ])->assertRedirect();
+
+    $marker->refresh();
+    expect((float) $marker->x)->toEqual(0.55)
+        ->and((float) $marker->y)->toEqual(0.62)
+        ->and((float) $marker->label_x)->toEqual(0.35)
+        ->and((float) $marker->label_y)->toEqual(0.45);
+});
+
 test('pricing keeps one-time costs single and rejects using both methods', function () {
     $admin = takeoffUser();
     $takeoff = takeoffRecord($admin);
@@ -295,10 +350,44 @@ test('csv import validates the whole file and export neutralizes formulas', func
     expect($export->getContent())->toContain("'=SUM(A1)");
 });
 
-test('a revision keeps the previous takeoff and reports opening changes', function () {
+test('duplicated takeoff revisions are removed and the original stays', function () {
+    $admin = takeoffUser();
+    $original = takeoffRecord($admin);
+    $original->forceFill(['root_takeoff_id' => $original->id])->save();
+    $original->openings()->create([
+        'tag' => 'D101',
+        'opening_type' => 'door',
+        'quantity' => '1.00',
+        'dimension_unit' => 'in',
+        'scope' => 'both',
+    ]);
+    $copy = takeoffRecord($admin, $original->project);
+    $copy->forceFill([
+        'root_takeoff_id' => $original->id,
+        'source_takeoff_id' => $original->id,
+        'revision_number' => 2,
+        'title' => 'Door takeoff revision',
+    ])->save();
+    $copy->openings()->create([
+        'tag' => 'D101',
+        'opening_type' => 'door',
+        'quantity' => '1.00',
+        'dimension_unit' => 'in',
+        'scope' => 'both',
+    ]);
+
+    TakeoffRevisionCopies::remove();
+
+    expect(Takeoff::query()->pluck('id')->all())->toBe([$original->id])
+        ->and($original->fresh()->root_takeoff_id)->toBeNull()
+        ->and($original->fresh()->openings)->toHaveCount(1)
+        ->and(Takeoff::query()->find($copy->id))->toBeNull();
+});
+
+test('a takeoff revision is saved on the same record', function () {
     $admin = takeoffUser();
     $takeoff = takeoffRecord($admin);
-    $original = $takeoff->openings()->create([
+    $takeoff->openings()->create([
         'tag' => 'D101',
         'opening_type' => 'door',
         'quantity' => '1.00',
@@ -308,28 +397,18 @@ test('a revision keeps the previous takeoff and reports opening changes', functi
         'height' => '84.000',
     ]);
 
-    $this->actingAs($admin)->post(route('admin.takeoffs.revise', $takeoff))->assertRedirect();
-    $copy = Takeoff::query()->where('source_takeoff_id', $takeoff->id)->first();
-    expect($copy)->not->toBeNull()
-        ->and($takeoff->fresh()->status)->toBe('draft')
-        ->and($copy->revision_number)->toBe(2)
-        ->and($copy->openings)->toHaveCount(1);
+    $this->actingAs($admin)->patch(route('admin.takeoffs.update', $takeoff), [
+        'title' => $takeoff->title,
+        'status' => 'draft',
+        'revision_number' => 2,
+        'revision_label' => 'B',
+        'notes' => 'Revised the door width on the drawing.',
+    ])->assertRedirect();
 
-    $copied = $copy->openings()->first();
-    $copied->update(['width' => '42.000']);
-    $copy->openings()->create([
-        'tag' => 'W03',
-        'opening_type' => 'window',
-        'quantity' => '1.00',
-        'dimension_unit' => 'in',
-        'scope' => 'supply',
-    ]);
-
-    $diff = TakeoffRevision::diff($copy->fresh('openings'), $takeoff->fresh('openings'));
-    expect($diff['changed'])->toHaveCount(1)
-        ->and($diff['added'])->toHaveCount(1)
-        ->and($diff['removed'])->toHaveCount(0)
-        ->and($original->fresh()->width)->toBe('36.000');
+    expect(Takeoff::query()->count())->toBe(1)
+        ->and($takeoff->fresh()->revision_number)->toBe(2)
+        ->and($takeoff->fresh()->revision_label)->toBe('B')
+        ->and($takeoff->fresh()->openings)->toHaveCount(1);
 });
 
 test('quotation conversion is transactional and does not copy internal costs', function () {
@@ -619,17 +698,27 @@ test('the system names a takeoff and reads doors from an uploaded drawing', func
         ->and($document->sheet_title)->toBe('Door Schedule')
         ->and($document->revision_label)->toBe('B');
 
-    expect($takeoff->openings)->toHaveCount(3)
-        ->and($takeoff->openings()->where('tag', 'D1')->exists())->toBeTrue()
-        ->and($takeoff->openings()->where('tag', 'D2')->exists())->toBeTrue()
-        ->and($takeoff->openings()->where('tag', 'D3')->exists())->toBeTrue();
+    expect($takeoff->openings)->toHaveCount(0);
 
-    $this->actingAs($admin)->post(route('admin.takeoffs.documents.store', $takeoff), [
-        'file' => UploadedFile::fake()->createWithContent('level-1-again.pdf', takeoffDrawingPdf()),
-        'document_type' => 'drawing',
+    $this->actingAs($admin)->post(route('admin.takeoffs.proposals.confirm', [$takeoff, $document]), [
+        'tag' => 'D1',
+        'opening_type' => 'door',
     ])->assertRedirect();
 
-    expect($takeoff->openings()->count())->toBe(3);
+    $opening = $takeoff->openings()->first();
+    expect($opening->tag)->toBe('D1')
+        ->and($opening->opening_type)->toBe('door')
+        ->and($opening->location)->toBe('Lobby')
+        ->and($opening->handing)->toBe('RH')
+        ->and((string) $opening->width)->toBe('36.000')
+        ->and((string) $opening->height)->toBe('84.000');
+
+    $this->actingAs($admin)->post(route('admin.takeoffs.proposals.dismiss', [$takeoff, $document]), [
+        'tag' => 'D2',
+    ])->assertRedirect();
+
+    expect($takeoff->openings()->count())->toBe(1)
+        ->and($takeoff->openings()->where('tag', 'D2')->exists())->toBeFalse();
 });
 
 test('a blank title is named from the project and a typed title is kept', function () {
@@ -684,6 +773,119 @@ test('uploading a drawing replaces a generic takeoff name', function () {
         ->and($takeoff->openings)->toHaveCount(3);
 });
 
+test('a drawing rotation is saved with the sheet', function () {
+    $admin = takeoffUser();
+    $takeoff = takeoffRecord($admin);
+    $document = $takeoff->documents()->create([
+        'original_filename' => 'level-1.pdf',
+        'storage_path' => 'takeoffs/level-1.pdf',
+        'mime' => 'application/pdf',
+        'size' => 128,
+        'document_type' => 'drawing',
+        'uploaded_by' => $admin->id,
+    ]);
+
+    $this->actingAs($admin)->patch(route('admin.takeoffs.documents.rotation', [$takeoff, $document]), [
+        'rotation' => 90,
+    ])->assertRedirect();
+
+    expect($document->fresh()->rotation)->toBe(90);
+
+    $this->actingAs($admin)->patch(route('admin.takeoffs.documents.rotation', [$takeoff, $document]), [
+        'rotation' => 45,
+    ])->assertSessionHasErrors('rotation');
+});
+
+test('a pen outline is saved on the sheet and can be removed', function () {
+    $admin = takeoffUser();
+    $takeoff = takeoffRecord($admin);
+    $document = $takeoff->documents()->create([
+        'original_filename' => 'level-1.pdf',
+        'storage_path' => 'takeoffs/level-1.pdf',
+        'mime' => 'application/pdf',
+        'size' => 128,
+        'document_type' => 'drawing',
+        'uploaded_by' => $admin->id,
+    ]);
+
+    $this->actingAs($admin)->post(route('admin.takeoffs.markups.store', $takeoff), [
+        'document_id' => $document->id,
+        'page' => 1,
+        'kind' => 'pen',
+        'color' => '#f97316',
+        'points' => [
+            ['x' => 0.2, 'y' => 0.3],
+            ['x' => 0.28, 'y' => 0.36],
+            ['x' => 0.24, 'y' => 0.4],
+        ],
+    ])->assertRedirect();
+
+    $markup = $takeoff->markups()->first();
+    expect($markup)->not->toBeNull()
+        ->and($markup->kind)->toBe('pen')
+        ->and($markup->color)->toBe('#F97316')
+        ->and($markup->points)->toHaveCount(3);
+
+    $this->actingAs($admin)->delete(route('admin.takeoffs.markups.destroy', [$takeoff, $markup]))
+        ->assertRedirect();
+
+    expect($takeoff->markups()->count())->toBe(0);
+
+    $this->actingAs($admin)->post(route('admin.takeoffs.markups.store', $takeoff), [
+        'document_id' => $document->id,
+        'page' => 1,
+        'kind' => 'box',
+        'color' => 'orange',
+        'points' => [
+            ['x' => 0.1, 'y' => 0.1],
+            ['x' => 0.2, 'y' => 0.2],
+        ],
+    ])->assertSessionHasErrors('color');
+});
+
+test('a boxed selection is counted as a numbered opening', function () {
+    $admin = takeoffUser();
+    $takeoff = takeoffRecord($admin);
+    $document = $takeoff->documents()->create([
+        'original_filename' => 'level-1.pdf',
+        'storage_path' => 'takeoffs/level-1.pdf',
+        'mime' => 'application/pdf',
+        'size' => 128,
+        'document_type' => 'drawing',
+        'uploaded_by' => $admin->id,
+    ]);
+
+    $this->actingAs($admin)->post(route('admin.takeoffs.counts.store', $takeoff), [
+        'opening_type' => 'door',
+        'document_id' => $document->id,
+        'page' => 1,
+        'x' => 0.2,
+        'y' => 0.3,
+        'x2' => 0.36,
+        'y2' => 0.48,
+    ])->assertRedirect();
+
+    $opening = $takeoff->openings()->with('markers')->first();
+    $marker = $opening->markers->first();
+
+    expect($opening->tag)->toBe('D1')
+        ->and($opening->opening_type)->toBe('door')
+        ->and($marker->x2)->not->toBeNull()
+        ->and($marker->y2)->not->toBeNull();
+
+    $this->actingAs($admin)->post(route('admin.takeoffs.counts.store', $takeoff), [
+        'opening_type' => 'window',
+        'document_id' => $document->id,
+        'page' => 1,
+        'x' => 0.5,
+        'y' => 0.5,
+        'x2' => 0.7,
+        'y2' => 0.8,
+    ])->assertRedirect();
+
+    expect($takeoff->openings()->where('tag', 'W1')->where('opening_type', 'window')->exists())->toBeTrue();
+});
+
 test('clicking the drawing counts that opening on the sheet', function () {
     Storage::fake('local');
     $admin = takeoffUser();
@@ -721,6 +923,48 @@ test('clicking the drawing counts that opening on the sheet', function () {
         ->and((float) $openings[0]->markers[0]->x)->toEqual(0.25)
         ->and($openings[1]->tag)->toBe('W1')
         ->and($openings[1]->opening_type)->toBe('window');
+});
+
+test('deleting a count renumbers the rest from 1 and a custom mark stays', function () {
+    Storage::fake('local');
+    $admin = takeoffUser();
+    $takeoff = takeoffRecord($admin);
+    $document = $takeoff->documents()->create([
+        'original_filename' => 'level-1.pdf',
+        'storage_path' => 'takeoffs/level-1.pdf',
+        'mime' => 'application/pdf',
+        'size' => 128,
+        'document_type' => 'drawing',
+        'uploaded_by' => $admin->id,
+    ]);
+
+    foreach ([0.2, 0.4, 0.6] as $x) {
+        $this->actingAs($admin)->post(route('admin.takeoffs.counts.store', $takeoff), [
+            'opening_type' => 'door',
+            'document_id' => $document->id,
+            'page' => 1,
+            'x' => $x,
+            'y' => 0.4,
+        ])->assertRedirect();
+    }
+
+    $first = $takeoff->openings()->orderBy('sort_order')->first();
+    $this->actingAs($admin)->delete(route('admin.takeoffs.openings.destroy', [$takeoff, $first]))->assertRedirect();
+
+    $remaining = $takeoff->openings()->orderBy('sort_order')->get();
+    expect($remaining->pluck('tag')->all())->toBe(['D1', 'D2'])
+        ->and($remaining->pluck('sort_order')->all())->toBe([1, 2]);
+
+    $this->actingAs($admin)->patch(route('admin.takeoffs.openings.callout', [$takeoff, $remaining[0]]), [
+        'callout' => 'A',
+    ])->assertRedirect();
+
+    $this->actingAs($admin)->delete(route('admin.takeoffs.openings.destroy', [$takeoff, $remaining[1]]))->assertRedirect();
+
+    $kept = $takeoff->openings()->first();
+    expect($kept->tag)->toBe('D1')
+        ->and($kept->callout)->toBe('A')
+        ->and((int) $kept->sort_order)->toBe(1);
 });
 
 test('clicking a schedule row copies that door tag and its specs', function () {
@@ -881,4 +1125,78 @@ test('the dashboard charts takeoffs by status', function () {
             ])
             ->where('charts.takeoffs.1.value', 0)
             ->where('charts.takeoffs.3.value', 0));
+});
+
+test('door openings reuse a type and a category from the object inspector lists', function () {
+    $admin = takeoffUser();
+    $takeoff = takeoffRecord($admin);
+
+    $this->actingAs($admin)->post(route('admin.takeoffs.door-types.store'), [
+        'name' => 'Bifold',
+    ])->assertRedirect();
+
+    $this->actingAs($admin)->post(route('admin.takeoffs.door-types.store'), [
+        'name' => 'bifold',
+    ])->assertRedirect();
+
+    expect(DoorConfiguration::query()->whereRaw('LOWER(name) = ?', ['bifold'])->count())->toBe(1)
+        ->and(DoorConfiguration::query()->where('name', 'Single')->exists())->toBeTrue()
+        ->and(DoorConfiguration::query()->where('name', 'Pair')->exists())->toBeTrue();
+
+    $this->actingAs($admin)->post(route('admin.takeoffs.opening-categories.store'), [
+        'name' => 'Acoustic',
+    ])->assertRedirect();
+
+    $this->actingAs($admin)->post(route('admin.takeoffs.opening-categories.store'), [
+        'name' => 'acoustic',
+    ])->assertRedirect();
+
+    expect(OpeningCategory::query()->whereRaw('LOWER(name) = ?', ['acoustic'])->count())->toBe(1);
+
+    $bifold = DoorConfiguration::query()->where('name', 'Bifold')->firstOrFail();
+
+    $this->actingAs($admin)->post(route('admin.takeoffs.openings.store', $takeoff), [
+        'tag' => 'D1',
+        'is_bulk' => false,
+        'opening_type' => 'door',
+        'door_configuration_id' => $bifold->id,
+        'quantity' => '1',
+        'product_category' => 'acoustic',
+        'dimension_unit' => 'in',
+        'scope' => 'both',
+        'disposition' => 'active',
+        'verification_status' => 'recorded',
+    ])->assertRedirect();
+
+    $opening = $takeoff->openings()->firstOrFail();
+
+    expect($opening->door_configuration_id)->toBe($bifold->id)
+        ->and($opening->product_category)->toBe('Acoustic');
+
+    $this->actingAs($admin)->patch(route('admin.takeoffs.openings.update', [$takeoff, $opening]), [
+        'tag' => 'D1',
+        'is_bulk' => false,
+        'opening_type' => 'window',
+        'door_configuration_id' => $bifold->id,
+        'quantity' => '1',
+        'product_category' => 'Fixed',
+        'dimension_unit' => 'in',
+        'scope' => 'both',
+        'disposition' => 'active',
+        'verification_status' => 'recorded',
+    ])->assertRedirect();
+
+    $opening->refresh();
+
+    expect($opening->door_configuration_id)->toBeNull()
+        ->and($opening->product_category)->toBe('Fixed')
+        ->and(OpeningCategory::query()->where('name', 'Fixed')->exists())->toBeTrue();
+
+    $this->actingAs($admin)->get(route('admin.takeoffs.show', $takeoff))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->has('doorTypes')
+            ->has('openingCategories')
+            ->where('takeoff.openings.0.door_type', null)
+            ->where('takeoff.openings.0.product_category', 'Fixed'));
 });

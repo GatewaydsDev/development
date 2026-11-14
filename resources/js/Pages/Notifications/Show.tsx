@@ -198,7 +198,7 @@ export default function Show({
             <Head title={notification.title} />
 
             <div className="py-6 sm:py-8">
-                <div className="mx-auto grid max-w-[96rem] gap-6 px-4 sm:px-6 lg:grid-cols-[1fr_0.35fr] lg:px-8">
+                <div className="grid w-full gap-6 px-4 sm:px-6 lg:grid-cols-[1fr_0.35fr] lg:px-8">
                     <div className="flex flex-col gap-6">
                         <Card className="shadow-sm">
                             <CardHeader>
@@ -308,7 +308,7 @@ export default function Show({
                                                             >
                                                                 <input
                                                                     type="checkbox"
-                                                                    className="mt-1 size-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
+                                                                    className="mt-1 size-4 rounded border-gray-300 text-emerald-600 dark:border-border focus:ring-emerald-500"
                                                                     checked={
                                                                         checked
                                                                     }
@@ -365,7 +365,7 @@ export default function Show({
                                             <label className="flex items-center gap-2 text-sm text-foreground">
                                                 <input
                                                     type="checkbox"
-                                                    className="size-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
+                                                    className="size-4 rounded border-gray-300 text-emerald-600 dark:border-border focus:ring-emerald-500"
                                                     checked={
                                                         emailForm.data
                                                             .include_company
@@ -415,7 +415,7 @@ export default function Show({
                                             <textarea
                                                 id="message"
                                                 rows={4}
-                                                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                                                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm dark:border-border focus:border-indigo-500 focus:ring-indigo-500"
                                                 value={emailForm.data.message}
                                                 onChange={(event) =>
                                                     emailForm.setData(

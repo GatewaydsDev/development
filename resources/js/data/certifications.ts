@@ -1,4 +1,6 @@
 export const lockmastersWebsite = 'https://www.lockmasters.com/';
+export const lockmastersInstituteWebsite = 'https://lsieducation.com/';
+export const kabaMasWebsite = 'https://www.kabamas.com/';
 
 export const certificationImageSize = {
     width: 320,
@@ -12,7 +14,26 @@ export const certifications = [
         image: '/images/certification-lockmasters.webp',
         website: lockmastersWebsite,
         monogram: 'LKM',
+        mark: null,
         plate: 'dark',
+    },
+    {
+        key: 'kabaMasX10',
+        logo: '/images/lockmasters-logo.webp',
+        image: null,
+        website: kabaMasWebsite,
+        monogram: 'X-10',
+        mark: 'X-10',
+        plate: 'navy',
+    },
+    {
+        key: 'lkm10k',
+        logo: '/images/lockmasters-logo.webp',
+        image: null,
+        website: lockmastersInstituteWebsite,
+        monogram: '10K',
+        mark: '10K',
+        plate: 'bronze',
     },
     {
         key: 'rf',
@@ -20,6 +41,7 @@ export const certifications = [
         image: '/images/products/rf.svg',
         website: null,
         monogram: 'RF',
+        mark: null,
         plate: 'emerald',
     },
     {
@@ -28,6 +50,7 @@ export const certifications = [
         image: '/images/products/scif.svg',
         website: null,
         monogram: 'SCIF',
+        mark: null,
         plate: 'slate',
     },
 ] as const;

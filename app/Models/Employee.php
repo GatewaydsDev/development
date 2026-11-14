@@ -29,6 +29,8 @@ class Employee extends Model
         'email',
         'phone_number',
         'job_title',
+        'job_title_id',
+        'is_quality_control',
         'department',
         'foreman_user_id',
         'user_id',
@@ -43,6 +45,7 @@ class Employee extends Model
         return [
             'hire_date' => 'date',
             'date_of_birth' => 'date',
+            'is_quality_control' => 'boolean',
         ];
     }
 
@@ -51,11 +54,32 @@ class Employee extends Model
         static::creating(function (Employee $employee): void {
             $employee->uuid ??= (string) Str::uuid();
         });
+
+        // `job_title` stays as a plain-text copy of the related title for existing views and exports.
+        static::saving(function (Employee $employee): void {
+            if ($employee->isDirty('job_title_id')) {
+                $employee->job_title = $employee->job_title_id
+                    ? JobTitle::query()->whereKey($employee->job_title_id)->value('name')
+                    : null;
+            } elseif ($employee->isDirty('job_title')) {
+                $name = trim((string) $employee->job_title);
+
+                $employee->job_title = $name === '' ? null : $name;
+                $employee->job_title_id = $name === ''
+                    ? null
+                    : JobTitle::query()->firstOrCreate(['name' => $name])->id;
+            }
+        });
     }
 
     public function fullName(): string
     {
         return trim("{$this->first_name} {$this->last_name}");
+    }
+
+    public function jobTitle(): BelongsTo
+    {
+        return $this->belongsTo(JobTitle::class);
     }
 
     public function payRates(): HasMany

@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Admin\Concerns\AuthorizesTakeoffs;
 use App\Http\Controllers\Controller;
+use App\Models\DoorConfiguration;
+use App\Models\OpeningCategory;
 use App\Models\Product;
 use App\Models\Project;
 use App\Models\Quotation;
@@ -11,9 +13,9 @@ use App\Models\Takeoff;
 use App\Models\TakeoffAssemblyTemplate;
 use App\Models\TakeoffOpening;
 use App\Models\User;
+use App\Support\ProjectControlTakeoff;
 use App\Support\TakeoffAccess;
 use App\Support\TakeoffConversion;
-use App\Support\TakeoffCopier;
 use App\Support\TakeoffCsv;
 use App\Support\TakeoffMoney;
 use App\Support\TakeoffNamer;
@@ -155,6 +157,7 @@ class TakeoffController extends Controller
             $file ? 'Takeoff was created from '.$file->getClientOriginalName().'.' : 'Takeoff was created.',
             ['title' => $takeoff->title],
         );
+        app(ProjectControlTakeoff::class)->connectTakeoff($takeoff);
 
         return redirect()
             ->route('admin.takeoffs.show', $takeoff)
@@ -195,6 +198,16 @@ class TakeoffController extends Controller
                 'status' => $quotation->status,
             ])->values()->all(),
             'can' => $this->abilities($user),
+            'doorTypes' => DoorConfiguration::query()
+                ->orderBy('name')
+                ->get(['id', 'name'])
+                ->map(fn (DoorConfiguration $type): array => [
+                    'id' => $type->id,
+                    'name' => $type->name,
+                ])
+                ->values()
+                ->all(),
+            'openingCategories' => OpeningCategory::choices(),
         ]);
     }
 
@@ -205,6 +218,8 @@ class TakeoffController extends Controller
 
         $data = $request->validate([
             'title' => ['required', 'string', 'max:255'],
+            'revision_number' => ['sometimes', 'integer', 'min:1', 'max:9999'],
+            'revision_label' => ['sometimes', 'nullable', 'string', 'max:40'],
             'notes' => ['nullable', 'string', 'max:5000'],
             'status' => ['required', Rule::in(config('takeoffs.statuses'))],
             'pricing_method' => ['nullable', Rule::in(config('takeoffs.pricing_methods'))],
@@ -226,11 +241,26 @@ class TakeoffController extends Controller
             abort_unless(TakeoffAccess::canApprove($user), 403);
         }
 
+        $openingDrafts = app(TakeoffWorkspaceController::class)->validatedOpeningDrafts($takeoff, $user, $request->input('openings', []));
+
+        if ($openingDrafts !== [] && $takeoff->status === 'approved' && $data['status'] === 'approved') {
+            $data['status'] = 'in_review';
+        }
+
         $changes = [
             'title' => $data['title'],
             'notes' => $data['notes'] ?? null,
             'status' => $data['status'],
         ];
+
+        if (array_key_exists('revision_number', $data)) {
+            $changes['revision_number'] = $data['revision_number'];
+        }
+
+        if (array_key_exists('revision_label', $data)) {
+            $label = trim((string) ($data['revision_label'] ?? ''));
+            $changes['revision_label'] = $label === '' ? null : $label;
+        }
 
         if ($data['status'] === 'approved' && $takeoff->status !== 'approved') {
             $changes['approved_by'] = $user->id;
@@ -262,12 +292,15 @@ class TakeoffController extends Controller
         }
 
         $takeoff->fill($changes)->save();
+        $savedOpenings = app(TakeoffWorkspaceController::class)->storeOpeningDrafts($takeoff, $openingDrafts);
         $action = $data['status'] === 'approved' && $takeoff->wasChanged('approved_at')
             ? 'takeoff.approved'
             : 'takeoff.updated';
         $summary = $action === 'takeoff.approved'
             ? 'Takeoff was approved internally. Approval does not certify product compliance.'
-            : 'Takeoff details were updated.';
+            : ($savedOpenings > 0
+                ? 'Takeoff saved, including '.$savedOpenings.' opening '.($savedOpenings === 1 ? 'change' : 'changes').'.'
+                : 'Takeoff details were updated.');
         $takeoff->record($user, $action, $summary, ['status' => $takeoff->status]);
 
         return back()->with('success', $summary);
@@ -285,14 +318,6 @@ class TakeoffController extends Controller
         $takeoff->delete();
 
         return redirect()->route('admin.takeoffs.index')->with('success', 'Takeoff deleted.');
-    }
-
-    public function revise(Request $request, Takeoff $takeoff): RedirectResponse
-    {
-        $user = $this->ensureEditable($request, $takeoff);
-        $copy = TakeoffCopier::copy($takeoff, $user);
-
-        return redirect()->route('admin.takeoffs.show', $copy)->with('success', 'Revision '.$copy->revision_number.' created. The previous revision is unchanged.');
     }
 
     public function export(Request $request, Takeoff $takeoff): Response
@@ -392,12 +417,45 @@ class TakeoffController extends Controller
         }
 
         $this->clearApproval($takeoff, $user);
+        app(ProjectControlTakeoff::class)->connectTakeoff($takeoff);
         $takeoff->record($user, 'import.completed', count($parsed['rows']).' opening(s) imported from a spreadsheet.', [
             'duplicate_mode' => $mode,
             'duplicates' => $duplicates,
         ]);
 
         return back()->with('success', count($parsed['rows']).' opening(s) imported.');
+    }
+
+    public function storeDoorType(Request $request): RedirectResponse
+    {
+        abort_unless(TakeoffAccess::canUpdate($this->takeoffUser($request)), 403);
+
+        $name = trim($request->validate([
+            'name' => ['required', 'string', 'max:255'],
+        ])['name']);
+
+        $existing = DoorConfiguration::query()
+            ->whereRaw('LOWER(name) = ?', [mb_strtolower($name)])
+            ->first();
+
+        if (! $existing) {
+            DoorConfiguration::create(['name' => $name]);
+        }
+
+        return back();
+    }
+
+    public function storeOpeningCategory(Request $request): RedirectResponse
+    {
+        abort_unless(TakeoffAccess::canUpdate($this->takeoffUser($request)), 403);
+
+        $name = trim($request->validate([
+            'name' => ['required', 'string', 'max:255'],
+        ])['name']);
+
+        OpeningCategory::remember($name);
+
+        return back();
     }
 
     public function products(Request $request): JsonResponse

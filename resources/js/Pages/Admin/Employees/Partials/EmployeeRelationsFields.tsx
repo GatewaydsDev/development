@@ -12,7 +12,15 @@ import {
     type NamedOption,
 } from '../types';
 
-const skillRateOrder = ['hourly', 'half_day', 'daily', 'day_off', 'union'] as const;
+const skillRateOrder = [
+    'hourly',
+    'half_day',
+    'daily',
+    'overtime',
+    'day_off',
+    'union',
+    'custom',
+] as const;
 
 type EmployeeRelationsFieldsProps = {
     data: EmployeeFormData;
@@ -86,8 +94,9 @@ export default function EmployeeRelationsFields({
                     Skills and rates
                 </h3>
                 <p className="text-sm text-muted-foreground">
-                    Add a skill, such as Painter, then set hourly, daily, half
-                    day, day off, and union rates.
+                    Add a skill, such as Painter, then add as many rates as needed:
+                    hourly, daily, half day, overtime, day off, union, or a
+                    custom named rate.
                 </p>
             </div>
             {data.skills.length === 0 ? (
@@ -152,6 +161,7 @@ export default function EmployeeRelationsFields({
                                             const choices = skillRateOrder
                                                 .filter(
                                                     (value) =>
+                                                        value === 'custom' ||
                                                         value ===
                                                             rate.rate_type ||
                                                         !usedRateTypes.has(
@@ -167,7 +177,7 @@ export default function EmployeeRelationsFields({
                                             return (
                                                 <div
                                                     key={`skill-${index}-rate-${rateIndex}`}
-                                                    className="grid gap-4 rounded-lg border border-border bg-background p-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,0.8fr)_auto] lg:items-start"
+                                                    className="grid gap-4 rounded-lg border border-border bg-background p-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,0.8fr)_auto] lg:items-start"
                                                 >
                                                     <div className="flex flex-col gap-2">
                                                         <InputLabel
@@ -220,6 +230,47 @@ export default function EmployeeRelationsFields({
                                                             )}
                                                         />
                                                     </div>
+                                                    {rate.rate_type === 'custom' ? (
+                                                        <div className="flex flex-col gap-2">
+                                                            <InputLabel
+                                                                htmlFor={`employee-skill-${index}-rate-name-${rateIndex}`}
+                                                                value="Rate name"
+                                                                className={
+                                                                    labelClassName
+                                                                }
+                                                            />
+                                                            <input
+                                                                id={`employee-skill-${index}-rate-name-${rateIndex}`}
+                                                                value={
+                                                                    rate.custom_rate_type
+                                                                }
+                                                                placeholder="e.g. Prevailing wage"
+                                                                className={
+                                                                    inputClassName
+                                                                }
+                                                                onChange={(
+                                                                    event,
+                                                                ) =>
+                                                                    setSkillRate(
+                                                                        index,
+                                                                        rateIndex,
+                                                                        'custom_rate_type',
+                                                                        event
+                                                                            .target
+                                                                            .value,
+                                                                    )
+                                                                }
+                                                            />
+                                                            <InputError
+                                                                message={errorMessage(
+                                                                    validationErrors,
+                                                                    `skills.${index}.rates.${rateIndex}.custom_rate_type`,
+                                                                )}
+                                                            />
+                                                        </div>
+                                                    ) : (
+                                                        <div className="hidden lg:block" />
+                                                    )}
                                                     <div className="flex flex-col gap-2">
                                                         <InputLabel
                                                             htmlFor={`employee-skill-${index}-rate-amount-${rateIndex}`}

@@ -19,7 +19,7 @@ import {
 import { useProjectListRefresh } from '@/hooks/useProjectListRefresh';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { router } from '@inertiajs/react';
-import { Eye, EyeOff } from 'lucide-react';
+import { Briefcase, Eye, EyeOff, KeyRound, StickyNote, UserRound } from 'lucide-react';
 import { FormEventHandler, ReactNode, useEffect, useMemo, useRef, useState } from 'react';
 import {
     FieldErrors,
@@ -51,6 +51,7 @@ type EmployeeFormProps = {
     title: string;
     description: string;
     languages: NamedOption[];
+    jobTitles?: NamedOption[];
     certifications?: CertificationOption[];
     skills: NamedOption[];
     skillsVersion?: string | null;
@@ -117,7 +118,8 @@ function employeeSchema(
         last_name: z.string().trim().min(1, 'Enter the last name.').max(255),
         email: z.string().trim().email('Enter a valid email address.').max(255),
         phone_number: z.string().trim().max(50),
-        job_title: z.string().trim().max(255),
+        job_title_id: z.string(),
+        is_quality_control: z.boolean(),
         department: z.string().trim().max(255),
         account_level_id: z.string(),
         account_password: z.string(),
@@ -166,6 +168,7 @@ function employeeSchema(
                                     ),
                                 'Select a valid rate type.',
                             ),
+                        custom_rate_type: z.string().trim().max(255),
                         amount: z
                             .string()
                             .trim()
@@ -199,7 +202,26 @@ function employeeSchema(
             const selectedRates = new Set<string>();
 
             skill.rates.forEach((rate, rateIndex) => {
-                if (selectedRates.has(rate.rate_type)) {
+                if (rate.rate_type === 'custom' && !rate.custom_rate_type) {
+                    context.addIssue({
+                        code: 'custom',
+                        path: [
+                            'skills',
+                            skillIndex,
+                            'rates',
+                            rateIndex,
+                            'custom_rate_type',
+                        ],
+                        message: 'Name this rate.',
+                    });
+                }
+
+                const rateKey =
+                    rate.rate_type === 'custom'
+                        ? `custom:${rate.custom_rate_type.toLowerCase()}`
+                        : rate.rate_type;
+
+                if (selectedRates.has(rateKey)) {
                     context.addIssue({
                         code: z.ZodIssueCode.custom,
                         path: ['skills', skillIndex, 'rates', rateIndex, 'rate_type'],
@@ -207,7 +229,7 @@ function employeeSchema(
                     });
                 }
 
-                selectedRates.add(rate.rate_type);
+                selectedRates.add(rateKey);
             });
         });
 
@@ -256,6 +278,13 @@ function errorMessage(
         : undefined;
 }
 
+const sectionIcons: Record<string, ReactNode> = {
+    'Personal details': <UserRound className="size-4" />,
+    Employment: <Briefcase className="size-4" />,
+    'App login': <KeyRound className="size-4" />,
+    Notes: <StickyNote className="size-4" />,
+};
+
 function FormSection({
     title,
     description,
@@ -266,12 +295,19 @@ function FormSection({
     children: ReactNode;
 }) {
     return (
-        <section className="flex flex-col gap-4 rounded-xl border border-border bg-muted/20 p-4">
-            <div>
-                <h3 className="text-base font-semibold text-foreground">
-                    {title}
-                </h3>
-                <p className="text-sm text-muted-foreground">{description}</p>
+        <section className="flex flex-col gap-5 rounded-xl border border-border bg-card p-5 shadow-sm">
+            <div className="flex items-start gap-3 border-b border-border pb-4">
+                <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                    {sectionIcons[title] ?? <UserRound className="size-4" />}
+                </span>
+                <div>
+                    <h3 className="text-base font-semibold text-foreground">
+                        {title}
+                    </h3>
+                    <p className="text-sm text-muted-foreground">
+                        {description}
+                    </p>
+                </div>
             </div>
             {children}
         </section>
@@ -285,6 +321,7 @@ export default function EmployeeForm({
     title,
     description,
     languages,
+    jobTitles = [],
     certifications = [],
     skills,
     skillsVersion = null,
@@ -486,7 +523,7 @@ export default function EmployeeForm({
     const setSkillRate = (
         skillIndex: number,
         rateIndex: number,
-        field: 'rate_type' | 'amount',
+        field: 'rate_type' | 'amount' | 'custom_rate_type',
         value: string,
     ) => {
         setValue(`skills.${skillIndex}.rates.${rateIndex}.${field}`, value, {
@@ -526,6 +563,7 @@ export default function EmployeeForm({
         const payload = {
             ...employeeValues,
             language_id: values.language_id || null,
+            job_title_id: values.job_title_id || null,
             account_level_id: values.account_level_id || null,
             account_password: values.account_password,
             account_password_confirmation:
@@ -538,6 +576,10 @@ export default function EmployeeForm({
                 skill.rates.map((rate) => ({
                     skill_id: skill.skill_id,
                     rate_type: rate.rate_type,
+                    custom_rate_type:
+                        rate.rate_type === 'custom'
+                            ? rate.custom_rate_type
+                            : null,
                     amount: rate.amount,
                 })),
             ),
@@ -592,6 +634,27 @@ export default function EmployeeForm({
                         saveLabel={submitLabel}
                         disabled={processing || checkingEmail || emailTaken}
                     />
+
+                    <div className="flex items-center gap-4 rounded-xl border border-border bg-gradient-to-r from-primary/10 to-transparent p-5">
+                        <span className="flex size-14 shrink-0 items-center justify-center rounded-full bg-primary text-lg font-semibold text-primary-foreground">
+                            {(
+                                (data.first_name?.[0] ?? '') +
+                                (data.last_name?.[0] ?? '')
+                            ).toUpperCase() || <UserRound className="size-6" />}
+                        </span>
+                        <div className="min-w-0">
+                            <p className="truncate text-lg font-semibold text-foreground">
+                                {`${data.first_name} ${data.last_name}`.trim() ||
+                                    'New employee'}
+                            </p>
+                            <p className="truncate text-sm text-muted-foreground">
+                                {jobTitles.find(
+                                    (item) =>
+                                        String(item.id) === data.job_title_id,
+                                )?.name ?? 'No job title selected'}
+                            </p>
+                        </div>
+                    </div>
 
                     <FormSection
                         title="Personal details"
@@ -735,22 +798,41 @@ export default function EmployeeForm({
                         description="Job title, department, status, and hire date."
                     >
                         <div className="grid gap-5 md:grid-cols-2">
-                        <div className="flex flex-col gap-2">
-                            <InputLabel
-                                htmlFor="employee-job-title"
-                                value="Job title"
-                                className={labelClassName}
-                            />
-                            <TextInput
-                                id="employee-job-title"
-                                value={data.job_title}
-                                className={inputClassName}
+                        <NamedCatalogSelect
+                            id="employee-job-title"
+                            label="Job title"
+                            placeholder="Select a job title"
+                            addLabel="Add job title"
+                            items={jobTitles}
+                            value={data.job_title_id}
+                            reloadKey="jobTitles"
+                            storeRoute="admin.job-titles.store"
+                            error={errors.job_title_id}
+                            onChange={(jobTitleId) =>
+                                setData('job_title_id', jobTitleId)
+                            }
+                        />
+
+                        <label className="flex items-start gap-2 text-sm text-foreground md:col-span-2">
+                            <input
+                                type="checkbox"
+                                className="mt-1"
+                                checked={data.is_quality_control}
                                 onChange={(event) =>
-                                    setData('job_title', event.target.value)
+                                    setData(
+                                        'is_quality_control',
+                                        event.target.checked,
+                                    )
                                 }
                             />
-                            <InputError message={errors.job_title} />
-                        </div>
+                            <span>
+                                Quality control person
+                                <span className="block text-xs text-muted-foreground">
+                                    Can be assigned as the quality control
+                                    person on a work schedule.
+                                </span>
+                            </span>
+                        </label>
 
                         <div className="flex flex-col gap-2">
                             <InputLabel

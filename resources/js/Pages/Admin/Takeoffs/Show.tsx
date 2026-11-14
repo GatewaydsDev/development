@@ -1,20 +1,23 @@
 import AiDraftButton from '@/Components/AiDraftButton';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import FormActionFab from '@/Components/FormActionFab';
-import StickyDocumentToolbar from '@/Components/StickyDocumentToolbar';
 import TextInput from '@/Components/TextInput';
 import { Badge } from '@/Components/ui/badge';
 import { Button } from '@/Components/ui/button';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
+import type { PageProps } from '@/types';
 import { cn } from '@/lib/utils';
-import { DownloadIcon, DraftingCompassIcon, GitBranchIcon, ListIcon, PlusIcon } from 'lucide-react';
-import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
-import OpeningEditor from './Partials/OpeningEditor';
-import PdfWorkspace, { type PdfPoint } from './Partials/PdfWorkspace';
+import { DownloadIcon, DraftingCompassIcon, ListIcon, PlusIcon } from 'lucide-react';
+import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { countMark } from './pinLabels';
+import OpeningEditor, { openingForm, openingPayload, type OpeningForm } from './Partials/OpeningEditor';
+import OpeningReview from './Partials/OpeningReview';
+import PdfWorkspace, { savedCountTool, type CountTool, type PdfPoint } from './Partials/PdfWorkspace';
 import {
     marginLabel,
     money,
     statusLabel,
+    type OpeningProposal,
     type AssemblyTemplate,
     type ConversionLine,
     type TakeoffAbilities,
@@ -38,6 +41,8 @@ const sections = [
 
 function openingSpecs(opening: TakeoffDetail['openings'][number]): string {
     return [
+        opening.door_type,
+        opening.product_category,
         opening.frame_type ? `Frame ${opening.frame_type}` : null,
         opening.hardware_set ? `Hardware ${opening.hardware_set}` : null,
         opening.finish,
@@ -48,7 +53,7 @@ function openingSpecs(opening: TakeoffDetail['openings'][number]): string {
 }
 
 export default function Show({ takeoff, templates, quotations, can }: Props) {
-    const countedOpeningId = usePage<{ flash: { counted_opening_id?: number | null } }>().props.flash.counted_opening_id;
+    const countedOpeningId = usePage<PageProps>().props.flash?.counted_opening_id;
     const [section, setSection] = useState<(typeof sections)[number]['id']>('workspace');
     const [selectedOpeningId, setSelectedOpeningId] = useState<number | null>(null);
     const [selectedDocumentId, setSelectedDocumentId] = useState<number | null>(() => {
@@ -78,11 +83,36 @@ export default function Show({ takeoff, templates, quotations, can }: Props) {
     }, [selectedDocumentId, takeoff.uuid]);
     const [uploadingPdf, setUploadingPdf] = useState(false);
     const [uploadError, setUploadError] = useState<string | null>(null);
+    const [countTool, setCountTool] = useState<CountTool>(() => savedCountTool());
+    const [activeProposal, setActiveProposal] = useState<OpeningProposal | null>(null);
+
+    useEffect(() => {
+        if (activeProposal && activeProposal.document_id !== selectedDocumentId) {
+            setSelectedDocumentId(activeProposal.document_id);
+        }
+    }, [activeProposal, selectedDocumentId]);
+
+    const undoKey = `gateway.takeoff-undo.${takeoff.uuid}`;
+    const [undoIds, setUndoIds] = useState<number[]>(() => {
+        try {
+            const parsed = JSON.parse(sessionStorage.getItem(undoKey) ?? '[]') as unknown;
+
+            return Array.isArray(parsed) ? parsed.filter((id): id is number => typeof id === 'number') : [];
+        } catch {
+            return [];
+        }
+    });
     const documentIds = useRef(takeoff.documents.map((document) => document.id));
-    const workspaceRef = useRef<HTMLDivElement>(null);
+    const [paletteView, setPaletteView] = useState<'drawing' | 'inspector'>('drawing');
     const [creating, setCreating] = useState(false);
+
+    useEffect(() => {
+        if (selectedOpeningId || creating) {
+            setPaletteView('inspector');
+        }
+    }, [selectedOpeningId, creating]);
     const [pendingMarker, setPendingMarker] = useState<PdfPoint | null>(null);
-    const [dirty, setDirty] = useState(false);
+    const [drafts, setDrafts] = useState<Record<string, OpeningForm>>({});
     const [query, setQuery] = useState('');
     const [category, setCategory] = useState('');
     const [location, setLocation] = useState('');
@@ -100,6 +130,8 @@ export default function Show({ takeoff, templates, quotations, can }: Props) {
     const [importPreview, setImportPreview] = useState<{ errors: { row: number; messages: string[] }[]; duplicates: string[]; rows: unknown[] } | null>(null);
     const details = useForm({
         title: takeoff.title,
+        revision_number: String(takeoff.revision_number ?? 1),
+        revision_label: takeoff.revision_label ?? '',
         notes: takeoff.notes ?? '',
         status: takeoff.status,
         pricing_method: takeoff.pricing_method,
@@ -107,9 +139,26 @@ export default function Show({ takeoff, templates, quotations, can }: Props) {
         margin_percent: takeoff.margin_percent ?? '',
     });
     const selected = takeoff.openings.find((opening) => opening.id === selectedOpeningId) ?? null;
+    const unsavedCount = Object.keys(drafts).length;
+    const rememberDraft = useCallback((key: string, form: OpeningForm | null) => {
+        setDrafts((current) => {
+            if (form === null) {
+                if (!(key in current)) {
+                    return current;
+                }
+
+                const next = { ...current };
+                delete next[key];
+
+                return next;
+            }
+
+            return { ...current, [key]: form };
+        });
+    }, []);
 
     useEffect(() => {
-        if (!dirty) {
+        if (unsavedCount === 0) {
             return;
         }
 
@@ -121,7 +170,7 @@ export default function Show({ takeoff, templates, quotations, can }: Props) {
         window.addEventListener('beforeunload', warn);
 
         return () => window.removeEventListener('beforeunload', warn);
-    }, [dirty]);
+    }, [unsavedCount]);
 
     useEffect(() => {
         if (!countedOpeningId) {
@@ -136,8 +185,24 @@ export default function Show({ takeoff, templates, quotations, can }: Props) {
 
         setSelectedOpeningId(opening.id);
         setCreating(false);
+        setPaletteView('inspector');
         setSection('workspace');
-    }, [countedOpeningId, takeoff.openings]);
+        setUndoIds((current) => {
+            if (current.at(-1) === opening.id) {
+                return current;
+            }
+
+            const next = [...current, opening.id].slice(-30);
+
+            try {
+                sessionStorage.setItem(undoKey, JSON.stringify(next));
+            } catch {
+                // Undo still works until the page is closed.
+            }
+
+            return next;
+        });
+    }, [countedOpeningId, takeoff.openings, undoKey]);
 
     useEffect(() => {
         const ids = takeoff.documents.map((document) => document.id);
@@ -163,6 +228,10 @@ export default function Show({ takeoff, templates, quotations, can }: Props) {
         });
     };
 
+    const lineByOpening = useMemo(
+        () => new Map(takeoff.openings.map((opening, index) => [opening.id, index + 1])),
+        [takeoff.openings],
+    );
     const filtered = useMemo(() => takeoff.openings.filter((opening) => {
         const haystack = `${opening.tag ?? ''} ${opening.label}`.toLowerCase();
 
@@ -195,12 +264,10 @@ export default function Show({ takeoff, templates, quotations, can }: Props) {
 
     const openOpening = (id: number) => {
         const opening = takeoff.openings.find((item) => item.id === id);
-        if (dirty && id !== selectedOpeningId && !window.confirm('This opening still has changes to save. Leave them and open the other one?')) {
-            return;
-        }
 
         setSelectedOpeningId(id);
         setCreating(false);
+        setPaletteView('inspector');
         const marker = opening?.markers[0];
 
         if (marker) {
@@ -208,7 +275,7 @@ export default function Show({ takeoff, templates, quotations, can }: Props) {
         }
     };
 
-    const countOpening = (point: PdfPoint, tool: 'door' | 'window') => {
+    const countOpening = (point: PdfPoint, tool: 'door' | 'window', box?: { x: number; y: number; x2: number; y2: number }) => {
         if (!can.update || takeoff.status === 'archived') {
             return;
         }
@@ -217,9 +284,62 @@ export default function Show({ takeoff, templates, quotations, can }: Props) {
             opening_type: tool,
             document_id: point.documentId,
             page: point.page,
-            x: point.x,
-            y: point.y,
+            x: box?.x ?? point.x,
+            y: box?.y ?? point.y,
+            ...(box ? { x2: box.x2, y2: box.y2 } : {}),
         }, { preserveScroll: true });
+    };
+
+    const undoLastCount = () => {
+        const openingId = undoIds.at(-1);
+
+        if (!openingId) {
+            return;
+        }
+
+        const next = undoIds.slice(0, -1);
+        setUndoIds(next);
+
+        try {
+            sessionStorage.setItem(undoKey, JSON.stringify(next));
+        } catch {
+            // The count is still removed for this visit.
+        }
+
+        if (selectedOpeningId === openingId) {
+            setSelectedOpeningId(null);
+        }
+
+        router.delete(route('admin.takeoffs.openings.destroy', [takeoff.uuid, openingId]), { preserveScroll: true });
+    };
+
+    const saveMarkDetails = (openingId: number, details: { opening_type: 'door' | 'window'; width: string; height: string; notes: string; callout: string | null }) => {
+        const opening = takeoff.openings.find((item) => item.id === openingId);
+
+        if (!opening) {
+            return;
+        }
+
+        const calloutChanged = (opening.callout?.trim() || null) !== details.callout;
+
+        router.patch(route('admin.takeoffs.openings.update', [takeoff.uuid, opening.id]), openingPayload({
+            ...openingForm(opening, false),
+            opening_type: details.opening_type,
+            width: details.width,
+            height: details.height,
+            notes: details.notes,
+        }, opening.updated_at, null), {
+            preserveScroll: true,
+            onSuccess: () => {
+                if (!calloutChanged) {
+                    return;
+                }
+
+                router.patch(route('admin.takeoffs.openings.callout', [takeoff.uuid, opening.id]), {
+                    callout: details.callout,
+                }, { preserveScroll: true });
+            },
+        });
     };
 
     const csrf = () => decodeURIComponent(document.cookie.split('; ').find((row) => row.startsWith('XSRF-TOKEN='))?.split('=')[1] ?? '');
@@ -267,7 +387,34 @@ export default function Show({ takeoff, templates, quotations, can }: Props) {
 
     const saveDetails = (event: FormEvent) => {
         event.preventDefault();
-        details.patch(route('admin.takeoffs.update', takeoff.uuid), { preserveScroll: true });
+        const activeKey = creating ? 'new' : selectedOpeningId ? String(selectedOpeningId) : '';
+        const openings = Object.fromEntries(Object.entries(drafts).map(([key, form]) => {
+            const opening = takeoff.openings.find((item) => String(item.id) === key) ?? null;
+
+            return [key, openingPayload(form, opening?.updated_at ?? null, key === activeKey ? pendingMarker : null)];
+        }));
+
+        details.transform((data) => ({
+            ...data,
+            ...(Object.keys(openings).length > 0 ? { openings } : {}),
+        }));
+        details.patch(route('admin.takeoffs.update', takeoff.uuid), {
+            preserveScroll: true,
+            onSuccess: () => setDrafts({}),
+        });
+    };
+
+    const fieldErrorsFor = (key: string) => {
+        const prefix = `openings.${key}.`;
+        const errors: Record<string, string> = {};
+
+        Object.entries(details.errors).forEach(([name, message]) => {
+            if (name.startsWith(prefix) && typeof message === 'string') {
+                errors[name.slice(prefix.length)] = message;
+            }
+        });
+
+        return errors;
     };
 
         const editable = can.update && takeoff.status !== 'archived';
@@ -284,12 +431,12 @@ export default function Show({ takeoff, templates, quotations, can }: Props) {
     }).join('\n');
 
     return (
-        <AuthenticatedLayout header={<h2 className="text-xl font-semibold leading-tight text-gray-800 dark:text-gray-100">{takeoff.title}</h2>}>
+        <AuthenticatedLayout header={<h2 className="text-xl font-semibold leading-tight text-emerald-700 dark:text-emerald-300">{takeoff.title}</h2>}>
             <Head title={takeoff.title} />
             <div className="space-y-4 px-4 py-6 pb-28 sm:px-6 lg:px-8">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
-                        <p className="text-sm text-muted-foreground">{takeoff.project?.project_number} {takeoff.project?.name} · Revision {takeoff.revision_number}</p>
+                        <p className="text-sm text-muted-foreground">{takeoff.project?.project_number} {takeoff.project?.name} · Revision {takeoff.revision_number}{takeoff.revision_label ? ` ${takeoff.revision_label}` : ''}</p>
                         <p className="mt-1 text-sm font-medium text-gray-800 dark:text-gray-100">
                             Scope of work: {takeoff.openings.length === 0 ? 'mark each opening on the drawing' : `${takeoff.openings.length} ${takeoff.openings.length === 1 ? 'opening' : 'openings'} marked on the drawing`}
                         </p>
@@ -297,12 +444,6 @@ export default function Show({ takeoff, templates, quotations, can }: Props) {
                         <p className="mt-2 max-w-3xl text-sm text-muted-foreground">Estimates are internal. Approval means this takeoff was reviewed inside Gateway. It does not certify that a product meets the specification.</p>
                     </div>
                     <div className="flex flex-wrap items-center gap-1.5">
-                        {editable ? (
-                            <Button type="button" variant="outline" size="sm" onClick={() => router.post(route('admin.takeoffs.revise', takeoff.uuid))}>
-                                <GitBranchIcon data-icon="inline-start" />
-                                New revision
-                            </Button>
-                        ) : null}
                         {can.export ? (
                             <Button type="button" variant="outline" size="sm" asChild>
                                 <a href={route('admin.takeoffs.export', takeoff.uuid)}>
@@ -321,12 +462,18 @@ export default function Show({ takeoff, templates, quotations, can }: Props) {
                         <Estimate label="Estimated gross margin" value={marginLabel(takeoff.estimate.margin)} />
                     </div>
                 ) : null}
-                <form id="takeoff-details" onSubmit={saveDetails} className="grid gap-3 rounded-lg border p-3 md:grid-cols-4">
+                <form id="takeoff-details" onSubmit={saveDetails} className="grid gap-3 rounded-lg border p-3 md:grid-cols-4 border-sky-200 bg-sky-50/70 dark:border-sky-900 dark:bg-sky-950/30">
                     <FormActionFab
                         form="takeoff-details"
                         cancelHref={route('admin.takeoffs.index')}
                         saveLabel="Save takeoff"
+                        attention={unsavedCount > 0}
                         disabled={!editable || details.processing}
+                        onCancel={unsavedCount > 0 ? () => {
+                            if (window.confirm('Openings on this takeoff are not saved. Leave without saving them?')) {
+                                router.visit(route('admin.takeoffs.index'));
+                            }
+                        } : undefined}
                     />
                     <AiDraftButton
                         surface="takeoff"
@@ -335,7 +482,7 @@ export default function Show({ takeoff, templates, quotations, can }: Props) {
                             project: takeoff.project?.name ?? '',
                             project_number: takeoff.project?.project_number ?? '',
                             status: statusLabel[takeoff.status] ?? takeoff.status,
-                            revision: String(takeoff.revision_number),
+                            revision: [String(takeoff.revision_number), takeoff.revision_label].filter(Boolean).join(' '),
                             openings: String(takeoff.openings.length),
                         }}
                         currentText={[details.data.notes, openingSummary].filter(Boolean).join('\n')}
@@ -356,15 +503,21 @@ export default function Show({ takeoff, templates, quotations, can }: Props) {
                         }}
                     />
                     <label className="text-sm">Title<TextInput className="mt-1 w-full" value={details.data.title} onChange={(event) => details.setData('title', event.target.value)} /></label>
+                    <label className="text-sm">Revision number
+                        <TextInput className="mt-1 w-full" inputMode="numeric" value={details.data.revision_number} onChange={(event) => details.setData('revision_number', event.target.value.replace(/\D/g, '').slice(0, 4))} />
+                    </label>
+                    <label className="text-sm">Revision
+                        <TextInput className="mt-1 w-full" value={details.data.revision_label} placeholder="A" maxLength={40} onChange={(event) => details.setData('revision_label', event.target.value)} />
+                    </label>
                     <label className="text-sm">Status
-                        <select className="mt-1 w-full rounded-md border-gray-300 shadow-sm" value={details.data.status} onChange={(event) => details.setData('status', event.target.value)}>
+                        <select className="mt-1 h-12 w-full rounded-md border-gray-300 py-2 text-sm leading-6 shadow-sm" value={details.data.status} onChange={(event) => details.setData('status', event.target.value)}>
                             {Object.entries(statusLabel).map(([value, label]) => <option key={value} value={value} disabled={value === 'approved' && !can.approve}>{label}</option>)}
                         </select>
                     </label>
                     {can.pricing ? (
                         <>
                             <label className="text-sm">Pricing method
-                                <select className="mt-1 w-full rounded-md border-gray-300 shadow-sm" value={details.data.pricing_method} onChange={(event) => details.setData('pricing_method', event.target.value as 'markup' | 'margin')}>
+                                <select className="mt-1 h-12 w-full rounded-md border-gray-300 py-2 text-sm leading-6 shadow-sm" value={details.data.pricing_method} onChange={(event) => details.setData('pricing_method', event.target.value as 'markup' | 'margin')}>
                                     <option value="markup">Markup</option>
                                     <option value="margin">Target gross margin</option>
                                 </select>
@@ -388,8 +541,8 @@ export default function Show({ takeoff, templates, quotations, can }: Props) {
                         {details.errors.margin_percent ? <p className="text-sm text-destructive">{details.errors.margin_percent}</p> : null}
                     </div>
                 </form>
-                <div data-section-stack className="sticky top-[7.25rem] z-30 flex flex-col gap-2 bg-background pb-2">
-                <nav aria-label="Takeoff sections" data-document-toolbar data-pinned="true" className="rounded-xl border border-[#c5d0dc] bg-[#eef3f8] p-1.5 text-[#0a2540] shadow-sm">
+                <div data-section-stack className="z-20 flex flex-col gap-2 bg-background pb-2 md:sticky md:top-[var(--app-sticky-top,4.75rem)]">
+                <nav aria-label="Takeoff sections" data-document-toolbar data-pinned="true" className="rounded-xl border border-[#c5d0dc] bg-[#eef3f8] p-1.5 text-[#0a2540] shadow-sm dark:border-[#353a42] dark:bg-[#212429] dark:text-[#e6e8eb]">
                     <div className="flex gap-1 overflow-x-auto">
                         {sections.map((item, index) => {
                             const active = section === item.id;
@@ -401,7 +554,7 @@ export default function Show({ takeoff, templates, quotations, can }: Props) {
                                     aria-current={active ? 'location' : undefined}
                                     className={cn(
                                         'inline-flex shrink-0 items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition',
-                                        active ? 'bg-emerald-600 text-white' : 'bg-white text-[#0a2540] hover:bg-[#d6e6f8]',
+                                        active ? 'bg-emerald-600 text-white' : 'bg-white text-[#0a2540] hover:bg-[#d6e6f8] dark:bg-[#2b2f36] dark:text-[#e6e8eb] dark:hover:bg-[#353a42]',
                                     )}
                                     onClick={() => setSection(item.id)}
                                 >
@@ -419,27 +572,64 @@ export default function Show({ takeoff, templates, quotations, can }: Props) {
                     </div>
                 </nav>
                 {section === 'workspace' ? (
-                    <div className="flex flex-wrap gap-2 rounded-xl border border-[#c5d0dc] bg-[#eef3f8] p-1.5 shadow-sm">
-                        <a href="#takeoff-openings" className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-700">
+                    <div className="flex flex-wrap gap-2 rounded-xl border border-[#c5d0dc] bg-[#eef3f8] p-1.5 shadow-sm dark:border-[#353a42] dark:bg-[#212429]">
+                        <button type="button" onClick={() => document.getElementById('takeoff-openings')?.scrollIntoView({ behavior: 'smooth' })} className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-700">
                             <ListIcon className="size-4" />
                             Openings
-                        </a>
-                        <a href="#takeoff-drawing" className="inline-flex items-center gap-2 rounded-lg bg-sky-700 px-3 py-2 text-sm font-medium text-white hover:bg-sky-800">
+                        </button>
+                        <button type="button" onClick={() => document.getElementById('takeoff-drawing')?.scrollIntoView({ behavior: 'smooth' })} className="inline-flex items-center gap-2 rounded-lg bg-sky-700 px-3 py-2 text-sm font-medium text-white hover:bg-sky-800">
                             <DraftingCompassIcon className="size-4" />
                             Drawing
-                        </a>
+                        </button>
                     </div>
                 ) : null}
                 </div>
 
                 {section === 'workspace' ? (
-                    <div ref={workspaceRef} className="flex flex-col gap-3">
-                        <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_28rem]">
+                    <div className="flex flex-col gap-3">
                             <div className="flex min-w-0 flex-col gap-4">
                             <div id="takeoff-drawing" className="min-w-0">
+                                <OpeningReview
+                                    proposals={takeoff.proposals ?? []}
+                                    canEdit={editable}
+                                    onActive={setActiveProposal}
+                                    onConfirm={(proposal, kind) => {
+                                        router.post(route('admin.takeoffs.proposals.confirm', [takeoff.uuid, proposal.document_id]), {
+                                            tag: proposal.tag,
+                                            opening_type: kind,
+                                        }, { preserveScroll: true });
+                                    }}
+                                    onDismiss={(proposal) => {
+                                        router.post(route('admin.takeoffs.proposals.dismiss', [takeoff.uuid, proposal.document_id]), {
+                                            tag: proposal.tag,
+                                        }, { preserveScroll: true });
+                                    }}
+                                />
                                 <PdfWorkspace
                                     documents={takeoff.documents}
                                     openings={takeoff.openings}
+                                    review={activeProposal?.markers[0] ? {
+                                        tag: activeProposal.tag,
+                                        page: activeProposal.markers[0].page,
+                                        x: activeProposal.markers[0].x,
+                                        y: activeProposal.markers[0].y,
+                                    } : null}
+                                    markups={takeoff.markups ?? []}
+                                    onMarkup={editable ? (markup) => {
+                                        router.post(route('admin.takeoffs.markups.store', takeoff.uuid), {
+                                            document_id: markup.documentId,
+                                            page: markup.page,
+                                            kind: markup.kind,
+                                            color: markup.color,
+                                            points: markup.points,
+                                        }, { preserveScroll: true, preserveState: true });
+                                    } : undefined}
+                                    onDeleteMarkup={editable ? (markupId) => {
+                                        router.delete(route('admin.takeoffs.markups.destroy', [takeoff.uuid, markupId]), {
+                                            preserveScroll: true,
+                                            preserveState: true,
+                                        });
+                                    } : undefined}
                                     selectedDocumentId={selectedDocumentId}
                                     selectedOpeningId={selectedOpeningId}
                                     selectedMarkerId={selected?.markers[0]?.id ?? null}
@@ -454,33 +644,116 @@ export default function Show({ takeoff, templates, quotations, can }: Props) {
 
                                         router.delete(route('admin.takeoffs.openings.destroy', [takeoff.uuid, openingId]), { preserveScroll: true });
                                     }}
-                                    onMove={(markerId, point) => router.patch(route('admin.takeoffs.markers.update', [takeoff.uuid, markerId]), { x: point.x, y: point.y, page: point.page }, { preserveScroll: true })}
+                                    onPlace={(markerId, point) => router.patch(route('admin.takeoffs.markers.update', [takeoff.uuid, markerId]), {
+                                        x: point.x,
+                                        y: point.y,
+                                        page: point.page,
+                                        label_x: point.labelX,
+                                        label_y: point.labelY,
+                                        ...(point.x2 != null && point.y2 != null ? { x2: point.x2, y2: point.y2 } : {}),
+                                    }, { preserveScroll: true })}
+                                    onRename={(openingId, callout) => router.patch(route('admin.takeoffs.openings.callout', [takeoff.uuid, openingId]), { callout }, { preserveScroll: true })}
                                     onRemove={(markerId) => router.delete(route('admin.takeoffs.markers.destroy', [takeoff.uuid, markerId]), { preserveScroll: true })}
                                     onUpload={editable ? uploadPdf : undefined}
                                     onScan={editable && selectedDocumentId ? () => router.post(route('admin.takeoffs.documents.scan', [takeoff.uuid, selectedDocumentId]), {}, { preserveScroll: true }) : undefined}
                                     uploading={uploadingPdf}
                                     uploadError={uploadError}
+                                    tool={countTool}
+                                    onToolChange={setCountTool}
+                                    onSaveDetails={saveMarkDetails}
+                                    onUndo={editable ? undoLastCount : undefined}
+                                    canUndo={undoIds.length > 0}
+                                    onSaveRotation={editable ? (documentId, rotation) => {
+                                        router.patch(route('admin.takeoffs.documents.rotation', [takeoff.uuid, documentId]), { rotation }, {
+                                            preserveScroll: true,
+                                            preserveState: true,
+                                        });
+                                    } : undefined}
+                                    paletteView={paletteView}
+                                    onPaletteView={setPaletteView}
+                                    inspector={(
+                                        <div className="flex flex-col gap-3">
+                                                <OpeningEditor
+                                                    takeoffUuid={takeoff.uuid}
+                                                    opening={creating ? null : selected}
+                                                    openings={takeoff.openings}
+                                                    creating={creating}
+                                                    documents={takeoff.documents}
+                                                    pendingMarker={pendingMarker}
+                                                    canEdit={editable}
+                                                    tool={countTool}
+                                                    unsavedIds={Object.keys(drafts).filter((key) => key !== 'new').map((key) => Number(key))}
+                                                    newUnsaved={Boolean(drafts.new)}
+                                                    fieldErrors={fieldErrorsFor(creating ? 'new' : String(selectedOpeningId ?? ''))}
+                                                    draft={creating ? drafts.new ?? null : selectedOpeningId ? drafts[String(selectedOpeningId)] ?? null : null}
+                                                    embedded
+                                                    onToolChange={setCountTool}
+                                                    onDraft={rememberDraft}
+                                                    onSelect={(choice) => {
+                                                        if (choice !== null && choice !== 'new') {
+                                                            openOpening(choice);
+                                                            return;
+                                                        }
+
+                                                        if (choice === 'new') {
+                                                            setCreating(true);
+                                                            setPaletteView('inspector');
+                                                            setSelectedOpeningId(null);
+                                                            return;
+                                                        }
+
+                                                        setPendingMarker(null);
+                                                        setCreating(false);
+                                                        setSelectedOpeningId(null);
+                                                    }}
+                                                />
+                                            {selected && !creating ? (
+                                                <form className="grid gap-2" onSubmit={(event) => {
+                                                    event.preventDefault();
+                                                    const data = Object.fromEntries(new FormData(event.currentTarget).entries());
+                                                    router.post(route('admin.takeoffs.references.store', [takeoff.uuid, selected.id]), data, { preserveScroll: true });
+                                                    event.currentTarget.reset();
+                                                }}>
+                                                    <p className="text-sm font-semibold">References for {selected.label}</p>
+                                                    <p className="text-sm text-muted-foreground">Add a schedule or specification reference. This does not change quantity.</p>
+                                                    <select name="document_id" className="h-12 rounded-md border-gray-300 py-2 text-sm leading-6">
+                                                        <option value="">Document</option>
+                                                        {takeoff.documents.map((item) => <option key={item.id} value={item.id}>{item.original_filename}</option>)}
+                                                    </select>
+                                                    <TextInput name="page" placeholder="Page" />
+                                                    <TextInput name="section" placeholder="Section" />
+                                                    <TextInput name="note" placeholder="Note" />
+                                                    {editable ? <Button type="submit" variant="outline" size="sm">Add reference</Button> : null}
+                                                    <ul className="text-sm text-muted-foreground">
+                                                        {selected.references.map((reference) => <li key={reference.id}>{reference.section || 'Reference'} {reference.page ? `p. ${reference.page}` : ''} {reference.note}</li>)}
+                                                    </ul>
+                                                </form>
+                                            ) : (
+                                                <p className="text-sm text-muted-foreground">Select an opening on the drawing, then add its schedule or specification references here.</p>
+                                            )}
+                                        </div>
+                                    )}
                                 />
                             </div>
                             <div id="takeoff-openings" className="flex flex-col gap-3">
                                 <div>
                                     <h3 className="flex items-center gap-2 text-base font-semibold text-indigo-800">
                                         <ListIcon className="size-4" />
-                                        Scope of work
+                                        Openings
                                     </h3>
-                                    <p className="text-sm text-muted-foreground">Every door and window found on the drawing is listed once, with its specs. Remove any row you will not use.</p>
+                                    <p className="text-sm text-muted-foreground">Every opening on this takeoff is one row. Click a row and the drawing card opens its Object inspector tab.</p>
                                 </div>
                                 <div className="grid gap-2 md:grid-cols-2">
                                     <TextInput value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Opening tag" />
                                     <TextInput value={category} onChange={(event) => setCategory(event.target.value)} placeholder="Category" />
                                     <TextInput value={location} onChange={(event) => setLocation(event.target.value)} placeholder="Location" />
-                                    <select className="rounded-md border-gray-300 text-sm" value={scope} onChange={(event) => setScope(event.target.value)}>
+                                    <select className="h-12 rounded-md border-gray-300 py-2 text-sm leading-6" value={scope} onChange={(event) => setScope(event.target.value)}>
                                         <option value="">All scopes</option>
                                         <option value="supply">Supply only</option>
                                         <option value="installation">Installation only</option>
                                         <option value="both">Supply and installation</option>
                                     </select>
-                                    <select className="rounded-md border-gray-300 text-sm" value={review} onChange={(event) => setReview(event.target.value)}>
+                                    <select className="h-12 rounded-md border-gray-300 py-2 text-sm leading-6" value={review} onChange={(event) => setReview(event.target.value)}>
                                         <option value="">All review states</option>
                                         <option value="flagged">Has review flags</option>
                                         <option value="clear">No flags</option>
@@ -496,12 +769,17 @@ export default function Show({ takeoff, templates, quotations, can }: Props) {
                                             Add opening
                                         </Button>
                                     ) : null}
-                                    {dirty ? <p className="text-sm text-amber-700 dark:text-amber-300">Save opening to keep the location and the other fields on this tag.</p> : null}
+                                    {unsavedCount > 0 ? (
+                                        <p className="rounded-md border border-red-300 bg-red-50 px-3 py-2 text-sm font-semibold text-red-800">
+                                            {unsavedCount === 1 ? '1 opening is not saved.' : `${unsavedCount} openings are not saved.`} Open Actions and choose Save takeoff to keep them.
+                                        </p>
+                                    ) : null}
                                 </div>
                                 <div className="max-h-[32rem] overflow-auto rounded-md border">
                                     <table className="min-w-full text-sm">
                                         <thead className="sticky top-0 text-left text-white">
                                             <tr>
+                                                <th className="bg-[#16324F] px-2 py-2 text-right">#</th>
                                                 <th className="bg-[#16324F] px-2 py-2">Tag</th>
                                                 <th className="bg-[#16324F] px-2 py-2">Type</th>
                                                 <th className="bg-[#16324F] px-2 py-2">Qty</th>
@@ -515,16 +793,45 @@ export default function Show({ takeoff, templates, quotations, can }: Props) {
                                         <tbody>
                                             {filtered.length === 0 ? (
                                                 <tr>
-                                                    <td className="px-2 py-4 text-muted-foreground" colSpan={editable ? 8 : 7}>No openings yet. Choose Count door or Count window, then click a door on the sheet.</td>
+                                                    <td className="px-2 py-4 text-muted-foreground" colSpan={editable ? 9 : 8}>No openings yet. Choose Count door or Count window, then click a door on the sheet.</td>
                                                 </tr>
                                             ) : null}
-                                            {filtered.map((opening) => (
-                                                <tr key={opening.id} className={`cursor-pointer border-t ${selectedOpeningId === opening.id ? 'bg-[#3FCF8E]/20' : ''}`} onClick={() => openOpening(opening.id)}>
-                                                    <td className="px-2 py-2">{opening.is_bulk ? `Bulk ${opening.tag ?? ''}`.trim() : opening.tag}</td>
-                                                    <td className="px-2 py-2">{opening.opening_type}</td>
-                                                    <td className="px-2 py-2">{opening.quantity}</td>
-                                                    <td className="px-2 py-2">{[opening.width, opening.height, opening.depth].filter(Boolean).join(' x ')} {opening.dimension_unit}</td>
-                                                    <td className={`px-2 py-2 ${selectedOpeningId === opening.id ? 'font-medium' : ''}`}>{opening.location || '—'}</td>
+                                            {drafts.new ? (
+                                                <tr className="cursor-pointer border-t border-l-4 border-l-red-600 bg-red-100 text-red-950" onClick={() => { setCreating(true); setSelectedOpeningId(null); }}>
+                                                    <td className="px-2 py-2 text-right font-semibold"> </td>
+                                                    <td className="px-2 py-2 font-semibold">
+                                                        {drafts.new.tag || 'New opening'}
+                                                        <span className="ml-2 rounded bg-red-600 px-1.5 py-0.5 text-[11px] font-semibold text-white">Not saved</span>
+                                                    </td>
+                                                    <td className="px-2 py-2">{drafts.new.opening_type === 'window' ? 'Window' : 'Door'}</td>
+                                                    <td className="px-2 py-2">{drafts.new.quantity}</td>
+                                                    <td className="px-2 py-2">{[drafts.new.width, drafts.new.height, drafts.new.depth].filter(Boolean).join(' x ')} {drafts.new.dimension_unit}</td>
+                                                    <td className="px-2 py-2">{drafts.new.location || '—'}</td>
+                                                </tr>
+                                            ) : null}
+                                            {filtered.map((opening) => {
+                                                const draft = drafts[String(opening.id)];
+                                                const unsaved = Boolean(draft);
+                                                const tag = draft?.tag ?? opening.tag;
+                                                const locationText = draft?.location ?? opening.location;
+                                                const quantity = draft?.quantity ?? opening.quantity;
+                                                const width = draft?.width || opening.width;
+                                                const height = draft?.height || opening.height;
+                                                const depth = draft?.depth || opening.depth;
+                                                const unit = draft?.dimension_unit ?? opening.dimension_unit;
+                                                const kind = draft?.opening_type ?? opening.opening_type;
+
+                                                return (
+                                                <tr key={opening.id} className={`cursor-pointer border-t ${unsaved ? 'border-l-4 border-l-red-600 bg-red-100 text-red-950' : selectedOpeningId === opening.id ? 'bg-[#3FCF8E]/20' : ''}`} onClick={() => openOpening(opening.id)}>
+                                                    <td className="px-2 py-2 text-right font-semibold tabular-nums">{countMark(opening.callout, lineByOpening.get(opening.id) ?? 1)}</td>
+                                                    <td className="px-2 py-2">
+                                                        {opening.is_bulk ? `Bulk ${tag ?? ''}`.trim() : tag}
+                                                        {unsaved ? <span className="ml-2 rounded bg-red-600 px-1.5 py-0.5 text-[11px] font-semibold text-white">Not saved</span> : null}
+                                                    </td>
+                                                    <td className="px-2 py-2">{kind === 'door' ? (opening.door_type || 'Door') : 'Window'}</td>
+                                                    <td className="px-2 py-2">{quantity}</td>
+                                                    <td className="px-2 py-2">{[width, height, depth].filter(Boolean).join(' x ')} {unit}</td>
+                                                    <td className={`px-2 py-2 ${selectedOpeningId === opening.id ? 'font-medium' : ''}`}>{locationText || '—'}</td>
                                                     <td className="px-2 py-2">{openingSpecs(opening)}</td>
                                                     <td className="px-2 py-2">{opening.flags.length || '—'}</td>
                                                     {editable ? (
@@ -540,6 +847,16 @@ export default function Show({ takeoff, templates, quotations, can }: Props) {
                                                                         setSelectedOpeningId(null);
                                                                     }
 
+                                                                    setDrafts((current) => {
+                                                                        if (!(String(opening.id) in current)) {
+                                                                            return current;
+                                                                        }
+
+                                                                        const next = { ...current };
+                                                                        delete next[String(opening.id)];
+
+                                                                        return next;
+                                                                    });
                                                                     router.delete(route('admin.takeoffs.openings.destroy', [takeoff.uuid, opening.id]), { preserveScroll: true });
                                                                 }}
                                                             >
@@ -548,17 +865,31 @@ export default function Show({ takeoff, templates, quotations, can }: Props) {
                                                         </td>
                                                     ) : null}
                                                 </tr>
-                                            ))}
+                                                );
+                                            })}
                                         </tbody>
                                     </table>
                                 </div>
+                                <dl className="grid grid-cols-2 rounded-md border bg-muted/40 px-2 py-3 lg:grid-cols-4">
+                                    {([
+                                        ['Openings', String(filtered.length)],
+                                        ['Total quantity', filtered.reduce((sum, opening) => sum + Number(opening.quantity || 0), 0).toLocaleString('en-US', { maximumFractionDigits: 2 })],
+                                        ['Doors', String(filtered.filter((opening) => opening.opening_type !== 'window').length)],
+                                        ['Windows', String(filtered.filter((opening) => opening.opening_type === 'window').length)],
+                                    ] as const).map(([label, value]) => (
+                                        <div key={label} className="px-4 even:border-l even:border-border lg:[&:nth-child(4n+3)]:border-l lg:[&:nth-child(4n+3)]:border-border lg:[&:nth-child(4n+1)]:border-l-0">
+                                            <dt className="text-xs uppercase tracking-wide text-muted-foreground">{label}</dt>
+                                            <dd className="mt-1 text-right text-lg font-semibold tabular-nums">{value}</dd>
+                                        </div>
+                                    ))}
+                                </dl>
                                 {editable ? (
                                     <form className="space-y-2 rounded-md border p-3" onSubmit={previewImport}>
                                         <p className="text-sm font-medium">Spreadsheet import</p>
                                         <a className="text-sm text-indigo-700" href={route('admin.takeoffs.import-template')}>Download the import template</a>
                                         <input type="file" accept=".csv,text/csv" onChange={(event) => setImportFile(event.target.files?.[0] ?? null)} />
                                         <label className="block text-sm">Duplicate tags
-                                            <select className="mt-1 w-full rounded-md border-gray-300" value={duplicateMode} onChange={(event) => setDuplicateMode(event.target.value as 'reject' | 'flag')}>
+                                            <select className="mt-1 h-12 w-full rounded-md border-gray-300 py-2 text-sm leading-6" value={duplicateMode} onChange={(event) => setDuplicateMode(event.target.value as 'reject' | 'flag')}>
                                                 <option value="reject">Reject the file</option>
                                                 <option value="flag">Import and keep them flagged</option>
                                             </select>
@@ -593,75 +924,6 @@ export default function Show({ takeoff, templates, quotations, can }: Props) {
                                 ) : null}
                             </div>
                             </div>
-                            <div className="order-first min-w-0 xl:order-none">
-                                <StickyDocumentToolbar scopeRef={workspaceRef} propertiesPanel>
-                                    <div className="flex flex-col gap-3">
-                                        <OpeningEditor
-                                            takeoffUuid={takeoff.uuid}
-                                            opening={creating ? null : selected}
-                                            openings={takeoff.openings}
-                                            creating={creating}
-                                            documents={takeoff.documents}
-                                            pendingMarker={pendingMarker}
-                                            canEdit={editable}
-                                            onDirty={setDirty}
-                                            onSelect={(choice) => {
-                                                if (choice !== null && choice !== 'new') {
-                                                    openOpening(choice);
-                                                    return;
-                                                }
-
-                                                if (dirty && !window.confirm('This opening still has changes to save. Leave them and open the other one?')) {
-                                                    return;
-                                                }
-
-                                                if (choice === 'new') {
-                                                    setCreating(true);
-                                                    setSelectedOpeningId(null);
-                                                    return;
-                                                }
-
-                                                setPendingMarker(null);
-                                                setCreating(false);
-                                                setSelectedOpeningId(null);
-                                                setDirty(false);
-                                            }}
-                                            onClose={() => {
-                                                if (dirty && !window.confirm('This opening still has changes to save. Leave them and open the other one?')) {
-                                                    return;
-                                                }
-
-                                                setPendingMarker(null);
-                                                setCreating(false);
-                                                setSelectedOpeningId(null);
-                                                setDirty(false);
-                                            }}
-                                        />
-                                        {selected && !creating ? (
-                                            <form className="grid gap-2 rounded-md border bg-card p-3" onSubmit={(event) => {
-                                                event.preventDefault();
-                                                const data = Object.fromEntries(new FormData(event.currentTarget).entries());
-                                                router.post(route('admin.takeoffs.references.store', [takeoff.uuid, selected.id]), data, { preserveScroll: true });
-                                                event.currentTarget.reset();
-                                            }}>
-                                                <p className="text-sm">Add a schedule or specification reference. This does not change quantity.</p>
-                                                <select name="document_id" className="rounded-md border-gray-300 text-sm">
-                                                    <option value="">Document</option>
-                                                    {takeoff.documents.map((item) => <option key={item.id} value={item.id}>{item.original_filename}</option>)}
-                                                </select>
-                                                <TextInput name="page" placeholder="Page" />
-                                                <TextInput name="section" placeholder="Section" />
-                                                <TextInput name="note" placeholder="Note" />
-                                                {editable ? <Button type="submit" variant="outline" size="sm">Add reference</Button> : null}
-                                                <ul className="text-sm text-muted-foreground">
-                                                    {selected.references.map((reference) => <li key={reference.id}>{reference.section || 'Reference'} {reference.page ? `p. ${reference.page}` : ''} {reference.note}</li>)}
-                                                </ul>
-                                            </form>
-                                        ) : null}
-                                    </div>
-                                </StickyDocumentToolbar>
-                            </div>
-                        </div>
                     </div>
                 ) : null}
 
@@ -677,7 +939,7 @@ export default function Show({ takeoff, templates, quotations, can }: Props) {
                         ) : null}
                         <div className="space-y-3">
                             {takeoff.groups.map((group) => (
-                                <div key={group.id} className="rounded-md border p-3">
+                                <div key={group.id} className="rounded-md border p-3 border-amber-200 bg-amber-50/70 dark:border-amber-900 dark:bg-amber-950/30">
                                     <div className="flex flex-wrap items-center justify-between gap-2">
                                         <h3 className="font-medium">{group.name}</h3>
                                         {group.mismatch ? <Badge variant="outline">Configurations differ</Badge> : null}
@@ -690,8 +952,8 @@ export default function Show({ takeoff, templates, quotations, can }: Props) {
                                 </div>
                             ))}
                         </div>
-                        <div className="rounded-md border p-3">
-                            <h3 className="font-medium">Openings</h3>
+                        <div className="rounded-md border p-3 border-emerald-200 bg-emerald-50/70 dark:border-emerald-900 dark:bg-emerald-950/30">
+                            <h3 className="font-medium text-emerald-800 dark:text-emerald-200">Openings</h3>
                             {takeoff.openings.map((opening) => (
                                 <label key={opening.id} className="flex items-center gap-2 text-sm">
                                     <input type="checkbox" checked={checked.includes(opening.id)} onChange={(event) => setChecked((current) => event.target.checked ? [...current, opening.id] : current.filter((id) => id !== opening.id))} />
@@ -700,8 +962,8 @@ export default function Show({ takeoff, templates, quotations, can }: Props) {
                             ))}
                         </div>
                         {can.pricing && selected ? <CostForm takeoffUuid={takeoff.uuid} openingId={selected.id} /> : <p className="text-sm text-muted-foreground">Select an opening on the schedule to add its unit costs.</p>}
-                        <div className="rounded-md border p-3">
-                            <h3 className="font-medium">Assembly templates</h3>
+                        <div className="rounded-md border p-3 border-violet-200 bg-violet-50/70 dark:border-violet-900 dark:bg-violet-950/30">
+                            <h3 className="font-medium text-violet-800 dark:text-violet-200">Assembly templates</h3>
                             <p className="text-sm text-muted-foreground">Applying a template copies it onto the opening. Later template edits do not change this estimate.</p>
                             <ul className="mt-2 space-y-1 text-sm">
                                 {templates.map((template) => (
@@ -722,7 +984,7 @@ export default function Show({ takeoff, templates, quotations, can }: Props) {
                                     event.currentTarget.reset();
                                 }}>
                                     <TextInput name="name" placeholder="Template name" required />
-                                    <select name="opening_type" className="rounded-md border-gray-300 text-sm" defaultValue="door"><option value="door">Door</option><option value="window">Window</option></select>
+                                    <select name="opening_type" className="h-12 rounded-md border-gray-300 py-2 text-sm leading-6" defaultValue="door"><option value="door">Door</option><option value="window">Window</option></select>
                                     <TextInput name="frame_type" placeholder="Frame" />
                                     <TextInput name="hardware_set" placeholder="Hardware" />
                                     <TextInput name="glazing" placeholder="Glazing" />
@@ -746,7 +1008,7 @@ export default function Show({ takeoff, templates, quotations, can }: Props) {
                                 <TextInput name="revision_label" placeholder="Revision" />
                                 <TextInput name="quote_date" type="date" />
                                 <TextInput name="expires_at" type="date" />
-                                <select name="opening_id" className="rounded-md border-gray-300 text-sm" defaultValue={selected?.id ?? ''}>
+                                <select name="opening_id" className="h-12 rounded-md border-gray-300 py-2 text-sm leading-6" defaultValue={selected?.id ?? ''}>
                                     <option value="">Opening</option>
                                     {takeoff.openings.map((opening) => <option key={opening.id} value={opening.id}>{opening.label}</option>)}
                                 </select>
@@ -775,13 +1037,13 @@ export default function Show({ takeoff, templates, quotations, can }: Props) {
                     <div className="space-y-2">
                         {takeoff.flags.length === 0 ? <p className="text-sm">No review flags.</p> : null}
                         {takeoff.flags.map((flag, index) => (
-                            <button key={`${flag.code}-${flag.opening_id}-${index}`} type="button" className="block w-full rounded-md border p-3 text-left text-sm" onClick={() => { if (flag.opening_id) { openOpening(flag.opening_id); setSection('workspace'); setMobilePane('schedule'); } }}>
+                            <button key={`${flag.code}-${flag.opening_id}-${index}`} type="button" className="block w-full rounded-md border p-3 text-left text-sm" onClick={() => { if (flag.opening_id) { openOpening(flag.opening_id); setSection('workspace'); } }}>
                                 {flag.message}
                             </button>
                         ))}
                         {takeoff.previous ? (
-                            <div className="rounded-md border p-3 text-sm">
-                                <h3 className="font-medium">Compared with revision {takeoff.previous.revision_number}</h3>
+                            <div className="rounded-md border p-3 text-sm border-sky-200 bg-sky-50/70 dark:border-sky-900 dark:bg-sky-950/30">
+                                <h3 className="font-medium text-sky-800 dark:text-sky-200">Compared with revision {takeoff.previous.revision_number}</h3>
                                 <p>Added: {takeoff.previous.diff.added.map((item) => item.label).join(', ') || 'None'}</p>
                                 <p>Removed: {takeoff.previous.diff.removed.map((item) => item.label).join(', ') || 'None'}</p>
                                 <p>Changed: {takeoff.previous.diff.changed.map((item) => item.label).join(', ') || 'None'}</p>
@@ -800,7 +1062,7 @@ export default function Show({ takeoff, templates, quotations, can }: Props) {
                         {can.convert ? (
                             <>
                                 <p className="text-sm text-muted-foreground">Selling prices are copied onto the quotation. Internal costs and supplier files stay on the takeoff. Later takeoff edits do not change the quotation unless you replace the transferred lines.</p>
-                                <select className="rounded-md border-gray-300" value={quotationId} onChange={(event) => setQuotationId(event.target.value)}>
+                                <select className="h-12 w-full rounded-md border-gray-300 py-2 text-sm leading-6" value={quotationId} onChange={(event) => setQuotationId(event.target.value)}>
                                     {quotations.map((quotation) => <option key={quotation.id} value={quotation.id}>{quotation.number} — {quotation.title}</option>)}
                                 </select>
                                 <Button type="button" variant="outline" size="sm" onClick={() => void loadPreview()}>Preview lines</Button>
@@ -866,7 +1128,7 @@ function CostForm({ takeoffUuid, openingId, groupId }: { takeoffUuid: string; op
             }, { preserveScroll: true });
             event.currentTarget.reset();
         }}>
-            <select name="kind" className="rounded-md border-gray-300 text-sm" defaultValue="material">
+            <select name="kind" className="h-12 rounded-md border-gray-300 py-2 text-sm leading-6" defaultValue="material">
                 <option value="material">Material</option>
                 <option value="labor">Labor</option>
                 <option value="freight">Freight</option>
@@ -874,7 +1136,7 @@ function CostForm({ takeoffUuid, openingId, groupId }: { takeoffUuid: string; op
                 <option value="subcontract">Subcontract</option>
                 <option value="other">Other</option>
             </select>
-            <select name="basis" className="rounded-md border-gray-300 text-sm" defaultValue="per_unit">
+            <select name="basis" className="h-12 rounded-md border-gray-300 py-2 text-sm leading-6" defaultValue="per_unit">
                 <option value="per_unit">Per unit</option>
                 <option value="one_time">One time</option>
             </select>

@@ -22,6 +22,11 @@ class ProfileController extends Controller
         return Inertia::render('Profile/Edit', [
             'mustVerifyEmail' => $request->user() instanceof MustVerifyEmail,
             'status' => session('status'),
+            'passkeys' => $request->user()->webAuthnCredentials()->get()->map(fn ($credential) => [
+                'id' => $credential->id,
+                'alias' => $credential->alias ?? 'Passkey',
+                'created_at' => $credential->created_at?->toDateString(),
+            ])->values(),
         ]);
     }
 
@@ -68,7 +73,7 @@ class ProfileController extends Controller
 
         Auth::logout();
 
-        $user->delete();
+        $user->forceDelete();
 
         $request->session()->invalidate();
         $request->session()->regenerateToken();

@@ -5,7 +5,10 @@ namespace App\Services;
 use App\Exceptions\MicrosoftGraphException;
 use App\Models\User;
 use App\Support\EmailPlainText;
+use App\Support\MailBounceFilter;
 use App\Support\OutboundMailHtml;
+use Carbon\CarbonImmutable;
+use DateTimeInterface;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Cache;
@@ -15,10 +18,27 @@ class MicrosoftGraphMailService
 {
     private ?User $actor = null;
 
+    /** Super admin whose saved Microsoft 365 app signs system emails with no signed-in user. */
+    private ?User $credentialOwner = null;
+
+    private ?int $requestTimeout = null;
+
+    private ?int $connectTimeout = null;
+
     public function actingAs(?User $user): self
     {
         $copy = clone $this;
         $copy->actor = $user;
+        $copy->credentialOwner = null;
+
+        return $copy;
+    }
+
+    public function withTimeouts(int $requestTimeout, int $connectTimeout): self
+    {
+        $copy = clone $this;
+        $copy->requestTimeout = max(1, $requestTimeout);
+        $copy->connectTimeout = max(1, min($connectTimeout, $copy->requestTimeout));
 
         return $copy;
     }
@@ -46,7 +66,34 @@ class MicrosoftGraphMailService
         string $fromName = 'Gateway Door Systems',
     ): void {
         $this->actor = null;
-        $this->sendMessage($mailbox, $to, $subject, $html, 'HTML', null, [], [], [], 'normal', $fromName);
+        $owner = $this->mailboxOwnerWithSecret($mailbox);
+
+        if ($owner === null) {
+            $this->sendMessage($mailbox, $to, $subject, $html, 'HTML', null, [], [], [], 'normal', $fromName);
+
+            return;
+        }
+
+        // Use the mailbox owner's saved Microsoft 365 app, then the server settings if that fails.
+        $this->credentialOwner = $owner;
+
+        try {
+            $this->sendMessage($mailbox, $to, $subject, $html, 'HTML', null, [], [], [], 'normal', $fromName);
+        } catch (MicrosoftGraphException $exception) {
+            report($exception);
+            $this->credentialOwner = null;
+            $this->sendMessage($mailbox, $to, $subject, $html, 'HTML', null, [], [], [], 'normal', $fromName);
+        } finally {
+            $this->credentialOwner = null;
+        }
+    }
+
+    private function mailboxOwnerWithSecret(string $mailbox): ?User
+    {
+        return User::query()
+            ->whereRaw('lower(microsoft_mailbox) = ?', [strtolower(trim($mailbox))])
+            ->get()
+            ->first(fn (User $user): bool => $user->isSuperAdmin() && $this->hasSavedSecret($user));
     }
 
     /**
@@ -97,9 +144,13 @@ class MicrosoftGraphMailService
     /**
      * @return array{messages: list<array<string, mixed>>, nextLink: ?string}
      */
-    public function listFolder(string $mailbox, string $folder, ?string $nextUrl = null): array
-    {
-        $url = $nextUrl ?? $this->folderUrl($mailbox, $folder);
+    public function listFolder(
+        string $mailbox,
+        string $folder,
+        ?string $nextUrl = null,
+        string $status = 'all',
+    ): array {
+        $url = $nextUrl ?? $this->folderUrl($mailbox, $folder, $status);
 
         if ($nextUrl !== null) {
             app(MicrosoftGraphPageCursor::class)->assertLink($nextUrl, $mailbox, $folder);
@@ -120,7 +171,13 @@ class MicrosoftGraphMailService
                 continue;
             }
 
-            $messages[] = $this->summary($item, $folder);
+            $summary = $this->summary($item, $folder);
+
+            if ($folder === 'inbox' && MailBounceFilter::isBounce((string) $summary['from'], (string) $summary['subject'])) {
+                continue;
+            }
+
+            $messages[] = $summary;
         }
 
         return [
@@ -142,6 +199,102 @@ class MicrosoftGraphMailService
         }
 
         return max(0, (int) $response->json('unreadItemCount'));
+    }
+
+    /**
+     * Bounce notices hidden from the inbox, scanned over the latest 100 messages.
+     *
+     * @return array{unread: int, total: int}
+     */
+    public function bounceStats(string $mailbox): array
+    {
+        $count = function (array $query): int {
+            $response = $this->graph('GET', $this->userUrl($query['mailbox']).'/mailFolders/inbox/messages?'.http_build_query($query['params']), null, false);
+
+            if ($response->failed()) {
+                throw new MicrosoftGraphException($this->failureMessage($response, false));
+            }
+
+            $found = 0;
+
+            foreach ($response->json('value') ?? [] as $item) {
+                if (is_array($item) && MailBounceFilter::isBounce($this->address($item['from'] ?? null), (string) ($item['subject'] ?? ''))) {
+                    $found++;
+                }
+            }
+
+            return $found;
+        };
+
+        $select = '$select';
+
+        return [
+            'unread' => $count(['mailbox' => $mailbox, 'params' => [$select => 'subject,from', '$filter' => 'isRead eq false', '$top' => 100]]),
+            'total' => $count(['mailbox' => $mailbox, 'params' => [$select => 'subject,from', '$orderby' => 'receivedDateTime desc', '$top' => 100]]),
+        ];
+    }
+
+    /**
+     * Timestamps of every message received (inbox) or sent (sent items) since
+     * the given moment. Bounce notices are skipped so the counts match the
+     * inbox the user actually sees. Paging stops at $limit messages.
+     *
+     * @param  'inbox'|'sent'  $folder
+     * @return array{timestamps: list<string>, truncated: bool}
+     */
+    public function messageTimestamps(string $mailbox, string $folder, DateTimeInterface $since, int $limit = 2000): array
+    {
+        $isSent = $folder === 'sent';
+        $field = $isSent ? 'sentDateTime' : 'receivedDateTime';
+        $graphFolder = $isSent ? 'sentitems' : 'inbox';
+        $sinceUtc = CarbonImmutable::instance($since)->utc()->format('Y-m-d\TH:i:s\Z');
+
+        $url = $this->userUrl($mailbox)."/mailFolders/{$graphFolder}/messages?".http_build_query([
+            '$select' => $isSent ? $field : $field.',from,subject',
+            '$filter' => "{$field} ge {$sinceUtc}",
+            '$orderby' => "{$field} desc",
+            '$top' => 250,
+        ]);
+
+        $timestamps = [];
+        $seen = 0;
+
+        while (is_string($url) && $url !== '') {
+            $response = $this->graph('GET', $url, null, false);
+
+            if ($response->failed()) {
+                throw new MicrosoftGraphException($this->failureMessage($response, false));
+            }
+
+            foreach ($response->json('value') ?? [] as $item) {
+                if (! is_array($item)) {
+                    continue;
+                }
+
+                $seen++;
+                $stamp = $item[$field] ?? null;
+
+                if (! is_string($stamp) || $stamp === '') {
+                    continue;
+                }
+
+                if (! $isSent && MailBounceFilter::isBounce($this->address($item['from'] ?? null), (string) ($item['subject'] ?? ''))) {
+                    continue;
+                }
+
+                $timestamps[] = $stamp;
+            }
+
+            $next = $response->json('@odata.nextLink');
+
+            if ($seen >= $limit) {
+                return ['timestamps' => $timestamps, 'truncated' => is_string($next) && $next !== ''];
+            }
+
+            $url = is_string($next) && str_starts_with($next, 'https://graph.microsoft.com/') ? $next : null;
+        }
+
+        return ['timestamps' => $timestamps, 'truncated' => false];
     }
 
     /**
@@ -169,6 +322,11 @@ class MicrosoftGraphMailService
             }
 
             $summary = $this->summary($item, 'inbox');
+
+            if (MailBounceFilter::isBounce((string) $summary['from'], (string) $summary['subject'])) {
+                continue;
+            }
+
             $messages[] = [
                 'id' => (string) $summary['id'],
                 'subject' => (string) $summary['subject'],
@@ -185,10 +343,19 @@ class MicrosoftGraphMailService
      */
     public function readMessage(string $mailbox, string $messageId): array
     {
-        $url = $this->userUrl($mailbox).'/messages/'.rawurlencode($messageId)
-            .'?$select=id,subject,from,toRecipients,receivedDateTime,sentDateTime,body,bodyPreview,hasAttachments';
+        $query = http_build_query([
+            '$select' => 'id,subject,from,toRecipients,ccRecipients,receivedDateTime,sentDateTime,body,bodyPreview,hasAttachments',
+        ]);
+        $url = $this->userUrl($mailbox).'/messages/'.rawurlencode($messageId).'?'.$query;
 
         $response = $this->graph('GET', $url, null, false);
+
+        if ($response->failed() && $response->status() !== 404) {
+            $fallback = http_build_query([
+                '$select' => 'id,subject,from,toRecipients,receivedDateTime,sentDateTime,body,bodyPreview,hasAttachments',
+            ]);
+            $response = $this->graph('GET', $this->userUrl($mailbox).'/messages/'.rawurlencode($messageId).'?'.$fallback, null, false);
+        }
 
         if ($response->status() === 404) {
             throw new MicrosoftGraphException('Microsoft 365 could not find that message.');
@@ -213,6 +380,7 @@ class MicrosoftGraphMailService
             'subject' => (string) ($item['subject'] ?? ''),
             'from' => $this->address($item['from'] ?? null),
             'to' => $this->addresses($item['toRecipients'] ?? []),
+            'cc' => $this->addresses($item['ccRecipients'] ?? []),
             'received_at' => $item['receivedDateTime'] ?? null,
             'sent_at' => $item['sentDateTime'] ?? null,
             'body' => EmailPlainText::fromGraph(
@@ -468,6 +636,157 @@ class MicrosoftGraphMailService
         }
     }
 
+    /**
+     * @return list<string> Message IDs that must be tracked locally because Graph denied write access.
+     */
+    public function setAllInboxRead(string $mailbox, bool $isRead): array
+    {
+        $folder = $this->graph(
+            'GET',
+            $this->userUrl($mailbox).'/mailFolders/inbox?$select=id',
+            null,
+            false,
+        );
+
+        if ($folder->failed()) {
+            if (in_array($folder->status(), [403, 404, 405], true)) {
+                return $this->setInboxMessagesReadInBatches($mailbox, 'inbox', $isRead);
+            }
+
+            throw new MicrosoftGraphException($this->failureMessage($folder, false));
+        }
+
+        $folderId = $folder->json('id');
+
+        if (! is_string($folderId) || $folderId === '') {
+            throw new MicrosoftGraphException('Microsoft 365 could not identify the Inbox folder.');
+        }
+
+        $url = 'https://graph.microsoft.com/beta/users/'.rawurlencode($mailbox)
+            .'/mailFolders/'.rawurlencode($folderId).'/updateAllMessagesReadState';
+        $response = $this->graph('POST', $url, [
+            'isRead' => $isRead,
+            'suppressReadReceipts' => true,
+        ], false);
+
+        if (in_array($response->status(), [403, 404, 405], true)) {
+            return $this->setInboxMessagesReadInBatches($mailbox, $folderId, $isRead);
+        }
+
+        if ($response->failed()) {
+            throw new MicrosoftGraphException($this->failureMessage($response, false));
+        }
+
+        return [];
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function setInboxMessagesReadInBatches(string $mailbox, string $folderId, bool $isRead): array
+    {
+        $query = http_build_query([
+            '$select' => 'id',
+            '$filter' => 'isRead eq '.($isRead ? 'false' : 'true'),
+            '$top' => 100,
+        ]);
+        $url = $this->userUrl($mailbox).'/mailFolders/'.rawurlencode($folderId).'/messages?'.$query;
+        $page = 0;
+        $localMessageIds = [];
+        $writesDenied = false;
+
+        while ($url !== null) {
+            $page++;
+
+            if ($page > 100) {
+                throw new MicrosoftGraphException('Microsoft 365 returned too many Inbox pages to update safely.');
+            }
+
+            $response = $this->graph('GET', $url, null, false);
+
+            if ($response->failed()) {
+                throw new MicrosoftGraphException($this->failureMessage($response, false));
+            }
+
+            $messageIds = collect($response->json('value') ?? [])
+                ->filter(fn ($item): bool => is_array($item) && is_string($item['id'] ?? null) && $item['id'] !== '')
+                ->map(fn (array $item): string => $item['id'])
+                ->values()
+                ->all();
+
+            foreach (array_chunk($messageIds, 20) as $chunk) {
+                if ($writesDenied) {
+                    array_push($localMessageIds, ...$chunk);
+
+                    continue;
+                }
+
+                $requests = [];
+
+                foreach ($chunk as $index => $messageId) {
+                    $requests[] = [
+                        'id' => (string) ($index + 1),
+                        'method' => 'PATCH',
+                        'url' => '/users/'.rawurlencode($mailbox).'/messages/'.rawurlencode($messageId),
+                        'headers' => ['Content-Type' => 'application/json'],
+                        'body' => ['isRead' => $isRead],
+                    ];
+                }
+
+                $batch = $this->graph(
+                    'POST',
+                    'https://graph.microsoft.com/v1.0/$batch',
+                    ['requests' => $requests],
+                    false,
+                );
+
+                if ($batch->failed()) {
+                    if (in_array($batch->status(), [403, 405], true)) {
+                        array_push($localMessageIds, ...$chunk);
+                        $writesDenied = true;
+
+                        continue;
+                    }
+
+                    throw new MicrosoftGraphException($this->failureMessage($batch, false));
+                }
+
+                $results = $batch->json('responses');
+
+                if (! is_array($results)) {
+                    throw new MicrosoftGraphException('Microsoft 365 returned an unreadable bulk update response.');
+                }
+
+                foreach ($results as $result) {
+                    $status = is_array($result) ? (int) ($result['status'] ?? 500) : 500;
+
+                    if ($status === 403 || $status === 405) {
+                        $requestId = is_array($result) ? (int) ($result['id'] ?? 0) : 0;
+
+                        if ($requestId > 0 && isset($chunk[$requestId - 1])) {
+                            $localMessageIds[] = $chunk[$requestId - 1];
+                        }
+
+                        continue;
+                    }
+
+                    if ($status >= 400 && $status !== 404) {
+                        throw new MicrosoftGraphException(
+                            'Microsoft Graph bulk update failed: HTTP '.$status,
+                        );
+                    }
+                }
+            }
+
+            $next = $response->json('@odata.nextLink');
+            $url = is_string($next) && str_starts_with($next, 'https://graph.microsoft.com/')
+                ? $next
+                : null;
+        }
+
+        return array_values(array_unique($localMessageIds));
+    }
+
     public function moveMessage(string $mailbox, string $messageId, string $destination): void
     {
         $url = $this->userUrl($mailbox).'/messages/'.rawurlencode($messageId).'/move';
@@ -501,10 +820,13 @@ class MicrosoftGraphMailService
     ): void {
         $mailbox = $this->resolveMailbox($mailbox);
         $files = $this->attachmentPayload($attachments);
+        $subject = trim(preg_replace('/\s+/u', ' ', $subject) ?? $subject);
 
         if (strcasecmp($contentType, 'HTML') === 0) {
             $content = OutboundMailHtml::document($content, $subject);
         }
+
+        $replyAddress = is_string($replyTo) && trim($replyTo) !== '' ? trim($replyTo) : $mailbox;
 
         $message = [
             'subject' => $subject,
@@ -513,6 +835,13 @@ class MicrosoftGraphMailService
                 'content' => $content,
             ],
             'toRecipients' => $this->emailRecipients(is_array($to) ? $to : [$to]),
+            'replyTo' => [
+                [
+                    'emailAddress' => [
+                        'address' => strtolower($replyAddress),
+                    ],
+                ],
+            ],
         ];
 
         if (is_string($fromName) && trim($fromName) !== '') {
@@ -536,16 +865,6 @@ class MicrosoftGraphMailService
             $message['importance'] = $importance;
         }
 
-        if ($replyTo) {
-            $message['replyTo'] = [
-                [
-                    'emailAddress' => [
-                        'address' => $replyTo,
-                    ],
-                ],
-            ];
-        }
-
         if ($files !== []) {
             $message['attachments'] = $files;
         }
@@ -565,7 +884,11 @@ class MicrosoftGraphMailService
             throw new MicrosoftGraphException($this->failureMessage($response, true));
         }
 
-        $this->auditSend($mailbox);
+        try {
+            $this->auditSend($mailbox);
+        } catch (\Throwable $exception) {
+            report($exception);
+        }
     }
 
     /**
@@ -636,10 +959,12 @@ class MicrosoftGraphMailService
         $attempt = 0;
 
         while (true) {
-            $pending = Http::withToken($this->accessToken())
+            $this->assertCircuitClosed($sending);
+
+            $pending = Http::withToken($this->accessToken($sending))
                 ->acceptJson()
-                ->timeout(20)
-                ->connectTimeout(10);
+                ->timeout($this->requestTimeout())
+                ->connectTimeout($this->connectTimeout());
 
             if ($method === 'GET') {
                 $pending = $pending->withHeaders([
@@ -654,11 +979,9 @@ class MicrosoftGraphMailService
                     default => $body === null ? $pending->post($url) : $pending->post($url, $body),
                 };
             } catch (ConnectionException $exception) {
-                if ($sending) {
-                    throw $exception;
-                }
+                $this->openCircuit();
 
-                throw new MicrosoftGraphException('Microsoft 365 did not respond. Refresh and try again.');
+                throw new MicrosoftGraphException($this->unavailableMessage($sending));
             }
 
             if ($response->status() === 401 && $attempt === 0) {
@@ -668,18 +991,28 @@ class MicrosoftGraphMailService
                 continue;
             }
 
-            if (! $sending && $response->status() === 429 && $attempt === 0) {
-                $this->honorRetryAfter($response);
-                $attempt++;
+            if ($response->status() === 429) {
+                $retryAfter = max(1, min(60, (int) $response->header('Retry-After')));
+                $this->openCircuit($retryAfter);
 
-                continue;
+                throw new MicrosoftGraphException(
+                    $sending
+                        ? 'Microsoft 365 is limiting requests. The message was not sent.'
+                        : 'Microsoft 365 is limiting requests. Try again in a moment.',
+                );
+            }
+
+            if (in_array($response->status(), [502, 503, 504], true)) {
+                $this->openCircuit();
+
+                throw new MicrosoftGraphException($this->unavailableMessage($sending));
             }
 
             return $response;
         }
     }
 
-    private function accessToken(): string
+    private function accessToken(bool $sending): string
     {
         $cached = Cache::get($this->tokenCacheKey());
 
@@ -689,19 +1022,31 @@ class MicrosoftGraphMailService
 
         [$tenantId, $clientId, $clientSecret] = $this->credentials();
 
-        $response = Http::asForm()
-            ->acceptJson()
-            ->timeout(20)
-            ->connectTimeout(10)
-            ->post(
-                "https://login.microsoftonline.com/{$tenantId}/oauth2/v2.0/token",
-                [
-                    'client_id' => $clientId,
-                    'client_secret' => $clientSecret,
-                    'scope' => 'https://graph.microsoft.com/.default',
-                    'grant_type' => 'client_credentials',
-                ]
-            );
+        try {
+            $response = Http::asForm()
+                ->acceptJson()
+                ->timeout($this->requestTimeout())
+                ->connectTimeout($this->connectTimeout())
+                ->post(
+                    "https://login.microsoftonline.com/{$tenantId}/oauth2/v2.0/token",
+                    [
+                        'client_id' => $clientId,
+                        'client_secret' => $clientSecret,
+                        'scope' => 'https://graph.microsoft.com/.default',
+                        'grant_type' => 'client_credentials',
+                    ]
+                );
+        } catch (ConnectionException) {
+            $this->openCircuit();
+
+            throw new MicrosoftGraphException($this->unavailableMessage($sending));
+        }
+
+        if (in_array($response->status(), [502, 503, 504], true)) {
+            $this->openCircuit();
+
+            throw new MicrosoftGraphException($this->unavailableMessage($sending));
+        }
 
         if ($response->failed()) {
             throw new MicrosoftGraphException(
@@ -725,6 +1070,48 @@ class MicrosoftGraphMailService
         Cache::put($this->tokenCacheKey(), $token, $ttl);
 
         return $token;
+    }
+
+    private function requestTimeout(): int
+    {
+        return $this->requestTimeout
+            ?? max(1, (int) config('services.microsoft.request_timeout', 20));
+    }
+
+    private function connectTimeout(): int
+    {
+        $configured = $this->connectTimeout
+            ?? max(1, (int) config('services.microsoft.connect_timeout', 10));
+
+        return min($configured, $this->requestTimeout());
+    }
+
+    private function assertCircuitClosed(bool $sending): void
+    {
+        if (Cache::has($this->circuitCacheKey())) {
+            throw new MicrosoftGraphException($this->unavailableMessage($sending));
+        }
+    }
+
+    private function openCircuit(?int $seconds = null): void
+    {
+        $seconds ??= max(15, (int) config('services.microsoft.circuit_breaker_seconds', 60));
+        Cache::put($this->circuitCacheKey(), true, $seconds);
+    }
+
+    private function circuitCacheKey(): string
+    {
+        return 'microsoft-graph:circuit:'.hash('sha256', implode('|', [
+            (string) config('services.microsoft.tenant_id'),
+            (string) config('services.microsoft.client_id'),
+        ]));
+    }
+
+    private function unavailableMessage(bool $sending): string
+    {
+        return $sending
+            ? 'Microsoft 365 did not confirm the message. It was not sent again.'
+            : 'Microsoft 365 is temporarily unavailable. Other features are still available.';
     }
 
     public function forgetAccessToken(): void
@@ -834,6 +1221,10 @@ class MicrosoftGraphMailService
     {
         $actor = $this->actor;
 
+        if ($actor === null && $this->credentialOwner !== null) {
+            return $this->credentialOwner;
+        }
+
         if ($this->hasSavedSecret($actor)) {
             return $actor;
         }
@@ -863,15 +1254,6 @@ class MicrosoftGraphMailService
         [$tenantId, $clientId, $clientSecret] = $this->credentials();
 
         return 'microsoft-graph:token:'.hash('sha256', $tenantId.'|'.$clientId.'|'.$clientSecret);
-    }
-
-    private function honorRetryAfter(Response $response): void
-    {
-        $wait = (int) $response->header('Retry-After');
-
-        if ($wait > 0 && $wait <= 5) {
-            sleep($wait);
-        }
     }
 
     private function failureMessage(Response $response, bool $sending): string
@@ -919,7 +1301,7 @@ class MicrosoftGraphMailService
         return trim($detail);
     }
 
-    private function folderUrl(string $mailbox, string $folder): string
+    private function folderUrl(string $mailbox, string $folder, string $status = 'all'): string
     {
         $graphFolder = match ($folder) {
             'sent' => 'sentitems',
@@ -931,7 +1313,9 @@ class MicrosoftGraphMailService
             '$select' => 'id,subject,from,toRecipients,receivedDateTime,sentDateTime,bodyPreview,isRead,hasAttachments',
             '$top' => 25,
             '$orderby' => $order,
-        ]);
+        ] + ($folder === 'inbox' && in_array($status, ['read', 'unread'], true)
+            ? ['$filter' => 'receivedDateTime ge 1900-01-01T00:00:00Z and isRead eq '.($status === 'read' ? 'true' : 'false')]
+            : []));
 
         return $this->userUrl($mailbox)."/mailFolders/{$graphFolder}/messages?{$query}";
     }

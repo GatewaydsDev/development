@@ -221,7 +221,7 @@ export default function Index({ filters, contacts }: IndexProps) {
             <Head title="Contacts" />
 
             <div className="py-6 sm:py-8">
-                <div className="mx-auto flex max-w-[96rem] flex-col gap-6 px-4 sm:px-6 lg:px-8">
+                <div className="flex w-full flex-col gap-6 px-4 sm:px-6 lg:px-8">
                     {formOpen && (
                         <Card className="shadow-sm">
                             <CardHeader>
@@ -370,7 +370,7 @@ export default function Index({ filters, contacts }: IndexProps) {
                                         <input
                                             id="is_active"
                                             type="checkbox"
-                                            className="size-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
+                                            className="size-4 rounded border-gray-300 text-emerald-600 dark:border-border focus:ring-emerald-500"
                                             {...register('is_active')}
                                         />
                                         <InputLabel

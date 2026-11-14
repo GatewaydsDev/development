@@ -1,14 +1,21 @@
 <?php
 
+require_once __DIR__.'/../scripts/patch-php85-mysql-ssl.php';
+
+patchPhp85MysqlSslCa(dirname(__DIR__));
+
 use App\Http\Middleware\HandleInertiaRequests;
 use App\Http\Middleware\LogUserPageAccess;
 use App\Http\Middleware\PreventBackHistory;
+use App\Http\Middleware\SecurityHeaders;
+use App\Http\Middleware\TrackPresence;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets;
 use Illuminate\Http\Request;
+use Inertia\Inertia;
 use Symfony\Component\HttpFoundation\Response;
 
 return Application::configure(basePath: dirname(__DIR__))
@@ -21,6 +28,9 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withSchedule(function (Schedule $schedule): void {
         $schedule->command('user-activities:archive')->daily();
+        $schedule->command('mail:deliver-notifications')->everyMinute()->withoutOverlapping();
+        $schedule->command('project-control:deliver-reminders')->everyMinute()->withoutOverlapping();
+        $schedule->command('contact-directory:deliver-follow-up-reminders')->everyMinute()->withoutOverlapping();
     })
     ->withMiddleware(function (Middleware $middleware) {
         $middleware->trustProxies(at: '*');
@@ -30,9 +40,16 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
 
         $middleware->web(append: [
+            SecurityHeaders::class,
             LogUserPageAccess::class,
+            TrackPresence::class,
             HandleInertiaRequests::class,
             AddLinkHeadersForPreloadedAssets::class,
+        ]);
+
+        $middleware->api(append: [
+            TrackPresence::class,
+            'throttle:api',
         ]);
 
         $middleware->alias([
@@ -52,6 +69,20 @@ return Application::configure(basePath: dirname(__DIR__))
                 return back()->withErrors([
                     'body' => 'Too many messages were sent in a short time. Wait a minute and try again.',
                 ]);
+            }
+
+            $status = $response->getStatusCode();
+            $showErrorPage = in_array($status, [401, 403, 404, 419, 429, 500, 503], true)
+                && ($status !== 500 || ! config('app.debug'));
+
+            if ($showErrorPage && $request->header('X-Inertia') && ! $request->expectsJson()) {
+                try {
+                    return Inertia::render('Error', ['status' => $status])
+                        ->toResponse($request)
+                        ->setStatusCode($status);
+                } catch (Throwable) {
+                    return $response;
+                }
             }
 
             return $response;

@@ -6,6 +6,7 @@ use App\Models\Takeoff;
 use App\Models\TakeoffCost;
 use App\Models\TakeoffDocument;
 use App\Models\TakeoffGroup;
+use App\Models\TakeoffMarkup;
 use App\Models\TakeoffOpening;
 use App\Models\TakeoffSupplierQuote;
 use App\Models\User;
@@ -23,6 +24,7 @@ class TakeoffPresenter
             'title' => $takeoff->title,
             'status' => $takeoff->status,
             'revision_number' => $takeoff->revision_number,
+            'revision_label' => $takeoff->revision_label,
             'opening_count' => $takeoff->openings->count(),
             'project' => $takeoff->project ? [
                 'id' => $takeoff->project->id,
@@ -45,9 +47,11 @@ class TakeoffPresenter
             'project:id,uuid,name,project_number',
             'documents.uploader:id,name',
             'openings.markers',
+            'markups',
             'openings.references',
             'openings.costs',
             'openings.product:id,name',
+            'openings.doorConfiguration:id,name',
             'openings.verifier:id,name',
             'openings.group',
             'groups.openings',
@@ -85,6 +89,7 @@ class TakeoffPresenter
             'title' => $takeoff->title,
             'status' => $takeoff->status,
             'revision_number' => $takeoff->revision_number,
+            'revision_label' => $takeoff->revision_label,
             'notes' => $takeoff->notes,
             'pricing_method' => $takeoff->pricing_method,
             'markup_percent' => $showPricing ? TakeoffMoney::percent($takeoff->markup_rate) : null,
@@ -104,6 +109,15 @@ class TakeoffPresenter
                 'margin' => $pricing['margin'],
             ] : null,
             'documents' => $takeoff->documents->map(fn (TakeoffDocument $document): array => self::document($document))->values()->all(),
+            'proposals' => TakeoffScopeImporter::proposalsFor($takeoff),
+            'markups' => $takeoff->markups->map(fn (TakeoffMarkup $markup): array => [
+                'id' => $markup->id,
+                'document_id' => $markup->document_id,
+                'page' => $markup->page,
+                'kind' => $markup->kind,
+                'color' => $markup->color,
+                'points' => $markup->points,
+            ])->values()->all(),
             'openings' => $takeoff->openings->map(function (TakeoffOpening $opening) use ($showPricing, $pricing, $flagsByOpening): array {
                 return self::opening($opening, $showPricing, $pricing['openings'][$opening->id] ?? null, $flagsByOpening[$opening->id] ?? []);
             })->values()->all(),
@@ -135,6 +149,7 @@ class TakeoffPresenter
             'sheet_number' => $document->sheet_number,
             'sheet_title' => $document->sheet_title,
             'page_count' => $document->page_count,
+            'rotation' => (int) ($document->rotation ?? 0),
             'size' => $document->size,
             'uploaded_at' => $document->created_at?->toIso8601String(),
             'uploader' => $document->relationLoaded('uploader') ? $document->uploader?->name : null,
@@ -152,9 +167,12 @@ class TakeoffPresenter
             'id' => $opening->id,
             'uuid' => $opening->uuid,
             'tag' => $opening->tag,
+            'callout' => $opening->callout,
             'label' => $opening->label(),
             'is_bulk' => $opening->is_bulk,
             'opening_type' => $opening->opening_type,
+            'door_configuration_id' => $opening->door_configuration_id,
+            'door_type' => $opening->doorConfiguration?->name,
             'location' => $opening->location,
             'quantity' => (string) $opening->quantity,
             'product_category' => $opening->product_category,
@@ -204,6 +222,10 @@ class TakeoffPresenter
                 'page' => $marker->page,
                 'x' => (string) $marker->x,
                 'y' => (string) $marker->y,
+                'x2' => $marker->x2 !== null ? (string) $marker->x2 : null,
+                'y2' => $marker->y2 !== null ? (string) $marker->y2 : null,
+                'label_x' => $marker->label_x !== null ? (string) $marker->label_x : null,
+                'label_y' => $marker->label_y !== null ? (string) $marker->label_y : null,
             ])->values()->all(),
             'references' => $opening->references->map(fn ($reference): array => [
                 'id' => $reference->id,
@@ -285,6 +307,7 @@ class TakeoffPresenter
         $parts = array_filter([
             $opening->label(),
             ucfirst($opening->opening_type),
+            $opening->doorConfiguration?->name,
             $opening->product_category,
             $size,
             $scope,

@@ -1,0 +1,191 @@
+[
+  {
+    "theme": "quotes",
+    "title": "Quotations, bids and print layouts",
+    "category": "Improvement",
+    "released_on": "2026-10-21",
+    "summary": "Quotes and bids got project amounts, a validity date, print layouts and a cleaner list.",
+    "details": [
+      "Project amount shown on quotations, with aligned summary cards across the admin lists.",
+      "Print layouts for quotations and bids, including print size, header and footer, and table columns.",
+      "Rich text with bullets and tables inside quote and bid text.",
+      "Quote validation date and refreshed quotation list and buttons.",
+      "Layout work for bids and quotations, plus server-side clean-up of quotations."
+    ]
+  },
+  {
+    "theme": "email",
+    "title": "Email inbox with Microsoft 365",
+    "category": "Feature",
+    "released_on": "2026-10-30",
+    "summary": "Read, reply to and send email from inside the system through Microsoft 365.",
+    "details": [
+      "Microsoft 365 mailbox connection with an Outlook-style interface.",
+      "Signatures, header images and inline images in outgoing mail.",
+      "Attachments on received and sent mail, replies, and a protection against sending messages to trash by mistake.",
+      "Email notifications and an email icon with new-mail indicators.",
+      "Sales quotes and expenses can be shared by email.",
+      "Several fixes for email errors (including a server 500 error) and folder handling."
+    ]
+  },
+  {
+    "theme": "takeoff",
+    "title": "Takeoff workspace and Object Inspector",
+    "category": "Feature",
+    "released_on": "2026-10-27",
+    "summary": "Door takeoffs can be built and edited on screen, with an inspector for each opening.",
+    "details": [
+      "Takeoff workspace for building door schedules.",
+      "Object Inspector with its own toolbar and buttons to edit an opening's details.",
+      "Fixes to saving and cancelling takeoff changes."
+    ]
+  },
+  {
+    "theme": "chat",
+    "title": "Internal chat for super administrators",
+    "category": "Feature",
+    "released_on": "2026-10-21",
+    "summary": "Super administrators can message each other with files and images, with sound alerts.",
+    "details": [
+      "One-to-one chat between super administrators with image and document attachments.",
+      "Unread counter on the chat button and a chime when a message arrives."
+    ]
+  },
+  {
+    "theme": "ai",
+    "title": "AI assistant",
+    "category": "Feature",
+    "released_on": "2026-10-22",
+    "summary": "An AI assistant button was added to the app.",
+    "details": [
+      "AI assistant integrated into the system.",
+      "Floating action buttons reorganised so chat, AI and form actions do not overlap."
+    ]
+  },
+  {
+    "theme": "expenses",
+    "title": "Expenses",
+    "category": "Feature",
+    "released_on": "2026-10-30",
+    "summary": "Track expenses from the office or the field, including receipt photos from a phone.",
+    "details": [
+      "Expenses list with add and update screens.",
+      "Mobile layout and photo capture for receipts.",
+      "Expenses can be shared by email."
+    ]
+  },
+  {
+    "theme": "projects",
+    "title": "Project control, organizations and certifications",
+    "category": "Feature",
+    "released_on": "2026-10-31",
+    "summary": "Super administrators get project control tools, and projects are organised by organization.",
+    "details": [
+      "Project control screen and buttons for super administrators.",
+      "Projects grouped by organization, with a list view.",
+      "Home page certifications.",
+      "Administrative tool and a red flag on messages that need attention."
+    ]
+  },
+  {
+    "theme": "ui",
+    "title": "Interface polish, dark mode and dashboard charts",
+    "category": "Improvement",
+    "released_on": "2026-10-29",
+    "summary": "Dark mode, skeleton loaders, a faster menu and dashboard graphics.",
+    "details": [
+      "Dark mode.",
+      "Skeleton loaders and a please-wait indicator while pages load.",
+      "Sidebar and fast-menu changes, and clearer rows and columns in tables.",
+      "Action buttons stay reachable while scrolling.",
+      "Dashboard graphics.",
+      "UUID-based links across the system."
+    ]
+  },
+  {
+    "theme": "other",
+    "title": "Maintenance and fixes",
+    "category": "Fix",
+    "released_on": "2026-10-30",
+    "summary": "Smaller fixes and housekeeping.",
+    "details": [
+      "Email attachments working end to end.",
+      "A PHP patch and general fixes."
+    ]
+  },
+  {
+    "theme": "employees",
+    "title": "Employees, job titles and skill rates",
+    "category": "Feature",
+    "released_on": "2026-11-02",
+    "summary": "Employee records with job titles, skills and several rates per skill.",
+    "details": [
+      "Employee form shows age, with job titles and other related lists chosen by typing and tapping + Add.",
+      "Each skill can carry several rates (for example three for Painter, four for Carpenter), including custom named rates.",
+      "Competent person certifications and a quality control flag on employees.",
+      "Access levels can be created straight from the employee form."
+    ]
+  },
+  {
+    "theme": null,
+    "title": "Work schedules with foreman, competent person and QC",
+    "category": "Feature",
+    "released_on": "2026-11-02",
+    "summary": "Plan each job with a foreman, crew and daily tasks, shown as cards.",
+    "details": [
+      "Job is the first choice; the foreman is picked from employees and shown as a card.",
+      "Checkboxes say whether the foreman is the competent person and/or the quality control person; otherwise another person is chosen.",
+      "Available employees are grouped by foreman and show their job titles.",
+      "Daily tasks created once can be reused on any schedule."
+    ]
+  },
+  {
+    "theme": null,
+    "title": "Daily tasks and the foreman field checklist",
+    "category": "Feature",
+    "released_on": "2026-11-02",
+    "summary": "Foremen check their tasks when they start the day, from a phone, with photos.",
+    "details": [
+      "Reusable task types that can require photos and quality control, with a nice confirmation before deleting.",
+      "Duplicate tasks are blocked for the same day.",
+      "Foremen record status, progress, notes and photos for each task, with a camera and gallery button.",
+      "Each task can be restricted to the foreman, competent person or quality control person.",
+      "The foreman can delegate a task to one or more people on the crew, or do it himself.",
+      "Super administrators see who has completed their tasks."
+    ]
+  },
+  {
+    "theme": null,
+    "title": "Employee access and My schedule",
+    "category": "Feature",
+    "released_on": "2026-11-02",
+    "summary": "Employees get a simple page with their jobs, addresses, foreman and tasks.",
+    "details": [
+      "Employee level can reach the dashboard, profile and their own credentials but cannot manage levels.",
+      "My schedule shows the project, address, foreman and the tasks set for them."
+    ]
+  },
+  {
+    "theme": null,
+    "title": "Group chat",
+    "category": "Feature",
+    "released_on": "2026-11-02",
+    "summary": "Chat with more than one super administrator at once.",
+    "details": [
+      "Start a group from the chat list or by adding someone to an existing one-to-one chat.",
+      "Add people later, or leave a group.",
+      "Unread counts and notifications work for groups."
+    ]
+  },
+  {
+    "theme": null,
+    "title": "System updates",
+    "category": "Feature",
+    "released_on": "2026-11-02",
+    "summary": "This page: a 30 day list of changes that super administrators can share with other user levels.",
+    "details": [
+      "Super administrators choose which user levels can see each update and confirm before sharing.",
+      "Anyone allowed can open an update to read the detailed changes."
+    ]
+  }
+]

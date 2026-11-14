@@ -1,5 +1,6 @@
 import '../css/app.css';
 import '../css/dashboard-theme-overrides.css';
+import '../css/object-inspector.css';
 import './i18n';
 
 import PageSkeleton from '@/Components/PageSkeleton';
@@ -7,12 +8,16 @@ import SavingNotice from '@/Components/SavingNotice';
 import { ThemeProvider } from '@/Components/ThemeProvider';
 import { Toaster } from '@/Components/ui/sonner';
 import { TooltipProvider } from '@/Components/ui/tooltip';
+import { realtimeSocketId } from '@/lib/echo';
 import { requestValidationScroll } from '@/lib/scrollToValidationError';
 import { createInertiaApp, router } from '@inertiajs/react';
 import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
 import { createRoot } from 'react-dom/client';
 
-const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
+const configuredAppName = import.meta.env.VITE_APP_NAME?.trim();
+const appName = configuredAppName && configuredAppName !== 'Laravel'
+    ? configuredAppName
+    : 'Gateway Door Systems';
 
 document.addEventListener(
     'submit',
@@ -26,8 +31,21 @@ router.on('invalid', () => {
     requestValidationScroll();
 });
 
+router.on('before', (event) => {
+    const socketId = realtimeSocketId();
+
+    if (!socketId) {
+        return;
+    }
+
+    event.detail.visit.headers = {
+        ...event.detail.visit.headers,
+        'X-Socket-ID': socketId,
+    };
+});
+
 createInertiaApp({
-    title: (title) => `${title} - ${appName}`,
+    title: (title) => title.trim() ? `${title.trim()} - ${appName}` : appName,
     resolve: (name) =>
         resolvePageComponent(
             `./Pages/${name}.tsx`,

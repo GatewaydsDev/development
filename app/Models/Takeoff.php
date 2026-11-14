@@ -18,6 +18,7 @@ class Takeoff extends Model
         'root_takeoff_id',
         'source_takeoff_id',
         'revision_number',
+        'revision_label',
         'title',
         'status',
         'pricing_method',
@@ -65,6 +66,11 @@ class Takeoff extends Model
     public function documents(): HasMany
     {
         return $this->hasMany(TakeoffDocument::class)->orderBy('id');
+    }
+
+    public function markups(): HasMany
+    {
+        return $this->hasMany(TakeoffMarkup::class)->orderBy('id');
     }
 
     public function openings(): HasMany
@@ -115,5 +121,31 @@ class Takeoff extends Model
         $this->forceFill([
             'updated_by' => $user->id,
         ])->save();
+    }
+
+    public function resequenceCounts(): void
+    {
+        $openings = $this->openings()->orderBy('sort_order')->orderBy('id')->get();
+        $automatic = ['D' => [], 'W' => []];
+
+        foreach ($openings as $index => $opening) {
+            if ((int) $opening->sort_order !== $index + 1) {
+                $opening->update(['sort_order' => $index + 1]);
+            }
+
+            if ($opening->counted_tag && preg_match('/^([DW])\d+$/', (string) $opening->tag, $match) === 1) {
+                $automatic[$match[1]][] = $opening;
+            }
+        }
+
+        foreach ($automatic as $prefix => $group) {
+            foreach ($group as $opening) {
+                $opening->update(['tag' => '~'.$opening->id]);
+            }
+
+            foreach ($group as $index => $opening) {
+                $opening->update(['tag' => $prefix.($index + 1)]);
+            }
+        }
     }
 }

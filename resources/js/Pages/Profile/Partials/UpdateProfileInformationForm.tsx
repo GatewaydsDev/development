@@ -1,6 +1,7 @@
 import InputError from '@/Components/InputError';
 import InputLabel from '@/Components/InputLabel';
-import PrimaryButton from '@/Components/PrimaryButton';
+import { UserIcon } from 'lucide-react';
+import FormActionFab from '@/Components/FormActionFab';
 import TextInput from '@/Components/TextInput';
 import UserAvatar from '@/Components/UserAvatar';
 import { Transition } from '@headlessui/react';
@@ -46,7 +47,8 @@ export default function UpdateProfileInformation({
     return (
         <section className={className}>
             <header>
-                <h2 className="text-lg font-medium text-foreground">
+                <h2 className="flex items-center gap-2 text-lg font-semibold text-foreground">
+                    <UserIcon className="size-5 text-emerald-600 dark:text-emerald-300" />
                     Profile Information
                 </h2>
 
@@ -134,7 +136,11 @@ export default function UpdateProfileInformation({
                 )}
 
                 <div className="flex items-center gap-4">
-                    <PrimaryButton disabled={processing}>Save</PrimaryButton>
+                    <FormActionFab
+                        cancelHref={route('dashboard')}
+                        saveLabel="Save profile"
+                        disabled={processing}
+                    />
 
                     <Transition
                         show={recentlySuccessful}

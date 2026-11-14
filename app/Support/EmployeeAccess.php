@@ -4,11 +4,11 @@ namespace App\Support;
 
 use App\Models\Employee;
 use App\Models\EmployeeAttendanceListing;
-use App\Models\WorkScheduleListing;
 use App\Models\EmployeeAttendanceWeek;
 use App\Models\EmployeeWorkSchedule;
 use App\Models\User;
 use App\Models\UserLevel;
+use App\Models\WorkScheduleListing;
 use Illuminate\Database\Eloquent\Builder;
 
 class EmployeeAccess
@@ -55,7 +55,7 @@ class EmployeeAccess
             return true;
         }
 
-        return (int) $employee->foreman_user_id === (int) $user->id;
+        return self::scopeVisibleEmployees(Employee::query()->whereKey($employee->id), $user)->exists();
     }
 
     public static function ensureCanViewEmployee(User $user, Employee $employee): void
@@ -80,7 +80,10 @@ class EmployeeAccess
     public static function scopeVisibleEmployees(Builder $query, User $user): Builder
     {
         if (self::isForeman($user)) {
-            $query->where('foreman_user_id', $user->id);
+            // A foreman sees the employees assigned to them and the crew on their work schedules.
+            $query->where(fn (Builder $employee) => $employee
+                ->where('foreman_user_id', $user->id)
+                ->orWhereHas('workSchedules', fn (Builder $schedule) => $schedule->where('foreman_user_id', $user->id)));
         }
 
         return $query;
@@ -93,7 +96,7 @@ class EmployeeAccess
     public static function scopeVisibleWeeks(Builder $query, User $user): Builder
     {
         if (self::isForeman($user)) {
-            $query->whereHas('employee', fn (Builder $employee) => $employee->where('foreman_user_id', $user->id));
+            $query->whereHas('employee', fn (Builder $employee) => self::scopeVisibleEmployees($employee, $user));
         }
 
         return $query;
@@ -106,7 +109,7 @@ class EmployeeAccess
     public static function scopeVisibleListings(Builder $query, User $user): Builder
     {
         if (self::isForeman($user)) {
-            $query->where('foreman_user_id', $user->id);
+            $query->whereIn('employee_id', self::scopeVisibleEmployees(Employee::query(), $user)->select('employees.id'));
         }
 
         return $query;

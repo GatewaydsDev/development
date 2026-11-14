@@ -42,7 +42,7 @@ export default function ThemeModeToggle({
     const ActiveIcon = activeTheme?.icon ?? MonitorIcon;
 
     return (
-        <DropdownMenu>
+        <DropdownMenu modal={false}>
             <DropdownMenuTrigger
                 aria-label={t('theme.change')}
                 className={cn(
@@ -52,18 +52,22 @@ export default function ThemeModeToggle({
                 )}
             >
                 <ActiveIcon data-icon="inline-start" />
-                <span className="hidden lg:inline">
+                <span className="hidden xl:inline">
                     {t(activeTheme?.labelKey ?? 'theme.system')}
                 </span>
                 <ChevronDownIcon
-                    className="hidden lg:block"
+                    className="hidden xl:block"
                     data-icon="inline-end"
                 />
             </DropdownMenuTrigger>
             <DropdownMenuContent
                 align="end"
                 sideOffset={8}
-                className={cn('w-44', onDarkHeader && darkHeaderMenuClass)}
+                collisionPadding={12}
+                className={cn(
+                    'w-40 max-h-[50dvh] sm:w-44',
+                    onDarkHeader && darkHeaderMenuClass,
+                )}
             >
                 <DropdownMenuLabel
                     className={onDarkHeader ? 'text-[#111827]/60' : undefined}

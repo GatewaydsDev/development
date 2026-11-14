@@ -5,12 +5,14 @@ namespace App\Http\Controllers;
 use App\Exceptions\MicrosoftGraphException;
 use App\Models\MailSavedRecipient;
 use App\Models\User;
+use App\Services\ContactDirectory\EmailTemplateRenderer;
 use App\Services\MailboxStateService;
 use App\Services\MicrosoftGraphMailService;
 use App\Services\MicrosoftGraphPageCursor;
 use App\Support\EmailPlainText;
 use App\Support\MailAuthentication;
 use App\Support\MailboxComposition;
+use App\Support\MailStationery;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -32,6 +34,7 @@ class MailboxController extends Controller
         $user = $this->effectiveUser($request->user());
         $mailbox = $this->mailbox($user?->microsoft_mailbox);
         $folder = $this->folder($request->query('folder'));
+        $status = $this->status($folder, $request->query('status'));
         $messageToken = $request->query('message');
 
         $savedRecipients = $this->savedRecipients($user);
@@ -40,21 +43,48 @@ class MailboxController extends Controller
             abort_if(is_string($messageToken) && $messageToken !== '', 403);
             abort_if(is_string($request->query('cursor')) && $request->query('cursor') !== '', 403);
 
-            return Inertia::render('Email/Index', $this->props(null, $folder, [], null, null, null, $savedRecipients));
+            return Inertia::render('Email/Index', $this->props(
+                null,
+                $folder,
+                [],
+                null,
+                null,
+                null,
+                $savedRecipients,
+                status: $status,
+            ));
         }
 
         $cursor = $request->query('cursor');
 
         try {
             $nextUrl = is_string($cursor) && $cursor !== ''
-                ? $cursors->resolve($user->id, $mailbox, $folder, $cursor)
+                ? $cursors->resolve($user->id, $mailbox, $folder, $cursor, $status)
                 : null;
-            $page = $graph->actingAs($user)->listFolder($mailbox, $folder, $nextUrl);
-            $message = null;
+            $page = $graph->actingAs($user)->listFolder($mailbox, $folder, $nextUrl, $status);
+        } catch (MicrosoftGraphException $exception) {
+            return Inertia::render('Email/Index', $this->props(
+                $mailbox,
+                $folder,
+                [],
+                null,
+                null,
+                $exception->getMessage(),
+                $savedRecipients,
+                $user,
+                $this->unreadTotal($user, $mailbox, $graph, $states),
+                status: $status,
+            ));
+        }
 
-            if (is_string($messageToken) && $messageToken !== '') {
-                $messageId = EmailPlainText::decodeMessageId($messageToken);
-                abort_if($messageId === null, 404);
+        $message = null;
+        $messageError = null;
+
+        if (is_string($messageToken) && $messageToken !== '') {
+            $messageId = EmailPlainText::decodeMessageId($messageToken);
+            abort_if($messageId === null, 404);
+
+            try {
                 $message = $graph->actingAs($user)->readMessage($mailbox, $messageId);
 
                 if ($folder === 'inbox') {
@@ -68,37 +98,39 @@ class MailboxController extends Controller
                     );
                     Cache::forget($this->unreadCacheKey($user, $mailbox));
                 }
+            } catch (MicrosoftGraphException $exception) {
+                $messageError = $exception->getMessage();
+            } catch (\Throwable $exception) {
+                report($exception);
+                $messageError = 'That message could not be opened.';
             }
+        }
 
-            $messages = $states->applyToList($user, $mailbox, $folder, $page['messages']);
+        $messages = $states->applyToList($user, $mailbox, $folder, $page['messages']);
 
-            if ($folder === 'inbox') {
-                Cache::forget($this->unreadCacheKey($user, $mailbox));
-            }
+        if ($folder === 'inbox') {
+            Cache::forget($this->unreadCacheKey($user, $mailbox));
+        }
+
+        try {
+            $nextCursor = $cursors->store($user->id, $mailbox, $folder, $page['nextLink'], $status);
         } catch (MicrosoftGraphException $exception) {
-            return Inertia::render('Email/Index', $this->props(
-                $mailbox,
-                $folder,
-                [],
-                null,
-                null,
-                $exception->getMessage(),
-                $savedRecipients,
-                $user,
-                $this->unreadTotal($user, $mailbox, $graph, $states),
-            ));
+            report($exception);
+            $nextCursor = null;
         }
 
         return Inertia::render('Email/Index', $this->props(
             $mailbox,
             $folder,
             $messages,
-            $cursors->store($user->id, $mailbox, $folder, $page['nextLink']),
+            $nextCursor,
             $message,
-            null,
+            $messageError,
             $savedRecipients,
             $user,
             $this->unreadFloor($folder, $messages, $this->unreadTotal($user, $mailbox, $graph, $states)),
+            $folder === 'inbox' ? $this->unreadSnapshot($user, $mailbox, $graph, $states)['blocked'] : 0,
+            $status,
         ));
     }
 
@@ -169,6 +201,36 @@ class MailboxController extends Controller
         Cache::forget($this->unreadCacheKey($user, $mailbox));
 
         return back();
+    }
+
+    public function updateAllStates(
+        Request $request,
+        MicrosoftGraphMailService $graph,
+        MailboxStateService $states,
+    ): RedirectResponse {
+        $user = $this->effectiveUser($request->user());
+        $mailbox = $this->mailbox($user?->microsoft_mailbox);
+        abort_unless($user instanceof User && $mailbox !== null, 403);
+
+        $request->validate([
+            'is_read' => ['required', 'boolean'],
+        ]);
+        $isRead = $request->boolean('is_read');
+
+        try {
+            $states->markAllRead($user, $mailbox, $isRead, $graph->actingAs($user));
+        } catch (MicrosoftGraphException $exception) {
+            return back()->with('error', $exception->getMessage());
+        }
+
+        Cache::forget($this->unreadCacheKey($user, $mailbox));
+
+        return back()->with(
+            'success',
+            $isRead
+                ? 'Microsoft 365 is marking every inbox email as read.'
+                : 'Microsoft 365 is marking every inbox email as unread.',
+        );
     }
 
     public function archive(
@@ -293,6 +355,32 @@ class MailboxController extends Controller
         return back();
     }
 
+    public function updateStationery(Request $request, MailStationery $stationery): RedirectResponse
+    {
+        $user = $this->effectiveUser($request->user());
+        abort_unless($user instanceof User, 403);
+
+        $validated = $request->validate([
+            'header' => ['nullable', 'string', 'max:8000'],
+            'footer' => ['nullable', 'string', 'max:8000'],
+            'signatures' => ['present', 'array', 'max:12'],
+            'signatures.*.id' => ['required', 'string', 'max:40'],
+            'signatures.*.name' => ['required', 'string', 'max:80'],
+            'signatures.*.html' => ['nullable', 'string', 'max:8000'],
+            'new_signature_id' => ['nullable', 'string', 'max:40'],
+            'reply_signature_id' => ['nullable', 'string', 'max:40'],
+        ]);
+
+        $stored = $stationery->store($validated);
+        $user->mail_stationery = $stored;
+        $default = collect($stored['signatures'])->firstWhere('id', $stored['new_signature_id']);
+        $plain = trim(html_entity_decode(strip_tags(str_replace(['<br>', '<br/>', '<br />'], "\n", (string) ($default['html'] ?? ''))), ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+        $user->mail_signature = $plain === '' ? null : mb_substr($plain, 0, 2000);
+        $user->save();
+
+        return back();
+    }
+
     public function send(Request $request, MicrosoftGraphMailService $graph): RedirectResponse
     {
         $sender = $this->effectiveUser($request->user());
@@ -310,9 +398,19 @@ class MailboxController extends Controller
             'attachments.*' => ['file', 'max:2048'],
         ]);
 
-        $to = $this->addresses($validated['to'], 'to');
-        $cc = $this->addresses($validated['cc'] ?? '', 'cc');
-        $bcc = $this->addresses($validated['bcc'] ?? '', 'bcc');
+        $leftover = app(EmailTemplateRenderer::class)
+            ->leftoverPlaceholders($validated['subject'].' '.$validated['body']);
+
+        if ($leftover !== []) {
+            throw ValidationException::withMessages([
+                'body' => 'Fill in or remove these placeholders before sending: {{'.implode('}}, {{', $leftover).'}}',
+            ]);
+        }
+
+        $senderMailbox = strtolower(trim((string) $sender->microsoft_mailbox));
+        $to = $this->withoutMailbox($this->addresses($validated['to'], 'to'), $senderMailbox);
+        $cc = $this->withoutMailbox($this->addresses($validated['cc'] ?? '', 'cc'), $senderMailbox, $to);
+        $bcc = $this->withoutMailbox($this->addresses($validated['bcc'] ?? '', 'bcc'), $senderMailbox, [...$to, ...$cc]);
         $body = $this->messageBody($validated['body']);
         $composed = app(MailboxComposition::class)->apply(
             $sender,
@@ -346,7 +444,11 @@ class MailboxController extends Controller
         }
 
         if ($request->boolean('save_recipients')) {
-            $this->rememberRecipients($sender, array_merge($to, $cc, $bcc));
+            try {
+                $this->rememberRecipients($sender, array_merge($to, $cc, $bcc));
+            } catch (\Throwable $exception) {
+                report($exception);
+            }
         }
 
         return redirect()
@@ -400,6 +502,11 @@ class MailboxController extends Controller
         return 'mailbox-unread:'.$user->id.':'.$mailbox;
     }
 
+    private function unreadStaleCacheKey(User $user, string $mailbox): string
+    {
+        return $this->unreadCacheKey($user, $mailbox).':stale';
+    }
+
     private function mailbox(mixed $mailbox): ?string
     {
         if (! is_string($mailbox)) {
@@ -414,6 +521,15 @@ class MailboxController extends Controller
     private function folder(mixed $folder): string
     {
         return in_array($folder, ['sent', 'archive'], true) ? $folder : 'inbox';
+    }
+
+    private function status(string $folder, mixed $status): string
+    {
+        if ($folder !== 'inbox') {
+            return 'all';
+        }
+
+        return in_array($status, ['read', 'unread'], true) ? $status : 'all';
     }
 
     /**
@@ -432,10 +548,13 @@ class MailboxController extends Controller
         array $savedRecipients = [],
         ?User $user = null,
         int $unreadCount = 0,
+        int $blockedCount = 0,
+        string $status = 'all',
     ): array {
         return [
             'mailbox' => $mailbox,
             'folder' => $folder,
+            'status' => $status,
             'messages' => $messages,
             'nextCursor' => $nextCursor,
             'message' => $message,
@@ -445,7 +564,12 @@ class MailboxController extends Controller
             'headerUrl' => $user?->mailHeaderUrl(),
             'headerWidth' => $user?->mailHeaderWidth() ?? 100,
             'footerColors' => $user?->mailFooterColors() ?? [],
+            'stationery' => app(MailStationery::class)->payload($user),
+            'emailTemplates' => $user
+                ? app(EmailTemplateRenderer::class)->availableFor($user)
+                : [],
             'unreadCount' => $unreadCount,
+            'blockedCount' => $blockedCount,
             'deliveryProblems' => app(MailAuthentication::class)->problemsForMailbox($mailbox),
         ];
     }
@@ -471,7 +595,7 @@ class MailboxController extends Controller
     }
 
     /**
-     * @return array{unread: int, messages: list<array{id: string, subject: string, from: string, preview: string}>}
+     * @return array{unread: int, blocked: int, messages: list<array{id: string, subject: string, from: string, preview: string}>, error?: bool}
      */
     private function unreadSnapshot(
         User $user,
@@ -486,40 +610,83 @@ class MailboxController extends Controller
             is_array($cached)
             && is_int($cached['unread'] ?? null)
             && is_array($cached['messages'] ?? null)
+            && is_int($cached['blocked'] ?? null)
         ) {
-            return [
+            $snapshot = [
                 'unread' => $cached['unread'],
                 'messages' => $cached['messages'],
+                'blocked' => $cached['blocked'],
             ];
+
+            return ($cached['error'] ?? false) === true
+                ? $snapshot + ['error' => true]
+                : $snapshot;
         }
 
+        $stale = Cache::get($this->unreadStaleCacheKey($user, $mailbox));
         $graphUnread = 0;
         $messages = [];
+        $bounces = ['unread' => 0, 'total' => 0];
+        $failed = false;
+        $monitor = $graph->actingAs($user)->withTimeouts(
+            (int) config('services.microsoft.monitor_request_timeout', 3),
+            (int) config('services.microsoft.monitor_connect_timeout', 1),
+        );
 
         try {
-            $graphUnread = $graph->actingAs($user)->unreadInboxCount($mailbox);
-        } catch (MicrosoftGraphException) {
-            $graphUnread = 0;
+            $graphUnread = $monitor->unreadInboxCount($mailbox);
+            $bounces = $monitor->bounceStats($mailbox);
+        } catch (MicrosoftGraphException $exception) {
+            $failed = true;
+            report($exception);
         }
 
         try {
             $messages = $states->dropCleared(
                 $user,
                 $mailbox,
-                $graph->actingAs($user)->recentUnread($mailbox),
+                $monitor->recentUnread($mailbox),
             );
-        } catch (MicrosoftGraphException) {
+        } catch (MicrosoftGraphException $exception) {
+            $failed = true;
             $messages = [];
+            report($exception);
+        }
+
+        if (
+            $failed
+            && is_array($stale)
+            && is_int($stale['unread'] ?? null)
+            && is_array($stale['messages'] ?? null)
+            && is_int($stale['blocked'] ?? null)
+        ) {
+            $snapshot = [
+                'unread' => $stale['unread'],
+                'messages' => $stale['messages'],
+                'blocked' => $stale['blocked'],
+                'error' => true,
+            ];
+            Cache::put($cacheKey, $snapshot, 30);
+
+            return $snapshot;
         }
 
         $snapshot = [
-            'unread' => $states->unreadCount($user, $mailbox, $graphUnread),
+            'unread' => max(
+                $states->unreadCount($user, $mailbox, max(0, $graphUnread - $bounces['unread'])),
+                count($messages),
+            ),
             'messages' => $messages,
+            'blocked' => $bounces['total'],
         ];
 
-        Cache::put($cacheKey, $snapshot, 15);
+        Cache::put($cacheKey, $failed ? $snapshot + ['error' => true] : $snapshot, $failed ? 30 : 8);
 
-        return $snapshot;
+        if (! $failed) {
+            Cache::put($this->unreadStaleCacheKey($user, $mailbox), $snapshot, 86400);
+        }
+
+        return $failed ? $snapshot + ['error' => true] : $snapshot;
     }
 
     private function unreadTotal(
@@ -557,8 +724,8 @@ class MailboxController extends Controller
                 return;
             }
 
-            foreach (preg_split('/[;,]+/', $value) ?: [] as $part) {
-                $email = $this->mailboxAddress((string) $part);
+            foreach ($this->addressParts($value) as $part) {
+                $email = $this->mailboxAddress($part);
 
                 if ($email === '') {
                     continue;
@@ -578,8 +745,8 @@ class MailboxController extends Controller
     {
         $emails = [];
 
-        foreach (preg_split('/[;,]+/', $value) ?: [] as $part) {
-            $email = $this->mailboxAddress((string) $part);
+        foreach ($this->addressParts($value) as $part) {
+            $email = $this->mailboxAddress($part);
 
             if ($email === '') {
                 continue;
@@ -595,6 +762,65 @@ class MailboxController extends Controller
         }
 
         return array_values($emails);
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function addressParts(string $value): array
+    {
+        $parts = [];
+        $current = '';
+        $depth = 0;
+        $length = strlen($value);
+
+        for ($index = 0; $index < $length; $index++) {
+            $char = $value[$index];
+
+            if ($char === '<') {
+                $depth++;
+            } elseif ($char === '>') {
+                $depth = max(0, $depth - 1);
+            }
+
+            if (($char === ',' || $char === ';') && $depth === 0 && str_contains($current, '@')) {
+                $parts[] = $current;
+                $current = '';
+
+                continue;
+            }
+
+            $current .= $char;
+        }
+
+        if (trim($current) !== '') {
+            $parts[] = $current;
+        }
+
+        return $parts;
+    }
+
+    /**
+     * @param  list<string>  $emails
+     * @param  list<string>  $skip
+     * @return list<string>
+     */
+    private function withoutMailbox(array $emails, string $mailbox, array $skip = []): array
+    {
+        $skip = array_map(static fn (string $email): string => strtolower($email), $skip);
+        $kept = [];
+
+        foreach ($emails as $email) {
+            $email = strtolower($email);
+
+            if ($email === '' || $email === $mailbox || in_array($email, $skip, true) || in_array($email, $kept, true)) {
+                continue;
+            }
+
+            $kept[] = $email;
+        }
+
+        return $kept;
     }
 
     private function mailboxAddress(string $part): string
@@ -631,6 +857,7 @@ class MailboxController extends Controller
     private function messageText(string $body): string
     {
         $own = preg_split('/<hr\b/i', $body, 2)[0] ?? $body;
+        $own = preg_replace('/<div\b[^>]*\bdata-mail-section="(?:header|signature|footer)"[^>]*>.*?<\/div>/is', ' ', $own) ?? $own;
         $own = str_ireplace(['<br>', '<br/>', '<br />'], ' ', $own);
         $own = html_entity_decode(strip_tags($own), ENT_QUOTES | ENT_HTML5, 'UTF-8');
         $own = preg_replace('/\s+/u', ' ', $own) ?? $own;

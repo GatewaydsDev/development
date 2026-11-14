@@ -5,16 +5,19 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Bid;
 use App\Models\Company;
+use App\Models\ContactDirectory\ContactCompany;
 use App\Models\Contractor;
 use App\Models\Product;
 use App\Models\Project;
 use App\Models\ProjectPrice;
+use App\Models\ProjectPriority;
 use App\Models\ProjectRevision;
 use App\Models\ProjectScope;
 use App\Models\ProjectScopeType;
 use App\Models\ProjectStatus;
 use App\Models\Quotation;
 use App\Models\Service;
+use App\Models\ClientCompany;
 use App\Models\User;
 use App\Models\UserLevel;
 use App\Support\BidAccess;
@@ -264,14 +267,34 @@ class ProjectController extends Controller
             'assignee:id,name',
             'creator:id,name',
             'contractors.contacts',
+            'contactCompanies.headquarters',
             'scopes.product',
             'scopes.service',
             'revisions.user:id,name',
             'prices',
             'status',
+            'clientCompany.users',
         ]);
 
         return Inertia::render('Admin/Projects/Show', [
+            'clientCompany' => $project->clientCompany ? [
+                'uuid' => $project->clientCompany->uuid,
+                'name' => $project->clientCompany->name,
+                'members' => $project->clientCompany->users
+                    ->sortByDesc(fn (User $member) => (int) $member->pivot->is_master)
+                    ->map(fn (User $member): array => [
+                        'uuid' => $member->uuid,
+                        'name' => $member->name,
+                        'email' => $member->email,
+                        'role' => $member->pivot->is_master
+                            ? 'master'
+                            : ($member->hasPermission('manage-client-team') ? 'manager' : 'viewer'),
+                        'last_login_at' => $member->last_login_at?->toDateTimeString(),
+                    ])
+                    ->values()
+                    ->all(),
+            ] : null,
+            'clientCompanies' => ClientCompany::query()->orderBy('name')->get(['uuid', 'name'])->all(),
             'project' => $this->projectPayload($project, $request->user()),
             'options' => $this->options($request->user(), $project),
             'can' => $this->capabilities($request->user()),
@@ -285,6 +308,7 @@ class ProjectController extends Controller
         $project->load([
             'assignee:id,name',
             'contractors.contacts',
+            'contactCompanies.headquarters',
             'scopes.product',
             'scopes.service',
             'revisions.user:id,name',
@@ -354,6 +378,31 @@ class ProjectController extends Controller
         return back()->with('success', 'Status added successfully.');
     }
 
+    public function storePriority(Request $request): RedirectResponse
+    {
+        abort_unless(
+            ProjectAccess::canCreate($request->user()) || ProjectAccess::canUpdate($request->user()),
+            403,
+        );
+
+        $validated = $request->validate([
+            'name' => ['required', 'string', 'max:255'],
+        ]);
+
+        $name = trim($validated['name']);
+        $existing = ProjectPriority::query()
+            ->whereRaw('LOWER(name) = ?', [mb_strtolower($name)])
+            ->first();
+
+        if ($existing) {
+            return back()->with('success', 'Priority already exists.');
+        }
+
+        ProjectPriority::create(['name' => $name]);
+
+        return back()->with('success', 'Priority added successfully.');
+    }
+
     public function storeScopeType(Request $request): RedirectResponse
     {
         abort_unless(
@@ -396,6 +445,7 @@ class ProjectController extends Controller
             ->with([
                 'assignee:id,name',
                 'contractors.contacts',
+                'contactCompanies.headquarters',
                 'scopes.product',
                 'scopes.service',
                 'revisions',
@@ -408,6 +458,10 @@ class ProjectController extends Controller
                     ->with(['scopes.title', 'stages.type']),
                 'takeoffs' => fn ($query) => $query
                     ->select('id', 'uuid', 'project_id', 'title', 'status')
+                    ->latest('id'),
+                'workSchedules' => fn ($query) => $query
+                    ->select('id', 'uuid', 'project_id', 'starts_on', 'ends_on', 'status')
+                    ->withCount('employees')
                     ->latest('id'),
             ])
             ->select('projects.*')
@@ -506,18 +560,19 @@ class ProjectController extends Controller
 
         $rules = [
             'status_id' => ['required', 'integer', Rule::exists(ProjectStatus::class, 'id')],
-            'priority' => ['required', 'string', Rule::in(Project::PRIORITIES)],
+            'priority' => ['required', 'string', 'max:255', Rule::exists(ProjectPriority::class, 'slug')],
             'assigned_to' => ['sometimes', 'nullable', 'integer', Rule::exists(User::class, 'id')],
             'estimated_start_date' => ['nullable', 'date'],
             'estimated_end_date' => ['nullable', 'date', 'after_or_equal:estimated_start_date'],
             'completed_at' => ['nullable', 'date'],
-            'public_notes' => ['nullable', 'string', 'max:5000'],
+            'public_notes' => ['nullable', 'string', 'max:60000'],
         ];
 
         if (! $isProjectManager) {
             $rules = [
                 ...$rules,
                 'name' => ['required', 'string', 'max:255', $this->uniqueProjectNameRule($project)],
+                'project_number' => ['nullable', 'string', 'max:255', $this->uniqueProjectNumberRule($project)],
                 'site_address_line_1' => ['nullable', 'string', 'max:255'],
                 'site_address_line_2' => ['nullable', 'string', 'max:255'],
                 'site_city' => ['nullable', 'string', 'max:255'],
@@ -525,6 +580,8 @@ class ProjectController extends Controller
                 'site_postal_code' => PostalCode::optionalRules(),
                 'site_country' => ['nullable', 'string', 'max:255'],
                 'contractors' => ['array'],
+                'company_uuids' => ['nullable', 'array'],
+                'company_uuids.*' => ['string', Rule::exists(ContactCompany::class, 'uuid')->whereNull('deleted_at')],
                 'contractors.*.contractor_id' => [
                     'nullable',
                     'integer',
@@ -573,7 +630,7 @@ class ProjectController extends Controller
             $rules = [
                 ...$rules,
                 'budget_amount' => ['nullable', 'numeric', 'min:0', 'max:9999999999.99'],
-                'internal_notes' => ['nullable', 'string', 'max:5000'],
+                'internal_notes' => ['nullable', 'string', 'max:60000'],
                 'prices' => ['sometimes', 'array'],
                 'prices.*.id' => [
                     'nullable',
@@ -639,6 +696,29 @@ class ProjectController extends Controller
         };
     }
 
+    private function uniqueProjectNumberRule(?Project $project = null): Closure
+    {
+        return function (string $attribute, mixed $value, Closure $fail) use ($project): void {
+            $number = trim((string) $value);
+
+            if ($number === '') {
+                return;
+            }
+
+            $taken = Project::query()
+                ->where('project_number', $number)
+                ->when(
+                    $project,
+                    fn ($query) => $query->whereKeyNot($project->id),
+                )
+                ->exists();
+
+            if ($taken) {
+                $fail('That project number is already used.');
+            }
+        };
+    }
+
     private function projectNameExists(string $name, ?int $ignoreProjectId = null): bool
     {
         return Project::query()
@@ -663,7 +743,7 @@ class ProjectController extends Controller
             'estimated_start_date' => $validated['estimated_start_date'] ?? null,
             'estimated_end_date' => $validated['estimated_end_date'] ?? null,
             'completed_at' => $validated['completed_at'] ?? null,
-            'public_notes' => $validated['public_notes'] ?? null,
+            'public_notes' => BidApplicationText::sanitize($validated['public_notes'] ?? null),
         ];
 
         if (array_key_exists('assigned_to', $validated)) {
@@ -685,16 +765,22 @@ class ProjectController extends Controller
                 'site_postal_code' => $validated['site_postal_code'] ?? null,
                 'site_country' => $validated['site_country'] ?? null,
             ];
+
+            $projectNumber = trim((string) ($validated['project_number'] ?? ''));
+
+            if ($projectNumber !== '') {
+                $attributes['project_number'] = $projectNumber;
+            }
         }
 
         if (ProjectAccess::canViewSensitiveFields($user) && array_key_exists('budget_amount', $validated)) {
             $attributes = [
                 ...$attributes,
                 'budget_amount' => $validated['budget_amount'] ?? null,
-                'internal_notes' => $validated['internal_notes'] ?? null,
+                'internal_notes' => BidApplicationText::sanitize($validated['internal_notes'] ?? null),
             ];
         } elseif (ProjectAccess::canViewSensitiveFields($user)) {
-            $attributes['internal_notes'] = $validated['internal_notes'] ?? null;
+            $attributes['internal_notes'] = BidApplicationText::sanitize($validated['internal_notes'] ?? null);
         }
 
         return $attributes;
@@ -710,6 +796,11 @@ class ProjectController extends Controller
         }
 
         $this->syncContractors($project, $validated['contractors'] ?? []);
+        if (array_key_exists('company_uuids', $validated)) {
+            $project->contactCompanies()->sync(
+                ContactCompany::query()->whereIn('uuid', $validated['company_uuids'] ?? [])->pluck('id')->all(),
+            );
+        }
         $this->syncScopes($project, $validated['scopes'] ?? []);
         $this->syncRevisions($project, $validated['revisions'] ?? [], $request->user());
     }
@@ -977,6 +1068,16 @@ class ProjectController extends Controller
             'site_state' => $project->site_state,
             'site_postal_code' => $project->site_postal_code,
             'site_country' => $project->site_country,
+            'companies' => $project->contactCompanies
+                ->map(fn (ContactCompany $company): array => [
+                    'uuid' => $company->uuid,
+                    'name' => $company->name,
+                    'main_office' => $company->headquarters
+                        ? collect([$company->headquarters->city, $company->headquarters->state])->filter()->implode(', ')
+                        : null,
+                ])
+                ->values()
+                ->all(),
             'contractors' => $project->contractors
                 ->map(fn (Contractor $contractor): array => [
                     'id' => $contractor->id,
@@ -1045,6 +1146,7 @@ class ProjectController extends Controller
             'quotation' => $this->linkedQuotation($project),
             'bid' => $this->linkedBid($project),
             'takeoff' => $this->linkedTakeoff($project),
+            'work_schedule' => $this->linkedWorkSchedule($project),
             'bids_count' => (int) ($project->bids_count ?? $project->bids()->count()),
             'latest_bid_id' => $project->latest_bid_id
                 ? (int) $project->latest_bid_id
@@ -1138,6 +1240,27 @@ class ProjectController extends Controller
     /**
      * @return array{uuid: string, title: string, status: string, status_label: string}|null
      */
+    private function linkedWorkSchedule(Project $project): ?array
+    {
+        $schedule = $project->relationLoaded('workSchedules')
+            ? $project->workSchedules->sortByDesc('id')->first()
+            : $project->workSchedules()->withCount('employees')->first();
+
+        if (! $schedule) {
+            return null;
+        }
+
+        return [
+            'uuid' => $schedule->uuid,
+            'starts_on' => $schedule->starts_on?->toDateString(),
+            'ends_on' => $schedule->ends_on?->toDateString(),
+            'status' => (string) $schedule->status,
+            'status_label' => Str::headline((string) $schedule->status),
+            'employees_count' => (int) ($schedule->employees_count ?? $schedule->employees()->count()),
+            'schedules_count' => $project->workSchedules->count(),
+        ];
+    }
+
     private function linkedTakeoff(Project $project): ?array
     {
         $takeoff = $project->relationLoaded('takeoffs')
@@ -1207,6 +1330,15 @@ class ProjectController extends Controller
                 ])
                 ->all(),
             'priorities' => Project::PRIORITIES,
+            'priorityOptions' => ProjectPriority::query()
+                ->orderBy('name')
+                ->get(['id', 'name', 'slug'])
+                ->map(fn (ProjectPriority $priority): array => [
+                    'id' => $priority->id,
+                    'name' => $priority->name,
+                    'slug' => $priority->slug,
+                ])
+                ->all(),
             'serviceTypes' => Project::SERVICE_TYPES,
             'scopeTypes' => ProjectScopeType::query()
                 ->orderBy('name')
@@ -1237,6 +1369,12 @@ class ProjectController extends Controller
                     'name' => $service->name,
                 ])
                 ->all(),
+            'companies' => ContactCompany::query()
+                ->where('is_active', true)
+                ->orderBy('name')
+                ->get(['uuid', 'name'])
+                ->map(fn (ContactCompany $company): array => ['uuid' => $company->uuid, 'name' => $company->name])
+                ->all(),
             'contractors' => Contractor::query()
                 ->with([
                     'contacts' => fn ($query) => $query->orderByDesc('is_primary')->orderBy('name'),
@@ -1259,6 +1397,7 @@ class ProjectController extends Controller
                     UserLevel::ADMIN,
                     UserLevel::PROJECT_MANAGER,
                 ]))
+                ->visibleTo(auth()->user())
                 ->orderBy('name')
                 ->get(['id', 'name'])
                 ->map(fn (User $assignee): array => [

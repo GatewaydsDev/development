@@ -1,22 +1,26 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head, Link } from '@inertiajs/react';
 import ScheduleForm from './Partials/ScheduleForm';
-import type { ScheduleOption, ScheduleStatusOption } from './types';
+import type { ScheduleDailyTask, ScheduleOption, ScheduleStatusOption } from './types';
 
 type CreateProps = {
     projects: ScheduleOption[];
     foremen: ScheduleOption[];
     employees: ScheduleOption[];
+    dailyTasks?: ScheduleDailyTask[];
     statuses: ScheduleStatusOption[];
     defaultDate: string;
+    defaultEndDate?: string;
 };
 
 export default function Create({
     projects,
     foremen,
     employees,
+    dailyTasks = [],
     statuses,
     defaultDate,
+    defaultEndDate,
 }: CreateProps) {
     return (
         <AuthenticatedLayout
@@ -45,15 +49,17 @@ export default function Create({
         >
             <Head title="Add Work Schedule" />
             <div className="py-6 sm:py-8">
-                <div className="mx-auto max-w-[96rem] px-4 sm:px-6 lg:px-8">
+                <div className="w-full px-4 sm:px-6 lg:px-8">
                     <ScheduleForm
                         action={route('admin.employee-schedules.store')}
                         submitLabel="Save schedule"
                         projects={projects}
                         foremen={foremen}
                         employees={employees}
+                        dailyTasks={dailyTasks}
                         statuses={statuses}
                         defaultDate={defaultDate}
+                        defaultEndDate={defaultEndDate}
                     />
                 </div>
             </div>

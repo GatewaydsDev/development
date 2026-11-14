@@ -36,7 +36,7 @@ export default function Create({ options }: CreateProps) {
             <Head title="Add Product" />
 
             <div className="py-6 sm:py-8">
-                <div className="mx-auto max-w-[96rem] px-4 sm:px-6 lg:px-8">
+                <div className="w-full px-4 sm:px-6 lg:px-8">
                     <ProductForm
                         action={route('admin.products.store')}
                         title="Product information"

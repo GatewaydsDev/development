@@ -1,11 +1,13 @@
 import InspectorSelect from '@/Components/InspectorSelect';
 import InputError from '@/Components/InputError';
 import { Button } from '@/Components/ui/button';
-import { router } from '@inertiajs/react';
-import { SearchIcon } from 'lucide-react';
-import { createContext, FormEvent, ReactNode, useContext, useEffect, useState } from 'react';
+import { router, usePage } from '@inertiajs/react';
+import { AppWindowIcon, DoorOpenIcon, HandIcon, MousePointer2Icon, SearchIcon, Trash2Icon } from 'lucide-react';
+import { createContext, ReactNode, useContext, useEffect, useState } from 'react';
+import { countMark } from '../pinLabels';
 import type { TakeoffDocument, TakeoffOpening } from '../types';
 import type { PdfPoint } from './PdfWorkspace';
+import type { CountTool } from './PdfWorkspace';
 
 type Errors = Record<string, string>;
 
@@ -17,12 +19,19 @@ type Props = {
     documents: TakeoffDocument[];
     pendingMarker: PdfPoint | null;
     canEdit: boolean;
-    onClose: () => void;
-    onDirty: (dirty: boolean) => void;
+    tool: CountTool;
+    unsavedIds: number[];
+    newUnsaved: boolean;
+    fieldErrors: Errors;
+    draft: OpeningForm | null;
+    onToolChange: (tool: CountTool) => void;
+    onDraft: (key: string, form: OpeningForm | null) => void;
     onSelect: (choice: number | 'new' | null) => void;
+    panel?: 'basics' | 'size' | 'specs' | 'requirements' | 'notes';
+    embedded?: boolean;
 };
 
-function openingForm(opening: TakeoffOpening | null, creating: boolean) {
+export function openingForm(opening: TakeoffOpening | null, creating: boolean) {
     const waived: Record<string, string> = opening?.waived_checks && !Array.isArray(opening.waived_checks) ? opening.waived_checks : {};
 
     if (!opening || creating) {
@@ -34,6 +43,7 @@ function openingForm(opening: TakeoffOpening | null, creating: boolean) {
         tag: opening.tag ?? '',
         is_bulk: opening.is_bulk,
         opening_type: opening.opening_type,
+        door_configuration_id: opening.door_configuration_id ? String(opening.door_configuration_id) : '',
         location: opening.location ?? '',
         quantity: opening.quantity,
         product_category: opening.product_category ?? '',
@@ -78,10 +88,89 @@ function openingForm(opening: TakeoffOpening | null, creating: boolean) {
     };
 }
 
-const empty = {
+export type OpeningForm = {
+    tag: string;
+    is_bulk: boolean;
+    opening_type: string;
+    door_configuration_id: string;
+    location: string;
+    quantity: string;
+    product_category: string;
+    width: string;
+    height: string;
+    depth: string;
+    dimension_unit: string;
+    frame_type: string;
+    handing: string;
+    hardware_set: string;
+    glazing: string;
+    finish: string;
+    manufacturer: string;
+    product_model: string;
+    product_id: string;
+    scope: string;
+    notes: string;
+    exclusions: string;
+    assumptions: string;
+    disposition: string;
+    disposition_reason: string;
+    acoustic_requirement: string;
+    rf_requirement: string;
+    fire_requirement: string;
+    ballistic_requirement: string;
+    other_requirements: string;
+    verified_acoustic: string;
+    verified_rf: string;
+    verified_fire: string;
+    verified_ballistic: string;
+    verification_status: string;
+    requirement_document_id: string;
+    requirement_page: string;
+    requirement_section: string;
+    group_id: string;
+    needs_review: boolean;
+    waive_dimensions: string;
+    waive_product: string;
+    waive_technical: string;
+    waive_hardware: string;
+    waive_pricing: string;
+};
+
+export function openingPayload(form: OpeningForm, updatedAt: string | null, marker: PdfPoint | null) {
+    return {
+        ...form,
+        product_id: form.product_id || null,
+        door_configuration_id: form.opening_type === 'door' && form.door_configuration_id ? form.door_configuration_id : null,
+        requirement_document_id: form.requirement_document_id || null,
+        group_id: form.group_id || null,
+        width: form.width || null,
+        height: form.height || null,
+        depth: form.depth || null,
+        requirement_page: form.requirement_page || null,
+        waived_checks: {
+            dimensions: form.waive_dimensions,
+            product: form.waive_product,
+            technical: form.waive_technical,
+            hardware: form.waive_hardware,
+            pricing: form.waive_pricing,
+        },
+        updated_at: updatedAt,
+        marker: marker
+            ? {
+                document_id: marker.documentId,
+                page: marker.page,
+                x: marker.x,
+                y: marker.y,
+            }
+            : null,
+    };
+}
+
+const empty: OpeningForm = {
     tag: '',
     is_bulk: false,
     opening_type: 'door',
+    door_configuration_id: '',
     location: '',
     quantity: '1',
     product_category: '',
@@ -126,6 +215,7 @@ const empty = {
 };
 
 const inspectorInput = 'h-6 w-full bg-transparent px-1 text-[13px] text-[#1a3d8f] outline-none focus:bg-[#fff8dc] disabled:text-neutral-500';
+const inspectorSelect = 'h-auto min-h-12 w-full bg-transparent px-1 py-1 text-sm leading-6 text-[#1a3d8f] outline-none focus:bg-[#fff8dc] disabled:text-neutral-500';
 const InspectorQuery = createContext('');
 const InspectorDepth = createContext(0);
 const InspectorGroupMatch = createContext(false);
@@ -146,6 +236,50 @@ function PropertyRow({ name, children }: { name: string; children: ReactNode }) 
             </div>
             <div className="min-w-0 bg-white">{children}</div>
         </div>
+    );
+}
+
+function MarkField({ takeoffUuid, opening, openings, canEdit }: { takeoffUuid: string; opening: TakeoffOpening; openings: TakeoffOpening[]; canEdit: boolean }) {
+    const line = openings.findIndex((item) => item.id === opening.id) + 1;
+    const effective = countMark(opening.callout, Math.max(line, 1));
+    const [value, setValue] = useState(effective);
+
+    useEffect(() => {
+        setValue(effective);
+    }, [opening.id, effective]);
+
+    const save = () => {
+        const next = value.trim();
+        const stored = next === '' || next === String(Math.max(line, 1)) ? null : next;
+        const current = opening.callout?.trim() || null;
+
+        if (stored === current) {
+            setValue(effective);
+
+            return;
+        }
+
+        router.patch(route('admin.takeoffs.openings.callout', [takeoffUuid, opening.id]), { callout: stored }, { preserveScroll: true });
+    };
+
+    return (
+        <PropertyRow name="Mark">
+            <input
+                aria-label="Mark"
+                className={inspectorInput}
+                value={value}
+                disabled={!canEdit}
+                maxLength={12}
+                onChange={(event) => setValue(event.target.value)}
+                onBlur={save}
+                onKeyDown={(event) => {
+                    if (event.key === 'Enter') {
+                        event.preventDefault();
+                        event.currentTarget.blur();
+                    }
+                }}
+            />
+        </PropertyRow>
     );
 }
 
@@ -189,6 +323,135 @@ function PropertyGroup({
     );
 }
 
+type CatalogChoice = { value: string; label: string };
+
+function CatalogField({
+    label,
+    value,
+    options,
+    disabled,
+    emptyLabel,
+    addLabel,
+    createRoute,
+    catalogKey,
+    error,
+    onChange,
+}: {
+    label: string;
+    value: string;
+    options: CatalogChoice[];
+    disabled?: boolean;
+    emptyLabel: string;
+    addLabel: string;
+    createRoute: string;
+    catalogKey: 'doorTypes' | 'openingCategories';
+    error?: string;
+    onChange: (value: string) => void;
+}) {
+    const [adding, setAdding] = useState(false);
+    const [draft, setDraft] = useState('');
+    const [catalogError, setCatalogError] = useState('');
+    const [savingCatalog, setSavingCatalog] = useState(false);
+    const listed = options.some((option) => option.value === value)
+        ? options
+        : value
+            ? [{ value, label: value }, ...options]
+            : options;
+
+    const create = () => {
+        const name = draft.trim();
+
+        if (name === '' || savingCatalog) {
+            return;
+        }
+
+        const existing = options.find((option) => option.label.toLowerCase() === name.toLowerCase());
+
+        if (existing) {
+            onChange(existing.value);
+            setAdding(false);
+            setDraft('');
+            setCatalogError('');
+
+            return;
+        }
+
+        setSavingCatalog(true);
+        setCatalogError('');
+        router.post(route(createRoute), { name }, {
+            preserveScroll: true,
+            preserveState: true,
+            onSuccess: (page) => {
+                const catalog = (page.props[catalogKey] ?? []) as { id?: number | null; name: string }[];
+                const created = catalog.find((item) => item.name.toLowerCase() === name.toLowerCase());
+                onChange(created
+                    ? catalogKey === 'doorTypes'
+                        ? String(created.id ?? '')
+                        : created.name
+                    : name);
+                setAdding(false);
+                setDraft('');
+            },
+            onError: (formErrors) => setCatalogError(formErrors.name ?? 'Enter a name.'),
+            onFinish: () => setSavingCatalog(false),
+        });
+    };
+
+    return (
+        <>
+            <InspectorSelect
+                aria-label={label}
+                className={inspectorSelect}
+                value={value}
+                disabled={disabled}
+                onChange={(event) => {
+                    if (event.target.value === '__new__') {
+                        setAdding(true);
+
+                        return;
+                    }
+
+                    setAdding(false);
+                    onChange(event.target.value);
+                }}
+            >
+                <option value="">{emptyLabel}</option>
+                {listed.map((option) => (
+                    <option key={option.value} value={option.value}>{option.label}</option>
+                ))}
+                {disabled ? null : <option value="__new__">{addLabel}</option>}
+            </InspectorSelect>
+            {adding ? (
+                <div className="flex items-center gap-1 px-1 pb-1">
+                    <input
+                        aria-label={`New ${label}`}
+                        className={inspectorInput}
+                        value={draft}
+                        disabled={savingCatalog}
+                        placeholder={`New ${label.toLowerCase()}`}
+                        onChange={(event) => setDraft(event.target.value)}
+                        onKeyDown={(event) => {
+                            if (event.key === 'Enter') {
+                                event.preventDefault();
+                                create();
+                            }
+                        }}
+                    />
+                    <button
+                        type="button"
+                        className="shrink-0 px-1 text-[12px] font-semibold text-[#1a3d8f] disabled:text-neutral-400"
+                        disabled={savingCatalog}
+                        onClick={create}
+                    >
+                        {savingCatalog ? 'Adding…' : 'Add'}
+                    </button>
+                </div>
+            ) : null}
+            <InputError message={catalogError || error} className="px-1" />
+        </>
+    );
+}
+
 function InspectorCheck({
     checked,
     label,
@@ -223,35 +486,62 @@ export default function OpeningEditor({
     documents,
     pendingMarker,
     canEdit,
-    onClose,
-    onDirty,
+    tool,
+    unsavedIds,
+    newUnsaved,
+    fieldErrors,
+    draft,
+    onToolChange,
+    onDraft,
     onSelect,
+    panel,
+    embedded = false,
 }: Props) {
     const selectionKey = creating ? 'new' : opening?.id ?? null;
-    const [form, setForm] = useState(() => openingForm(opening, creating));
+    const [form, setForm] = useState<OpeningForm>(() => draft ?? openingForm(opening, creating));
     const [formSource, setFormSource] = useState<number | 'new' | null>(selectionKey);
-    const [errors, setErrors] = useState<Errors>({});
     const [products, setProducts] = useState<{ id: number; name: string; manufacturer: string | null }[]>([]);
-    const [saving, setSaving] = useState(false);
-    const [saved, setSaved] = useState(false);
+    const [changed, setChanged] = useState(draft !== null);
     const [query, setQuery] = useState('');
+    const [inspectorTab, setInspectorTab] = useState<'tools' | 'properties'>(embedded || !canEdit ? 'properties' : 'tools');
+    const page = usePage<{
+        doorTypes?: { id: number; name: string }[];
+        openingCategories?: { id: number | null; name: string }[];
+    }>();
+    const doorTypes = page.props.doorTypes ?? [];
+    const openingCategories = page.props.openingCategories ?? [];
     const editing = Boolean(opening) || creating;
 
     if (formSource !== selectionKey) {
         setFormSource(selectionKey);
-        setForm(openingForm(opening, creating));
-        setErrors({});
-        setSaved(false);
+        setForm(draft ?? openingForm(opening, creating));
+        setChanged(draft !== null);
     }
 
     useEffect(() => {
-        onDirty(false);
-    }, [selectionKey]);
+        if (selectionKey === null) {
+            return;
+        }
+
+        onDraft(String(selectionKey), changed ? form : null);
+    }, [changed, form, onDraft, selectionKey]);
+
+    useEffect(() => {
+        if (draft !== null || selectionKey === null) {
+            return;
+        }
+
+        setForm(openingForm(opening, creating));
+        setChanged(false);
+    }, [creating, draft, opening, selectionKey]);
 
     const set = (key: string, value: string | boolean) => {
-        setForm((current) => ({ ...current, [key]: value }));
-        setSaved(false);
-        onDirty(true);
+        setForm((current) => {
+            const next = { ...current, [key]: value };
+            setChanged(JSON.stringify(next) !== JSON.stringify(openingForm(opening, creating)));
+
+            return next;
+        });
     };
 
     const searchProducts = (value: string) => {
@@ -263,57 +553,7 @@ export default function OpeningEditor({
         }).then((response) => response.json()).then((rows) => setProducts(Array.isArray(rows) ? rows : [])).catch(() => setProducts([]));
     };
 
-    const submit = (event: FormEvent) => {
-        event.preventDefault();
-
-        if (!canEdit || !editing) {
-            return;
-        }
-
-        setSaving(true);
-        const payload = {
-            ...form,
-            product_id: form.product_id || null,
-            requirement_document_id: form.requirement_document_id || null,
-            group_id: form.group_id || null,
-            width: form.width || null,
-            height: form.height || null,
-            depth: form.depth || null,
-            requirement_page: form.requirement_page || null,
-            waived_checks: {
-                dimensions: form.waive_dimensions,
-                product: form.waive_product,
-                technical: form.waive_technical,
-                hardware: form.waive_hardware,
-                pricing: form.waive_pricing,
-            },
-            updated_at: opening?.updated_at,
-            marker: pendingMarker ? {
-                document_id: pendingMarker.documentId,
-                page: pendingMarker.page,
-                x: pendingMarker.x,
-                y: pendingMarker.y,
-            } : null,
-        };
-        const options = {
-            preserveScroll: true,
-            preserveState: true,
-            onError: (formErrors: Errors) => setErrors(formErrors),
-            onSuccess: () => {
-                onDirty(false);
-                setSaved(true);
-            },
-            onFinish: () => setSaving(false),
-        };
-
-        if (opening) {
-            router.patch(route('admin.takeoffs.openings.update', [takeoffUuid, opening.id]), payload, options);
-        } else {
-            router.post(route('admin.takeoffs.openings.store', takeoffUuid), payload, options);
-        }
-    };
-
-    const text = (name: string, key: keyof typeof empty) => (
+    const text = (name: string, key: keyof OpeningForm) => (
         <PropertyRow name={name}>
             <input
                 aria-label={name}
@@ -322,11 +562,11 @@ export default function OpeningEditor({
                 disabled={!canEdit}
                 onChange={(event) => set(key, event.target.value)}
             />
-            <InputError message={errors[key]} className="px-1" />
+            <InputError message={fieldErrors[key]} className="px-1" />
         </PropertyRow>
     );
 
-    const area = (name: string, key: keyof typeof empty) => (
+    const area = (name: string, key: keyof OpeningForm) => (
         <PropertyRow name={name}>
             <textarea
                 aria-label={name}
@@ -336,33 +576,32 @@ export default function OpeningEditor({
                 disabled={!canEdit}
                 onChange={(event) => set(key, event.target.value)}
             />
-            <InputError message={errors[key]} className="px-1" />
+            <InputError message={fieldErrors[key]} className="px-1" />
         </PropertyRow>
     );
 
-    const messages = Object.values(errors).filter(Boolean);
+    const messages = Object.values(fieldErrors).filter(Boolean);
     const sizeSummary = [form.width, form.height, form.depth].filter(Boolean).join(' × ');
     const scopeLabel = form.scope === 'supply' ? 'Supply' : form.scope === 'installation' ? 'Installation' : 'Supply and installation';
+    const spotLabel = form.opening_type === 'window' ? 'window' : 'door';
+    const needsSave = canEdit && editing && (changed || pendingMarker !== null);
 
     return (
-        <aside aria-label="Object Inspector" className="object-inspector min-w-0">
-            <div className="overflow-hidden border border-[#b0b0b0] bg-[#f0f0f0] text-neutral-900 shadow-sm">
-                <div className="flex items-center justify-between gap-2 border-b border-[#b0b0b0] bg-[#f4f4f4] px-2 py-1.5">
+        <aside aria-label="Object Inspector" className={panel || embedded ? 'bg-white' : 'object-inspector min-w-0'}>
+            <div className={`bg-[#f0f0f0] text-neutral-900 ${panel || embedded ? '' : 'overflow-visible border border-[#b0b0b0] shadow-sm'}`}>
+                {panel || embedded ? null : <div className={`flex items-center justify-between gap-2 border-b px-2 py-1.5 ${needsSave ? 'border-red-300 bg-red-600 text-white' : 'border-[#b0b0b0] bg-[#f4f4f4]'}`}>
                     <p className="text-sm font-semibold">Object Inspector</p>
-                    <div className="flex items-center gap-1">
-                        {saved ? <span className="text-[12px] text-emerald-700">Saved</span> : null}
-                        {canEdit && editing ? (
-                            <Button type="submit" form="opening-editor" size="sm" disabled={saving}>
-                                {saving ? 'Saving…' : 'Save'}
-                            </Button>
-                        ) : null}
-                        <Button type="button" variant="outline" size="sm" onClick={onClose}>Close</Button>
-                    </div>
-                </div>
+                    {needsSave ? <span className="text-[12px] font-semibold uppercase tracking-wide">Not saved</span> : null}
+                </div>}
+                {needsSave ? (
+                    <p className="border-b border-red-300 bg-red-50 px-2 py-1.5 text-[12px] font-semibold text-red-800">
+                        This {spotLabel} is not saved. Save takeoff keeps it with every other change on this takeoff.
+                    </p>
+                ) : null}
                 <div className="border-b border-[#b0b0b0] bg-white p-1">
                     <InspectorSelect
                         aria-label="Opening"
-                        className="h-8 w-full border border-[#b0b0b0] bg-white px-1 text-sm font-semibold text-neutral-900"
+                        className="h-auto min-h-12 w-full border border-[#b0b0b0] bg-white px-2 py-1 text-sm font-semibold leading-6 text-neutral-900"
                         value={creating ? 'new' : opening ? String(opening.id) : ''}
                         onChange={(event) => {
                             const value = event.target.value;
@@ -376,17 +615,66 @@ export default function OpeningEditor({
                         }}
                     >
                         <option value="">Select an opening</option>
-                        {canEdit ? <option value="new">New opening</option> : null}
+                        {canEdit ? <option value="new">New opening{newUnsaved ? ' · not saved' : ''}</option> : null}
                         {openings.map((item) => (
                             <option key={item.id} value={item.id}>
-                                {item.is_bulk ? `Bulk ${item.tag ?? item.label}`.trim() : item.label}
+                                {(item.is_bulk ? `Bulk ${item.tag ?? item.label}`.trim() : item.label)}{unsavedIds.includes(item.id) ? ' · not saved' : ''}
                             </option>
                         ))}
                     </InspectorSelect>
                 </div>
-                <div className="flex items-end border-b border-[#b0b0b0] bg-[#f0f0f0] px-1">
-                    <span className="-mb-px border border-b-white border-[#b0b0b0] bg-white px-3 py-1 text-sm">Properties</span>
-                </div>
+                {panel || embedded ? null : <div className="flex items-end border-b border-[#b0b0b0] bg-[#f0f0f0] px-1" role="tablist" aria-label="Object inspector">
+                    {canEdit ? (
+                        <button
+                            type="button"
+                            role="tab"
+                            aria-selected={inspectorTab === 'tools'}
+                            className={`-mb-px border px-3 py-1 text-sm ${inspectorTab === 'tools' ? 'border-[#b0b0b0] border-b-white bg-white font-semibold' : 'border-transparent text-neutral-600'}`}
+                            onClick={() => setInspectorTab('tools')}
+                        >
+                            Tools
+                        </button>
+                    ) : null}
+                    <button
+                        type="button"
+                        role="tab"
+                        aria-selected={inspectorTab === 'properties'}
+                        className={`-mb-px border px-3 py-1 text-sm ${inspectorTab === 'properties' ? 'border-[#b0b0b0] border-b-white bg-white font-semibold' : 'border-transparent text-neutral-600'}`}
+                        onClick={() => setInspectorTab('properties')}
+                    >
+                        Properties
+                    </button>
+                </div>}
+                {!embedded && !panel && inspectorTab === 'tools' && canEdit ? (
+                    <div className="border-b border-[#b0b0b0] bg-white p-2">
+                        <div role="group" aria-label="Drawing tools" className="grid grid-cols-2 gap-2">
+                            <Button type="button" size="sm" className={`h-10 w-full ${tool === 'door' ? 'border-emerald-700 bg-emerald-600 text-white hover:bg-emerald-700 hover:text-white' : 'border-emerald-300 bg-emerald-50 text-emerald-900 hover:bg-emerald-100 hover:text-emerald-950'}`} variant="outline" aria-pressed={tool === 'door'} onClick={() => onToolChange('door')}>
+                                <DoorOpenIcon data-icon="inline-start" />
+                                Count door
+                            </Button>
+                            <Button type="button" size="sm" className={`h-10 w-full ${tool === 'window' ? 'border-sky-700 bg-sky-600 text-white hover:bg-sky-700 hover:text-white' : 'border-sky-300 bg-sky-50 text-sky-900 hover:bg-sky-100 hover:text-sky-950'}`} variant="outline" aria-pressed={tool === 'window'} onClick={() => onToolChange('window')}>
+                                <AppWindowIcon data-icon="inline-start" />
+                                Count window
+                            </Button>
+                            <Button type="button" size="sm" className={`h-10 w-full ${tool === 'select' ? 'border-amber-700 bg-amber-600 text-white hover:bg-amber-700 hover:text-white' : 'border-amber-300 bg-amber-50 text-amber-950 hover:bg-amber-100 hover:text-amber-950'}`} variant="outline" aria-pressed={tool === 'select'} onClick={() => onToolChange('select')}>
+                                <MousePointer2Icon data-icon="inline-start" />
+                                Select
+                            </Button>
+                            <Button type="button" size="sm" className={`h-10 w-full ${tool === 'hand' ? 'border-slate-700 bg-slate-600 text-white hover:bg-slate-700 hover:text-white' : 'border-slate-300 bg-slate-50 text-slate-900 hover:bg-slate-100 hover:text-slate-950'}`} variant="outline" aria-pressed={tool === 'hand'} onClick={() => onToolChange('hand')}>
+                                <HandIcon data-icon="inline-start" />
+                                Hand
+                            </Button>
+                            <Button type="button" size="sm" className={`h-10 w-full ${tool === 'remove' ? 'border-rose-700 bg-rose-600 text-white hover:bg-rose-700 hover:text-white' : 'border-rose-300 bg-rose-50 text-rose-900 hover:bg-rose-100 hover:text-rose-950'}`} variant="outline" aria-pressed={tool === 'remove'} onClick={() => onToolChange('remove')}>
+                                <Trash2Icon data-icon="inline-start" />
+                                Remove
+                            </Button>
+                        </div>
+                        <p className="mt-2 text-[12px] leading-5 text-neutral-600">
+                            Count door or Count window, then click the opening. The first number is 1, and removing a count closes the gap. Double-click a number to type a different one. Drag the number to stretch the arrow, or drag the point to move where it lands.
+                        </p>
+                    </div>
+                ) : null}
+                <div hidden={!embedded && !panel && inspectorTab === 'tools' && canEdit}>
                 <label className="flex items-center gap-1.5 border-b border-[#b0b0b0] bg-white px-2">
                     <SearchIcon className="size-4 shrink-0 text-neutral-500" />
                     <input
@@ -403,45 +691,81 @@ export default function OpeningEditor({
                     </div>
                 ) : null}
                 <InspectorQuery.Provider value={query}>
-                    <form id="opening-editor" onSubmit={submit} className="bg-white">
+                    <form id="opening-editor" onSubmit={(event) => event.preventDefault()} className="bg-white">
                         {editing ? (
                             <>
-                                <PropertyGroup name="Basics" summary={form.tag || (creating ? 'New' : opening?.label)} defaultOpen>
+                                {(!panel || panel === 'basics') ? <PropertyGroup name="Basics" summary={form.tag || (creating ? 'New' : opening?.label)} defaultOpen>
                                     <PropertyRow name="Bulk quantity">
                                         <InspectorCheck label="Bulk quantity record" checked={form.is_bulk} disabled={!canEdit} onChange={(checked) => set('is_bulk', checked)} />
                                     </PropertyRow>
+                                    {opening && !creating ? <MarkField takeoffUuid={takeoffUuid} opening={opening} openings={openings} canEdit={canEdit} /> : null}
                                     {text('Opening tag', 'tag')}
                                     {text('Location / floor', 'location')}
-                                    <PropertyRow name="Type">
-                                        <InspectorSelect aria-label="Type" className={inspectorInput} value={form.opening_type} disabled={!canEdit} onChange={(event) => set('opening_type', event.target.value)}>
+                                    <PropertyRow name="Opening">
+                                        <InspectorSelect aria-label="Opening" className={inspectorSelect} value={form.opening_type} disabled={!canEdit} onChange={(event) => {
+                                            const next = event.target.value;
+                                            set('opening_type', next);
+                                            if (next !== 'door') {
+                                                set('door_configuration_id', '');
+                                            }
+                                        }}>
                                             <option value="door">Door</option>
                                             <option value="window">Window</option>
                                         </InspectorSelect>
                                     </PropertyRow>
+                                    {form.opening_type === 'door' ? (
+                                        <PropertyRow name="Type">
+                                            <CatalogField
+                                                label="Type"
+                                                value={form.door_configuration_id}
+                                                options={doorTypes.map((type) => ({ value: String(type.id), label: type.name }))}
+                                                disabled={!canEdit}
+                                                emptyLabel="Select a type"
+                                                addLabel="Add type…"
+                                                createRoute="admin.takeoffs.door-types.store"
+                                                catalogKey="doorTypes"
+                                                error={fieldErrors.door_configuration_id}
+                                                onChange={(value) => set('door_configuration_id', value)}
+                                            />
+                                        </PropertyRow>
+                                    ) : null}
                                     {text('Quantity', 'quantity')}
-                                    {text('Category', 'product_category')}
+                                    <PropertyRow name="Category">
+                                        <CatalogField
+                                            label="Category"
+                                            value={form.product_category}
+                                            options={openingCategories.map((category) => ({ value: category.name, label: category.name }))}
+                                            disabled={!canEdit}
+                                            emptyLabel="Select a category"
+                                            addLabel="Add category…"
+                                            createRoute="admin.takeoffs.opening-categories.store"
+                                            catalogKey="openingCategories"
+                                            error={fieldErrors.product_category}
+                                            onChange={(value) => set('product_category', value)}
+                                        />
+                                    </PropertyRow>
                                     <PropertyRow name="Scope">
-                                        <InspectorSelect aria-label="Scope" className={inspectorInput} value={form.scope} disabled={!canEdit} onChange={(event) => set('scope', event.target.value)}>
+                                        <InspectorSelect aria-label="Scope" className={inspectorSelect} value={form.scope} disabled={!canEdit} onChange={(event) => set('scope', event.target.value)}>
                                             <option value="both">Supply and installation</option>
                                             <option value="supply">Supply only</option>
                                             <option value="installation">Installation only</option>
                                         </InspectorSelect>
                                     </PropertyRow>
-                                </PropertyGroup>
-                                <PropertyGroup name="Size" summary={sizeSummary ? `${sizeSummary} ${form.dimension_unit}` : form.dimension_unit} defaultOpen>
+                                </PropertyGroup> : null}
+                                {(!panel || panel === 'size') ? <PropertyGroup name="Size" summary={sizeSummary ? `${sizeSummary} ${form.dimension_unit}` : form.dimension_unit} defaultOpen={panel === 'size' || !panel}>
                                     {text('Width', 'width')}
                                     {text('Height', 'height')}
                                     {text('Depth', 'depth')}
                                     <PropertyRow name="Unit">
-                                        <InspectorSelect aria-label="Unit" className={inspectorInput} value={form.dimension_unit} disabled={!canEdit} onChange={(event) => set('dimension_unit', event.target.value)}>
+                                        <InspectorSelect aria-label="Unit" className={inspectorSelect} value={form.dimension_unit} disabled={!canEdit} onChange={(event) => set('dimension_unit', event.target.value)}>
                                             <option value="in">Inches</option>
                                             <option value="ft">Feet</option>
                                             <option value="mm">Millimeters</option>
                                             <option value="cm">Centimeters</option>
                                         </InspectorSelect>
                                     </PropertyRow>
-                                </PropertyGroup>
-                                <PropertyGroup name="Specs" summary={form.product_model || form.frame_type}>
+                                </PropertyGroup> : null}
+                                {(!panel || panel === 'specs') ? <PropertyGroup name="Specs" summary={form.product_model || form.frame_type} defaultOpen={panel === 'specs'}>
                                     {text('Frame', 'frame_type')}
                                     {text('Handing', 'handing')}
                                     {text('Hardware set', 'hardware_set')}
@@ -462,7 +786,7 @@ export default function OpeningEditor({
                                         <PropertyRow name="Catalog product">
                                             <InspectorSelect
                                                 aria-label="Catalog product"
-                                                className={inspectorInput}
+                                                className={inspectorSelect}
                                                 value={form.product_id}
                                                 disabled={!canEdit}
                                                 onChange={(event) => {
@@ -479,15 +803,15 @@ export default function OpeningEditor({
                                             </InspectorSelect>
                                         </PropertyRow>
                                     ) : null}
-                                </PropertyGroup>
-                                <PropertyGroup name="Requirements" summary={form.verification_status}>
+                                </PropertyGroup> : null}
+                                {(!panel || panel === 'requirements') ? <PropertyGroup name="Requirements" summary={form.verification_status} defaultOpen={panel === 'requirements'}>
                                     {area('Acoustic / STC', 'acoustic_requirement')}
                                     {area('RF shielding', 'rf_requirement')}
                                     {area('Fire rating', 'fire_requirement')}
                                     {area('Ballistic', 'ballistic_requirement')}
                                     {area('Other', 'other_requirements')}
                                     <PropertyRow name="Source document">
-                                        <InspectorSelect aria-label="Source document" className={inspectorInput} value={form.requirement_document_id} disabled={!canEdit} onChange={(event) => set('requirement_document_id', event.target.value)}>
+                                        <InspectorSelect aria-label="Source document" className={inspectorSelect} value={form.requirement_document_id} disabled={!canEdit} onChange={(event) => set('requirement_document_id', event.target.value)}>
                                             <option value="">None</option>
                                             {documents.map((item) => <option key={item.id} value={item.id}>{item.original_filename}</option>)}
                                         </InspectorSelect>
@@ -495,7 +819,7 @@ export default function OpeningEditor({
                                     {text('Source page', 'requirement_page')}
                                     {text('Source section', 'requirement_section')}
                                     <PropertyRow name="Verification">
-                                        <InspectorSelect aria-label="Verification" className={inspectorInput} value={form.verification_status} disabled={!canEdit} onChange={(event) => set('verification_status', event.target.value)}>
+                                        <InspectorSelect aria-label="Verification" className={inspectorSelect} value={form.verification_status} disabled={!canEdit} onChange={(event) => set('verification_status', event.target.value)}>
                                             <option value="recorded">Requirement recorded</option>
                                             <option value="proposed">Product proposed</option>
                                             <option value="pending">Technical verification pending</option>
@@ -511,10 +835,10 @@ export default function OpeningEditor({
                                     {area('Verified RF', 'verified_rf')}
                                     {area('Verified fire', 'verified_fire')}
                                     {area('Verified ballistic', 'verified_ballistic')}
-                                </PropertyGroup>
-                                <PropertyGroup name="Notes" summary={form.disposition === 'active' ? 'Active' : form.disposition === 'excluded' ? 'Excluded' : 'Not applicable'}>
+                                </PropertyGroup> : null}
+                                {(!panel || panel === 'notes') ? <PropertyGroup name="Notes" summary={form.disposition === 'active' ? 'Active' : form.disposition === 'excluded' ? 'Excluded' : 'Not applicable'} defaultOpen={panel === 'notes'}>
                                     <PropertyRow name="Disposition">
-                                        <InspectorSelect aria-label="Disposition" className={inspectorInput} value={form.disposition} disabled={!canEdit} onChange={(event) => set('disposition', event.target.value)}>
+                                        <InspectorSelect aria-label="Disposition" className={inspectorSelect} value={form.disposition} disabled={!canEdit} onChange={(event) => set('disposition', event.target.value)}>
                                             <option value="active">Active</option>
                                             <option value="excluded">Excluded</option>
                                             <option value="not_applicable">Not applicable</option>
@@ -532,7 +856,7 @@ export default function OpeningEditor({
                                     <PropertyRow name="Needs review">
                                         <InspectorCheck label="Still needs review after a document change" checked={form.needs_review} disabled={!canEdit} onChange={(checked) => set('needs_review', checked)} />
                                     </PropertyRow>
-                                </PropertyGroup>
+                                </PropertyGroup> : null}
                             </>
                         ) : (
                             <p className="px-2 py-3 text-sm text-neutral-600">
@@ -541,11 +865,14 @@ export default function OpeningEditor({
                         )}
                     </form>
                 </InspectorQuery.Provider>
-                <div className="border-t border-[#b0b0b0] bg-[#f4f4f4] px-2 py-1 text-[11px] text-neutral-600">
+                </div>
+                <div hidden={!embedded && !panel && inspectorTab === 'tools' && canEdit} className="border-t border-[#b0b0b0] bg-[#f4f4f4] px-2 py-1 text-[11px] text-neutral-600">
                     {query.trim()
                         ? `Showing matches for “${query.trim()}”`
                         : editing
-                            ? `${form.is_bulk ? 'Bulk quantity record.' : 'Tagged opening.'} ${scopeLabel}. Save keeps this opening. The corner button saves the takeoff.`
+                            ? needsSave
+                                ? `This ${spotLabel} is marked not saved. Save takeoff keeps every change.`
+                                : `${form.is_bulk ? 'Bulk quantity record.' : 'Tagged opening.'} ${scopeLabel}. Changes stay marked until Save takeoff.`
                             : 'All shown'}
                 </div>
             </div>

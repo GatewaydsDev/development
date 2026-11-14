@@ -1,0 +1,613 @@
+import { Badge } from '@/Components/ui/badge';
+import { Button } from '@/Components/ui/button';
+import {
+    Card,
+    CardContent,
+    CardDescription,
+    CardHeader,
+    CardTitle,
+} from '@/Components/ui/card';
+import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
+import { Head, Link, router } from '@inertiajs/react';
+import {
+    ArrowLeftIcon,
+    CameraIcon,
+    RadioIcon,
+    ShieldCheckIcon,
+} from 'lucide-react';
+import { useState } from 'react';
+import AttendanceMember, { type AttendanceMemberData } from './Partials/AttendanceMember';
+import ProgressBar from './Partials/ProgressBar';
+import QualityReportForm from './Partials/QualityReportForm';
+import TaskActivityIndicator from './Partials/TaskActivityIndicator';
+import TaskProgressForm from './Partials/TaskProgressForm';
+import {
+    resultClasses,
+    statusClasses,
+    type JobSchedule,
+    type JobSummary,
+    type ReportSummary,
+} from './types';
+import useJobProgressLive from './useJobProgressLive';
+
+type Task = {
+    uuid: string;
+    title: string;
+    description: string | null;
+    status: string;
+    status_label: string;
+    progress: number;
+    requires_photo: boolean;
+    requires_quality_control: boolean;
+    photo_count: number;
+    qc_open: boolean;
+    quality_control: ReportSummary | null;
+    performers: string[];
+    notes: string | null;
+    updated_on: string | null;
+    last_changed_at: string | null;
+    photos: {
+        uuid: string;
+        url: string;
+        taken_at: string | null;
+        work_date: string;
+    }[];
+    reports: ReportSummary[];
+};
+
+type Props = {
+    job: JobSchedule & {
+        competent_person: string | null;
+        quality_control: string | null;
+        notes: string | null;
+    };
+    date: string;
+    today: string;
+    progress: {
+        summary: JobSummary;
+        tasks: Task[];
+        payroll: {
+            weeks: {
+                week_start: string;
+                week_end: string;
+                hours: number;
+                pay: number;
+                employees: { name: string; days: number; hours: number; pay: number }[];
+            }[];
+            total_hours: string;
+            total_pay: string;
+        };
+        attendance: {
+            members: AttendanceMemberData[];
+        };
+        day: {
+            updates: {
+                task: string | null;
+                status: string;
+                progress: number;
+                photos: number;
+                notes: string | null;
+            }[];
+        };
+        timeline: {
+            date: string;
+            present: number;
+            hours: number;
+            tasks: number;
+            photos: number;
+        }[];
+    };
+    can: {
+        inspect: boolean;
+        update: boolean;
+        send_quality_reports: boolean;
+    };
+    reportRecipients: { uuid: string; name: string; email: string }[];
+    canSeePay: boolean;
+    statuses: Record<string, string>;
+    checklist: Record<string, string>;
+    results: Record<string, string>;
+};
+
+export default function Show({
+    job,
+    date,
+    today,
+    progress,
+    can,
+    canSeePay,
+    statuses,
+    checklist,
+    results,
+    reportRecipients,
+}: Props) {
+    const [inspecting, setInspecting] = useState<string | null>(null);
+    const [updating, setUpdating] = useState<string | null>(null);
+    const { summary } = progress;
+
+    useJobProgressLive([job.uuid], ['job', 'today', 'progress']);
+
+    const goTo = (value: string) =>
+        router.get(
+            route('admin.job-progress.show', job.uuid),
+            { date: value },
+            { preserveScroll: true, preserveState: true, replace: true },
+        );
+
+    return (
+        <AuthenticatedLayout
+            header={
+                <div>
+                    <Link
+                        href={route('admin.job-progress.index')}
+                        className="mb-1 inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+                    >
+                        <ArrowLeftIcon className="size-3" /> Job progress
+                    </Link>
+                    <div className="flex items-center gap-2">
+                        <h2 className="text-xl font-semibold leading-tight text-emerald-700 dark:text-emerald-300">
+                            {job.project?.name ?? 'Job'}
+                            {job.project?.project_number &&
+                                ` · ${job.project.project_number}`}
+                        </h2>
+                        <Badge variant="secondary" className="gap-1.5">
+                            <RadioIcon className="size-3 animate-pulse text-emerald-500" />
+                            Live
+                        </Badge>
+                    </div>
+                    <p className="text-sm text-muted-foreground">
+                        {job.starts_on} → {job.ends_on} · {job.status_label}
+                        {job.foreman && ` · Foreman ${job.foreman}`}
+                    </p>
+                </div>
+            }
+        >
+            <Head title="Job progress" />
+            <div className="flex w-full flex-col gap-5 px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
+                <Card>
+                    <CardContent className="grid gap-4 p-5 md:grid-cols-[1fr_2fr]">
+                        <div>
+                            <p className="text-sm text-muted-foreground">
+                                Overall progress
+                            </p>
+                            <p className="text-4xl font-semibold">
+                                {summary.progress}%
+                            </p>
+                            <ProgressBar
+                                value={summary.progress}
+                                className="mt-2"
+                            />
+                        </div>
+                        <div className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
+                            <Stat
+                                label="Tasks done"
+                                value={`${summary.tasks_done}/${summary.tasks_total}`}
+                            />
+                            <Stat
+                                label="Days worked"
+                                value={`${summary.days_worked}`}
+                            />
+                            <Stat label="Hours" value={`${summary.hours}`} />
+                            <Stat label="Photos" value={`${summary.photos}`} />
+                            <Stat
+                                label="QC passed"
+                                value={`${summary.qc_passed}/${summary.qc_required}`}
+                            />
+                            <Stat
+                                label="QC open"
+                                value={`${summary.qc_open}`}
+                            />
+                            <Stat
+                                label="Blocked"
+                                value={`${summary.tasks_blocked}`}
+                            />
+                            <Stat
+                                label="Photos missing"
+                                value={`${summary.photos_missing}`}
+                            />
+                        </div>
+                    </CardContent>
+                </Card>
+
+                <div className="grid gap-5 lg:grid-cols-[2fr_1fr]">
+                    <div className="flex flex-col gap-4">
+                        <h3 className="text-lg font-semibold">Tasks</h3>
+                        {progress.tasks.length === 0 && (
+                            <Card>
+                                <CardContent className="p-5 text-sm text-muted-foreground">
+                                    No daily tasks are attached to this
+                                    schedule yet.
+                                </CardContent>
+                            </Card>
+                        )}
+                        {progress.tasks.map((task) => (
+                            <Card key={task.uuid}>
+                                <CardHeader className="pb-3">
+                                    <div className="flex flex-wrap items-center gap-2">
+                                        <CardTitle className="text-base">
+                                            {task.title}
+                                        </CardTitle>
+                                        <span
+                                            className={`rounded-full px-2 py-0.5 text-xs ${statusClasses[task.status] ?? ''}`}
+                                        >
+                                            {task.status_label}
+                                        </span>
+                                        <TaskActivityIndicator
+                                            changedAt={task.last_changed_at}
+                                        />
+                                        {task.requires_photo && (
+                                            <Badge variant="outline">
+                                                <CameraIcon className="mr-1 size-3" />
+                                                {task.photo_count} photo
+                                                {task.photo_count === 1
+                                                    ? ''
+                                                    : 's'}
+                                            </Badge>
+                                        )}
+                                        {task.requires_quality_control && (
+                                            <span
+                                                className={`inline-flex flex-col rounded-lg px-3 py-1 text-xs leading-tight ${
+                                                    task.quality_control
+                                                        ? (resultClasses[
+                                                              task
+                                                                  .quality_control
+                                                                  .result
+                                                          ] ?? '')
+                                                        : 'bg-slate-200 text-slate-700'
+                                                }`}
+                                            >
+                                                QC:{' '}
+                                                {task.quality_control
+                                                    ?.result_label ??
+                                                    'Not inspected'}
+                                                {task.quality_control && (
+                                                    <span className="mt-0.5 font-normal opacity-80">
+                                                        {formatDate(
+                                                            task
+                                                                .quality_control
+                                                                .inspected_on,
+                                                        )}
+                                                        {task.quality_control
+                                                            .inspector &&
+                                                            ` · ${task.quality_control.inspector}`}
+                                                    </span>
+                                                )}
+                                            </span>
+                                        )}
+                                    </div>
+                                    {task.description && (
+                                        <CardDescription>
+                                            {task.description}
+                                        </CardDescription>
+                                    )}
+                                </CardHeader>
+                                <CardContent className="flex flex-col gap-3 text-sm">
+                                    <div className="flex items-center gap-3">
+                                        <ProgressBar value={task.progress} />
+                                        <span className="w-10 text-right font-medium">
+                                            {task.progress}%
+                                        </span>
+                                    </div>
+                                    {(task.performers.length > 0 ||
+                                        task.updated_on) && (
+                                        <p className="text-xs text-muted-foreground">
+                                            {task.performers.length > 0 &&
+                                                `By ${task.performers.join(', ')}`}
+                                            {task.updated_on &&
+                                                ` · updated ${formatDate(task.updated_on)}`}
+                                        </p>
+                                    )}
+                                    {task.notes && <p>{task.notes}</p>}
+
+                                    {can.update &&
+                                        (updating === task.uuid ? (
+                                            <TaskProgressForm
+                                                scheduleUuid={job.uuid}
+                                                taskUuid={task.uuid}
+                                                status={task.status}
+                                                progress={task.progress}
+                                                statuses={statuses}
+                                                requiresPhoto={
+                                                    task.requires_photo
+                                                }
+                                                onDone={() => setUpdating(null)}
+                                            />
+                                        ) : (
+                                            <Button
+                                                type="button"
+                                                size="sm"
+                                                variant="outline"
+                                                className="w-fit"
+                                                onClick={() =>
+                                                    setUpdating(task.uuid)
+                                                }
+                                            >
+                                                Update progress
+                                            </Button>
+                                        ))}
+
+                                    {task.photos.length > 0 && (
+                                        <div className="flex flex-wrap gap-2">
+                                            {task.photos.map((photo) => (
+                                                <a
+                                                    key={photo.uuid}
+                                                    href={photo.url}
+                                                    target="_blank"
+                                                    rel="noreferrer"
+                                                    title={formatDate(
+                                                        photo.work_date,
+                                                    )}
+                                                    className="flex flex-col items-center gap-1"
+                                                >
+                                                    <img
+                                                        src={photo.url}
+                                                        alt={`${task.title} ${photo.work_date}`}
+                                                        className="size-20 rounded-md border border-border object-cover"
+                                                        loading="lazy"
+                                                    />
+                                                    <span className="text-xs text-muted-foreground">
+                                                        {formatDate(
+                                                            photo.work_date,
+                                                        )}
+                                                    </span>
+                                                </a>
+                                            ))}
+                                        </div>
+                                    )}
+
+                                    {task.requires_quality_control && (
+                                        <div className="flex flex-col gap-2 border-t border-border pt-3">
+                                            {task.reports.length > 0 && (
+                                                <QualitySummary
+                                                    reports={task.reports}
+                                                />
+                                            )}
+                                            {task.reports.map((report) => (
+                                                <Link
+                                                    key={report.uuid}
+                                                    href={route(
+                                                        'admin.job-progress.report',
+                                                        report.uuid,
+                                                    )}
+                                                    className="flex items-center justify-between text-xs hover:underline"
+                                                >
+                                                    <span>
+                                                        {formatDate(
+                                                            report.inspected_on,
+                                                        )}
+                                                        {report.inspector &&
+                                                            ` · ${report.inspector}`}
+                                                    </span>
+                                                    <span
+                                                        className={`rounded-full px-2 py-0.5 ${resultClasses[report.result] ?? ''}`}
+                                                    >
+                                                        {report.result_label}
+                                                    </span>
+                                                </Link>
+                                            ))}
+                                            {can.inspect &&
+                                                (inspecting === task.uuid ? (
+                                                    <QualityReportForm
+                                                        scheduleUuid={job.uuid}
+                                                        taskUuid={task.uuid}
+                                                        today={today}
+                                                        checklist={checklist}
+                                                        results={results}
+                                                        recipients={
+                                                            can.send_quality_reports
+                                                                ? reportRecipients
+                                                                : []
+                                                        }
+                                                        onDone={() =>
+                                                            setInspecting(null)
+                                                        }
+                                                    />
+                                                ) : (
+                                                    <Button
+                                                        type="button"
+                                                        size="sm"
+                                                        variant="outline"
+                                                        className="w-fit"
+                                                        onClick={() =>
+                                                            setInspecting(
+                                                                task.uuid,
+                                                            )
+                                                        }
+                                                    >
+                                                        <ShieldCheckIcon className="mr-1 size-4" />
+                                                        New quality report
+                                                    </Button>
+                                                ))}
+                                        </div>
+                                    )}
+                                </CardContent>
+                            </Card>
+                        ))}
+                    </div>
+
+                    <div className="flex flex-col gap-4">
+                        <h3 className="text-lg font-semibold">Day</h3>
+                        <Card>
+                            <CardContent className="flex flex-col gap-3 p-4 text-sm">
+                                <input
+                                    type="date"
+                                    value={date}
+                                    max={today}
+                                    onChange={(event) =>
+                                        event.target.value &&
+                                        goTo(event.target.value)
+                                    }
+                                    className="rounded-md border border-border bg-background px-2 py-1.5"
+                                />
+                                <div>
+                                    <p className="mb-1 text-xs font-medium uppercase text-muted-foreground">
+                                        Attendance
+                                    </p>
+                                    {progress.attendance.members.length ===
+                                    0 ? (
+                                        <p className="text-muted-foreground">
+                                            No crew on this schedule.
+                                        </p>
+                                    ) : (
+                                        <ul className="flex flex-col gap-1">
+                                            {progress.attendance.members.map(
+                                                (member) => (
+                                                    <AttendanceMember
+                                                        key={`${date}-${member.uuid}-${member.present}-${member.hours}-${member.pay_rate_id}`}
+                                                        member={member}
+                                                        scheduleUuid={job.uuid}
+                                                        date={date}
+                                                        editable={can.update}
+                                                    />
+                                                ),
+                                            )}
+                                        </ul>
+                                    )}
+                                </div>
+                            </CardContent>
+                        </Card>
+
+                        <h3 className="text-lg font-semibold">Hours and pay</h3>
+                        <Card>
+                            <CardContent className="flex flex-col gap-4 p-4 text-sm">
+                                {progress.payroll.weeks.length === 0 ? (
+                                    <p className="text-muted-foreground">
+                                        No attendance recorded yet.
+                                    </p>
+                                ) : (
+                                    progress.payroll.weeks.map((week) => (
+                                        <div key={week.week_start} className="flex flex-col gap-1">
+                                            <p className="flex justify-between text-xs font-medium uppercase text-muted-foreground">
+                                                <span>
+                                                    Week of {formatDate(week.week_start)}
+                                                </span>
+                                                <span>
+                                                    {week.hours} h
+                                                    {canSeePay && ` · $${week.pay.toFixed(2)}`}
+                                                </span>
+                                            </p>
+                                            {week.employees.map((employee) => (
+                                                <p key={employee.name} className="flex justify-between gap-2">
+                                                    <span>
+                                                        {employee.name}
+                                                        <span className="text-xs text-muted-foreground">
+                                                            {' '}· {employee.days} day(s)
+                                                        </span>
+                                                    </span>
+                                                    <span className="text-muted-foreground">
+                                                        {employee.hours} h
+                                                        {canSeePay && ` · $${employee.pay.toFixed(2)}`}
+                                                    </span>
+                                                </p>
+                                            ))}
+                                        </div>
+                                    ))
+                                )}
+                                {progress.payroll.weeks.length > 0 && (
+                                    <p className="flex justify-between border-t border-border pt-2 font-semibold">
+                                        <span>Total</span>
+                                        <span>
+                                            {progress.payroll.total_hours} h
+                                            {canSeePay && ` · $${Number(progress.payroll.total_pay).toFixed(2)}`}
+                                        </span>
+                                    </p>
+                                )}
+                            </CardContent>
+                        </Card>
+
+                        <h3 className="text-lg font-semibold">History</h3>
+                        <Card>
+                            <CardContent className="p-2">
+                                {progress.timeline.length === 0 ? (
+                                    <p className="p-2 text-sm text-muted-foreground">
+                                        No activity recorded yet.
+                                    </p>
+                                ) : (
+                                    <table className="w-full text-sm">
+                                        <thead>
+                                            <tr className="text-left text-xs uppercase text-muted-foreground">
+                                                <th className="px-2 py-1 font-medium">Date</th>
+                                                <th className="px-2 py-1 text-right font-medium">Crew</th>
+                                                <th className="px-2 py-1 text-right font-medium">Tasks</th>
+                                                <th className="px-2 py-1 text-right font-medium">Photos</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {progress.timeline.map((entry) => (
+                                                <tr
+                                                    key={entry.date}
+                                                    onClick={() => goTo(entry.date)}
+                                                    className={`cursor-pointer hover:bg-muted ${
+                                                        entry.date === date ? 'bg-muted font-medium' : ''
+                                                    }`}
+                                                >
+                                                    <td className="px-2 py-1.5">{formatDate(entry.date)}</td>
+                                                    <td className="px-2 py-1.5 text-right">{entry.present}</td>
+                                                    <td className="px-2 py-1.5 text-right">{entry.tasks}</td>
+                                                    <td className="px-2 py-1.5 text-right">{entry.photos}</td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                )}
+                            </CardContent>
+                        </Card>
+                    </div>
+                </div>
+            </div>
+        </AuthenticatedLayout>
+    );
+}
+
+function formatDate(value: string): string {
+    const [year, month, day] = value.split('-');
+
+    return year && month && day ? `${month}/${day}/${year}` : value;
+}
+
+function Stat({ label, value }: { label: string; value: string }) {
+    return (
+        <div>
+            <p className="text-xs text-muted-foreground">{label}</p>
+            <p className="text-lg font-semibold">{value}</p>
+        </div>
+    );
+}
+
+function QualitySummary({ reports }: { reports: ReportSummary[] }) {
+    const rework = reports.filter(
+        (report) => report.result === 'rework',
+    ).length;
+    const failed = reports.filter(
+        (report) => report.result === 'failed',
+    ).length;
+    const problems = reports.reduce(
+        (total, report) => total + report.failed_checks,
+        0,
+    );
+
+    return (
+        <div>
+            <p className="mb-2 text-xs font-medium uppercase text-muted-foreground">
+                Quality control summary
+            </p>
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                <QualityMetric label="Inspections" value={reports.length} />
+                <QualityMetric label="Rework required" value={rework} />
+                <QualityMetric label="Failed reports" value={failed} />
+                <QualityMetric label="Problems found" value={problems} />
+            </div>
+        </div>
+    );
+}
+
+function QualityMetric({ label, value }: { label: string; value: number }) {
+    return (
+        <div className="flex min-h-16 flex-col justify-between rounded-md border border-border bg-muted/30 p-2 text-center">
+            <span className="text-xs leading-tight text-muted-foreground">
+                {label}
+            </span>
+            <span className="text-lg font-semibold tabular-nums">{value}</span>
+        </div>
+    );
+}

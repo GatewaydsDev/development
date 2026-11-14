@@ -2,6 +2,7 @@ import InputError from '@/Components/InputError';
 import InputLabel from '@/Components/InputLabel';
 import MaskedDecimalInput from '@/Components/MaskedDecimalInput';
 import TextInput from '@/Components/TextInput';
+import { Button } from '@/Components/ui/button';
 import {
     AlertDialog,
     AlertDialogAction,
@@ -12,6 +13,7 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from '@/Components/ui/alert-dialog';
+import { dropdownMaxHeight, dropdownOpensUp } from '@/lib/dropdownMenuFrame';
 import { cn } from '@/lib/utils';
 import type { ReactNode } from 'react';
 import {
@@ -26,7 +28,7 @@ import { createPortal } from 'react-dom';
 import { z } from 'zod';
 
 export type CreatableOption = {
-    id: number;
+    id: number | string;
     name: string;
     slug?: string | null;
     abbreviation?: string | null;
@@ -49,6 +51,7 @@ type CreatableSelectProps = {
     disabledIds?: string[];
     allowCreate?: boolean;
     createRoute?: string;
+    onCreateName?: (name: string) => void;
     optionsProp?: string;
     catalogKey?: string;
     entityLabel?: string;
@@ -63,6 +66,9 @@ type CreatableSelectProps = {
     menuMinWidth?: number;
     stateInitials?: boolean;
     showCreateFooter?: boolean;
+    onUseWithoutSaving?: (name: string) => void;
+    autoFocus?: boolean;
+    onOpen?: () => void;
 };
 
 const nameSchema = z
@@ -97,6 +103,7 @@ export default function CreatableSelect({
     disabledIds = [],
     allowCreate = true,
     createRoute,
+    onCreateName,
     optionsProp = 'options',
     catalogKey,
     entityLabel = 'item',
@@ -111,6 +118,9 @@ export default function CreatableSelect({
     menuMinWidth,
     stateInitials = false,
     showCreateFooter = false,
+    onUseWithoutSaving,
+    autoFocus = false,
+    onOpen,
 }: CreatableSelectProps) {
     const listboxId = useId();
     const containerRef = useRef<HTMLDivElement>(null);
@@ -153,7 +163,7 @@ export default function CreatableSelect({
         String(exactMatch.id) !== value;
     const canCreate =
         allowCreate &&
-        Boolean(createRoute) &&
+        (Boolean(createRoute) || Boolean(onCreateName)) &&
         createNameSchema.safeParse(query).success &&
         exactMatch === undefined &&
         normalizedQuery !== '';
@@ -208,19 +218,13 @@ export default function CreatableSelect({
             }
 
             const rect = input.getBoundingClientRect();
-            const spaceBelow = window.innerHeight - rect.bottom - 8;
-            const spaceAbove = rect.top - 8;
-            const maxHeight = Math.min(
-                wrapOptions ? 420 : 320,
-                Math.max(spaceBelow, spaceAbove, 160),
-            );
 
             if (openDirectionRef.current === null) {
-                openDirectionRef.current =
-                    spaceBelow < 160 && spaceAbove > spaceBelow ? 'up' : 'down';
+                openDirectionRef.current = dropdownOpensUp(rect) ? 'up' : 'down';
             }
 
             const openUp = openDirectionRef.current === 'up';
+            const maxHeight = dropdownMaxHeight(rect, openUp, wrapOptions ? 560 : 512);
             const minWidth = stateInitials
                 ? 288
                 : wrapOptions
@@ -312,7 +316,7 @@ export default function CreatableSelect({
     const askToCreate = (name: string) => {
         const parsed = createNameSchema.safeParse(name);
 
-        if (!parsed.success || !createRoute) {
+        if (!parsed.success || (!createRoute && !onCreateName)) {
             return;
         }
 
@@ -392,7 +396,21 @@ export default function CreatableSelect({
     }, []);
 
     const confirmCreate = () => {
-        if (!createRoute || pendingName === '') {
+        if (pendingName === '') {
+            return;
+        }
+
+        if (onCreateName) {
+            onCreateName(pendingName);
+            setQuery(pendingName);
+            setHasTyped(false);
+            setIsDialogOpen(false);
+            setPendingName('');
+
+            return;
+        }
+
+        if (!createRoute) {
             return;
         }
 
@@ -508,6 +526,7 @@ export default function CreatableSelect({
                     aria-expanded={isOpen}
                     aria-controls={listboxId}
                     value={query}
+                    autoFocus={autoFocus}
                     autoComplete="off"
                     autoCapitalize={stateInitials ? 'characters' : undefined}
                     maxLength={stateInitials ? 2 : undefined}
@@ -518,10 +537,11 @@ export default function CreatableSelect({
                             : placeholder
                     }
                     className={cn(
-                        'h-11 w-full min-w-0 border-border bg-background pr-10 text-foreground placeholder:text-muted-foreground focus:border-ring focus:ring-ring',
+                        'h-11 w-full min-w-0 border-border bg-background pr-10 text-base text-foreground placeholder:text-muted-foreground focus:border-ring focus:ring-ring sm:text-sm',
                         stateInitials && stateInitialsInputClassName,
                     )}
                     onFocus={() => {
+                        onOpen?.();
                         setHasTyped(false);
                         setIsOpen(true);
                         window.requestAnimationFrame(() => {
@@ -714,7 +734,7 @@ export default function CreatableSelect({
                                     : 'No matches found.'}
                             </p>
                         ) : null}
-                        {showCreateFooter && allowCreate && createRoute ? (
+                        {showCreateFooter && allowCreate && (createRoute || onCreateName) ? (
                             <div className="sticky bottom-0 -mb-1 border-t border-border bg-background p-1">
                                 <button
                                     id={
@@ -858,6 +878,22 @@ export default function CreatableSelect({
                         <AlertDialogCancel disabled={isSaving}>
                             No, go back
                         </AlertDialogCancel>
+                        {onUseWithoutSaving ? (
+                            <Button
+                                type="button"
+                                variant="outline"
+                                disabled={isSaving || pendingName === ''}
+                                onClick={() => {
+                                    onUseWithoutSaving(pendingName);
+                                    setQuery(pendingName);
+                                    setHasTyped(false);
+                                    setIsDialogOpen(false);
+                                    setPendingName('');
+                                }}
+                            >
+                                Use without saving
+                            </Button>
+                        ) : null}
                         <AlertDialogAction
                             disabled={
                                 isSaving ||

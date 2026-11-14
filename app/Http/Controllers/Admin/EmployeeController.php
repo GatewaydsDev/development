@@ -9,6 +9,7 @@ use App\Models\EmployeeCertification;
 use App\Models\EmployeePayRate;
 use App\Models\EmployeeProjectAssignment;
 use App\Models\EmployeeSkillShift;
+use App\Models\JobTitle;
 use App\Models\Language;
 use App\Models\Profession;
 use App\Models\Project;
@@ -52,7 +53,7 @@ class EmployeeController extends Controller
                             ->orWhere('last_name', 'like', "%{$search}%")
                             ->orWhere('email', 'like', "%{$search}%")
                             ->orWhere('phone_number', 'like', "%{$search}%")
-                            ->orWhere('job_title', 'like', "%{$search}%")
+                            ->orWhereHas('jobTitle', fn ($query) => $query->where('name', 'like', "%{$search}%"))
                             ->orWhere('department', 'like', "%{$search}%")
                             ->orWhereHas('payRates.profession', function ($query) use ($search): void {
                                 $query->where('name', 'like', "%{$search}%");
@@ -295,6 +296,18 @@ class EmployeeController extends Controller
             'account_password_confirmation' => $accountPasswordConfirmation === '' ? null : $accountPasswordConfirmation,
         ]);
 
+        if ($request->exists('is_quality_control')) {
+            $request->merge([
+                'is_quality_control' => filter_var($request->input('is_quality_control'), FILTER_VALIDATE_BOOLEAN),
+            ]);
+        }
+
+        if ($request->exists('job_title_id')) {
+            $request->merge([
+                'job_title_id' => $request->input('job_title_id') ?: null,
+            ]);
+        }
+
         if ($request->exists('foreman_user_id')) {
             $request->merge([
                 'foreman_user_id' => $request->input('foreman_user_id') ?: null,
@@ -376,6 +389,8 @@ class EmployeeController extends Controller
             'email' => $this->emailRules($request, $employee),
             'phone_number' => ['nullable', 'string', 'max:50'],
             'job_title' => ['nullable', 'string', 'max:255'],
+            'job_title_id' => ['nullable', 'integer', Rule::exists(JobTitle::class, 'id')],
+            'is_quality_control' => ['sometimes', 'boolean'],
             'department' => ['nullable', 'string', 'max:255'],
             'employment_status' => ['required', Rule::in(array_keys($this->statusOptions()))],
             'hire_date' => ['nullable', 'date'],
@@ -609,6 +624,7 @@ class EmployeeController extends Controller
     {
         return [
             'professions' => $this->namedOptions(Profession::class),
+            'jobTitles' => $this->namedOptions(JobTitle::class),
             'languages' => $this->namedOptions(Language::class),
             'certifications' => Certification::query()
                 ->orderBy('name')
@@ -779,6 +795,8 @@ class EmployeeController extends Controller
             'email' => $employee->email,
             'phone_number' => $employee->phone_number,
             'job_title' => $employee->job_title,
+            'job_title_id' => $employee->job_title_id,
+            'is_quality_control' => (bool) $employee->is_quality_control,
             'department' => $employee->department,
             'employment_status' => $employee->employment_status,
             'hire_date' => $employee->hire_date?->toDateString(),
@@ -1096,11 +1114,11 @@ class EmployeeController extends Controller
      */
     private function namedOptions(string $model): array
     {
-        /** @var Collection<int, Language|Profession|Skill> $records */
+        /** @var Collection<int, JobTitle|Language|Profession|Skill> $records */
         $records = $model::query()->orderBy('name')->get(['id', 'name']);
 
         return $records
-            ->map(fn (Language|Profession|Skill $record): array => [
+            ->map(fn (JobTitle|Language|Profession|Skill $record): array => [
                 'id' => $record->id,
                 'name' => $record->name,
             ])

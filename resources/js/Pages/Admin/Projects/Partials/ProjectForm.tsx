@@ -5,6 +5,7 @@ import CreatableSelect from '@/Components/CreatableSelect';
 import PhoneInput from '@/Components/PhoneInput';
 import FormActionFab from '@/Components/FormActionFab';
 import MaskedDecimalInput from '@/Components/MaskedDecimalInput';
+import RichTextEditor from '@/Components/RichTextEditor';
 import TextInput from '@/Components/TextInput';
 import { Button } from '@/Components/ui/button';
 import {
@@ -28,7 +29,7 @@ import {
 } from '@/lib/stateInitials';
 import { cn } from '@/lib/utils';
 import { PlusIcon, Trash2Icon } from 'lucide-react';
-import { FormEventHandler, useMemo, useRef, useState } from 'react';
+import { FormEventHandler, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import {
     FieldErrors,
@@ -44,7 +45,6 @@ import {
     blankPrice,
     blankRevision,
     blankScope,
-    optionLabel,
     projectToFormData,
     type ProjectFormData,
     type ProjectOptions,
@@ -91,6 +91,7 @@ const optionalEmailSchema = z
 
 function projectSchema(options: ProjectOptions, canEditCoreFields: boolean) {
     const scopeTypeSlugs = (options.scopeTypes ?? []).map((type) => type.slug);
+    const prioritySlugs = (options.priorityOptions ?? []).map((priority) => priority.slug);
 
     return z
         .object({
@@ -102,8 +103,10 @@ function projectSchema(options: ProjectOptions, canEditCoreFields: boolean) {
             status_id: z.string().trim().min(1, 'Select a status.'),
             priority: z
                 .string()
+                .trim()
+                .min(1, 'Select a priority.')
                 .refine(
-                    (value) => options.priorities.includes(value),
+                    (value) => prioritySlugs.includes(value),
                     'Select a valid priority.',
                 ),
             site_address_line_1: z.string().trim().max(255),
@@ -129,11 +132,12 @@ function projectSchema(options: ProjectOptions, canEditCoreFields: boolean) {
             public_notes: z
                 .string()
                 .trim()
-                .max(5000, 'Project notes must be 5,000 characters or less.'),
+                .max(60000, 'Project notes must be 60,000 characters or less.'),
             internal_notes: z
                 .string()
                 .trim()
-                .max(5000, 'Internal notes must be 5,000 characters or less.'),
+                .max(60000, 'Internal notes must be 60,000 characters or less.'),
+            company_uuids: z.array(z.string()),
             contractors: z.array(
                 z.object({
                     contractor_id: z.string(),
@@ -448,6 +452,14 @@ export default function ProjectForm({
         }
     };
 
+    useEffect(() => {
+        const timer = window.setTimeout(() => {
+            void checkProjectNameAvailability(data.name);
+        }, 350);
+
+        return () => window.clearTimeout(timer);
+    }, [data.name]);
+
     const submit = handleSubmit(
         async (values) => {
         const nameIsAvailable = await checkProjectNameAvailability(values.name);
@@ -457,8 +469,8 @@ export default function ProjectForm({
             return;
         }
 
-        const projectValues = { ...values };
-        delete projectValues.budget_amount;
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const { budget_amount: _budgetAmount, ...projectValues } = values;
         const payload = {
             ...projectValues,
             ...(canViewSensitive
@@ -476,6 +488,7 @@ export default function ProjectForm({
                           })),
                   }
                 : {}),
+            company_uuids: values.company_uuids ?? [],
             contractors: (values.contractors ?? []).filter(
                 (contractor) =>
                     contractor.contractor_id.trim() !== '' ||
@@ -530,6 +543,12 @@ export default function ProjectForm({
     const inputClassName =
         'h-11 w-full border-border bg-background text-foreground placeholder:text-muted-foreground focus:border-ring focus:ring-ring';
     const labelClassName = 'text-emerald-700 dark:text-emerald-300';
+    const addButtonClassName =
+        'border-emerald-700 bg-emerald-600 text-white hover:bg-emerald-700 hover:text-white';
+    const manageButtonClassName =
+        'border-sky-800 bg-sky-700 text-white hover:bg-sky-800 hover:text-white';
+    const removeButtonClassName =
+        'h-11 border-rose-700 bg-rose-600 text-white hover:bg-rose-700 hover:text-white';
     const errors = new Proxy({} as Record<string, string | undefined>, {
         get: (_target, property) =>
             errorMessage(validationErrors, String(property)),
@@ -586,12 +605,42 @@ export default function ProjectForm({
                     <FormActionFab
                         cancelHref={route('admin.projects.index')}
                         saveLabel={submitLabel}
-                        disabled={processing}
+                        disabled={processing || nameTaken || checkingName}
                     />
                     <section className="flex flex-col gap-5 rounded-xl border border-emerald-200 bg-emerald-50 p-5 dark:border-emerald-900/60 dark:bg-emerald-950/30">
                         {canEditCoreFields && (
-                            <div className="grid gap-5 md:grid-cols-2">
-                                <div className="flex flex-col gap-2">
+                            <div className="flex justify-end">
+                                <div className="flex w-full max-w-xs flex-col items-end gap-2 lg:w-80">
+                                    <InputLabel
+                                        htmlFor="project-number"
+                                        value="Project number"
+                                        className={`${labelClassName} text-right`}
+                                    />
+                                    <TextInput
+                                        id="project-number"
+                                        value={data.project_number}
+                                        className={`${inputClassName} text-right`}
+                                        onChange={(event) =>
+                                            setData(
+                                                'project_number',
+                                                event.target.value,
+                                            )
+                                        }
+                                    />
+                                    <p className="text-right text-sm text-muted-foreground">
+                                        Leave blank to assign the next number,
+                                        such as GDS-2026-0001.
+                                    </p>
+                                    <InputError
+                                        className="text-right"
+                                        message={errors.project_number}
+                                    />
+                                </div>
+                            </div>
+                        )}
+                        <div className="grid items-start gap-5 xl:grid-cols-2">
+                            {canEditCoreFields && (
+                                <div className="flex flex-col gap-2 xl:col-span-2">
                                     <InputLabel
                                         htmlFor="project-name"
                                         value="Project name"
@@ -622,32 +671,8 @@ export default function ProjectForm({
                                         </p>
                                     )}
                                 </div>
+                            )}
 
-                                <div className="flex flex-col gap-2">
-                                    <InputLabel
-                                        htmlFor="project-number"
-                                        value="Project number"
-                                        className={labelClassName}
-                                    />
-                                    <TextInput
-                                        id="project-number"
-                                        value={data.project_number}
-                                        disabled
-                                        readOnly
-                                        className={`${inputClassName} cursor-not-allowed bg-muted`}
-                                    />
-                                    <p className="text-sm text-muted-foreground">
-                                        Assigned automatically as GDS, year, and
-                                        sequence — for example GDS-2026-0001.
-                                    </p>
-                                    <InputError
-                                        message={errors.project_number}
-                                    />
-                                </div>
-                            </div>
-                        )}
-
-                        <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
                             <CreatableSelect
                                 id="project-status"
                                 label="Status"
@@ -666,165 +691,50 @@ export default function ProjectForm({
                                 }
                             />
 
-                            <div className="flex flex-col gap-2">
-                                <InputLabel
-                                    htmlFor="project-priority"
-                                    value="Priority"
-                                    className={labelClassName}
-                                />
-                                <select
-                                    id="project-priority"
-                                    value={data.priority}
-                                    onChange={(event) =>
-                                        setData('priority', event.target.value)
-                                    }
-                                    className="h-11 rounded-md border border-border bg-background px-3 text-sm text-foreground shadow-sm focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring"
-                                >
-                                    {options.priorities.map((priority) => (
-                                        <option
-                                            key={priority}
-                                            value={priority}
-                                        >
-                                            {optionLabel(priority)}
-                                        </option>
-                                    ))}
-                                </select>
-                                <InputError message={errors.priority} />
-                            </div>
+                            <CreatableSelect
+                                id="project-priority"
+                                label="Priority"
+                                compact
+                                value={String(
+                                    options.priorityOptions.find(
+                                        (priority) =>
+                                            priority.slug === data.priority,
+                                    )?.id ?? '',
+                                )}
+                                options={options.priorityOptions}
+                                createRoute={route(
+                                    'admin.project-priorities.store',
+                                )}
+                                catalogKey="priorityOptions"
+                                entityLabel="priority"
+                                placeholder="Low, Normal, High..."
+                                error={errors.priority}
+                                onChange={(_id, option) =>
+                                    setData('priority', option?.slug ?? '')
+                                }
+                            />
 
                             {canEditCoreFields && (
-                                <div className="flex flex-col gap-2">
-                                    <InputLabel
-                                        htmlFor="assigned-to"
-                                        value="Assigned to"
-                                        className={labelClassName}
-                                    />
-                                    <select
-                                        id="assigned-to"
-                                        value={data.assigned_to}
-                                        onChange={(event) =>
-                                            setData(
-                                                'assigned_to',
-                                                event.target.value,
-                                            )
-                                        }
-                                        className="h-11 rounded-md border border-border bg-background px-3 text-sm text-foreground shadow-sm focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring"
-                                    >
-                                        <option value="">Unassigned</option>
-                                        {options.assignees.map((assignee) => (
-                                            <option
-                                                key={assignee.id}
-                                                value={assignee.id}
-                                            >
-                                                {assignee.name}
-                                            </option>
-                                        ))}
-                                    </select>
-                                    <InputError message={errors.assigned_to} />
-                                </div>
+                                <CreatableSelect
+                                    id="assigned-to"
+                                    label="Assigned to"
+                                    compact
+                                    allowCreate={false}
+                                    value={data.assigned_to}
+                                    options={options.assignees}
+                                    placeholder="Unassigned"
+                                    error={errors.assigned_to}
+                                    onChange={(assigneeId) =>
+                                        setData('assigned_to', assigneeId)
+                                    }
+                                />
                             )}
                         </div>
 
-                        {canViewSensitive && (
-                            <div className="flex flex-col gap-4 rounded-lg border border-emerald-200 bg-background p-4 dark:border-emerald-900/70">
-                                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                                    <div>
-                                        <h3 className="text-base font-semibold text-foreground">
-                                            Prices
-                                        </h3>
-                                        <p className="text-sm text-muted-foreground">
-                                            Add a price for each option, such
-                                            as one for 2 windows and another
-                                            for 3 windows. Quotes and bids can
-                                            use these prices.
-                                        </p>
-                                    </div>
-                                    <Button
-                                        type="button"
-                                        variant="outline"
-                                        onClick={() => appendPrice(blankPrice())}
-                                    >
-                                        <PlusIcon className="size-4" />
-                                        Add price
-                                    </Button>
-                                </div>
-                                <div className="flex flex-col gap-3">
-                                    {priceFields.map((field, index) => (
-                                        <div
-                                            key={field.id}
-                                            className="grid gap-3 rounded-lg border border-border p-3 sm:grid-cols-[minmax(0,1fr)_12rem_auto]"
-                                        >
-                                            <div className="flex flex-col gap-2">
-                                                <InputLabel
-                                                    htmlFor={`price-label-${field.id}`}
-                                                    value="What this price covers"
-                                                    className={labelClassName}
-                                                />
-                                                <TextInput
-                                                    id={`price-label-${field.id}`}
-                                                    value={data.prices?.[index]?.label ?? ''}
-                                                    className={inputClassName}
-                                                    placeholder="2 windows"
-                                                    onChange={(event) =>
-                                                        setData(
-                                                            `prices.${index}.label`,
-                                                            event.target.value,
-                                                        )
-                                                    }
-                                                />
-                                                <InputError
-                                                    message={
-                                                        validationErrors.prices?.[index]?.label
-                                                            ?.message
-                                                    }
-                                                />
-                                            </div>
-                                            <div className="flex flex-col gap-2">
-                                                <InputLabel
-                                                    htmlFor={`price-amount-${field.id}`}
-                                                    value="Amount"
-                                                    className={labelClassName}
-                                                />
-                                                <MaskedDecimalInput
-                                                    id={`price-amount-${field.id}`}
-                                                    prefix="$"
-                                                    value={data.prices?.[index]?.amount ?? ''}
-                                                    className={inputClassName}
-                                                    placeholder="0.00"
-                                                    onChange={(value) =>
-                                                        setData(
-                                                            `prices.${index}.amount`,
-                                                            value,
-                                                        )
-                                                    }
-                                                />
-                                                <InputError
-                                                    message={
-                                                        validationErrors.prices?.[index]?.amount
-                                                            ?.message
-                                                    }
-                                                />
-                                            </div>
-                                            <div className="flex items-end">
-                                                <Button
-                                                    type="button"
-                                                    variant="outline"
-                                                    onClick={() => removePrice(index)}
-                                                    disabled={priceFields.length === 1}
-                                                >
-                                                    <Trash2Icon className="size-4" />
-                                                    Remove
-                                                </Button>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        )}
 
                         {canEditCoreFields && (
-                            <div className="grid gap-5 rounded-lg border border-emerald-200 bg-background p-4 dark:border-emerald-900/70 md:grid-cols-2">
-                                <div className="flex flex-col gap-2 md:col-span-2">
+                            <div className="grid items-start gap-5 rounded-lg border border-violet-200 bg-violet-50/70 dark:border-violet-900 dark:bg-violet-950/30 p-4 md:grid-cols-2 xl:grid-cols-4">
+                                <div className="flex flex-col gap-2 md:col-span-2 xl:col-span-4">
                                     <h3 className="text-base font-semibold text-foreground">
                                         Address
                                     </h3>
@@ -833,7 +743,7 @@ export default function ProjectForm({
                                         will happen.
                                     </p>
                                 </div>
-                                <div className="flex flex-col gap-2">
+                                <div className="flex flex-col gap-2 xl:col-span-2">
                                     <InputLabel
                                         htmlFor="site-address-line-1"
                                         value="Address line 1"
@@ -851,7 +761,7 @@ export default function ProjectForm({
                                         }
                                     />
                                 </div>
-                                <div className="flex flex-col gap-2">
+                                <div className="flex flex-col gap-2 xl:col-span-2">
                                     <InputLabel
                                         htmlFor="site-address-line-2"
                                         value="Address line 2"
@@ -884,8 +794,7 @@ export default function ProjectForm({
                                         }
                                     />
                                 </div>
-                                <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-[auto_minmax(0,1fr)_minmax(0,1fr)]">
-                                    <div className="flex w-fit flex-col gap-2">
+                                <div className="flex flex-col gap-2">
                                         <InputLabel
                                             htmlFor="site-state"
                                             value="State"
@@ -954,12 +863,110 @@ export default function ProjectForm({
                                             }
                                         />
                                     </div>
-                                </div>
                             </div>
                         )}
 
+                        <div className="grid items-start gap-5 sm:grid-cols-2 xl:grid-cols-3">
+                            <div className="flex flex-col gap-2">
+                                <InputLabel
+                                    htmlFor="estimated-start-date"
+                                    value="Estimated start"
+                                    className={labelClassName}
+                                />
+                                <TextInput
+                                    id="estimated-start-date"
+                                    type="date"
+                                    value={data.estimated_start_date}
+                                    className={inputClassName}
+                                    onChange={(event) =>
+                                        setData(
+                                            'estimated_start_date',
+                                            event.target.value,
+                                        )
+                                    }
+                                />
+                            </div>
+                            <div className="flex flex-col gap-2">
+                                <InputLabel
+                                    htmlFor="estimated-end-date"
+                                    value="Estimated end"
+                                    className={labelClassName}
+                                />
+                                <TextInput
+                                    id="estimated-end-date"
+                                    type="date"
+                                    value={data.estimated_end_date}
+                                    className={inputClassName}
+                                    onChange={(event) =>
+                                        setData(
+                                            'estimated_end_date',
+                                            event.target.value,
+                                        )
+                                    }
+                                />
+                            </div>
+                            <div className="flex flex-col gap-2">
+                                <InputLabel
+                                    htmlFor="completed-at"
+                                    value="Completed at"
+                                    className={labelClassName}
+                                />
+                                <TextInput
+                                    id="completed-at"
+                                    type="date"
+                                    value={data.completed_at}
+                                    className={inputClassName}
+                                    onChange={(event) =>
+                                        setData('completed_at', event.target.value)
+                                    }
+                                />
+                            </div>
+                        </div>
+                    </section>
+
                         {canEditCoreFields && (
-                            <section className="flex flex-col gap-4 rounded-xl border border-emerald-200 bg-emerald-50 p-5 dark:border-emerald-900/60 dark:bg-emerald-950/30">
+                            <section className="flex flex-col gap-3 rounded-xl border p-5 border-emerald-200 bg-emerald-50/70 dark:border-emerald-900 dark:bg-emerald-950/30">
+                                <div>
+                                    <h3 className="text-base font-semibold text-foreground">
+                                        Companies
+                                    </h3>
+                                    <p className="text-sm text-muted-foreground">
+                                        Select every company executing this job.
+                                    </p>
+                                </div>
+                                {options.companies.length === 0 ? (
+                                    <p className="text-sm text-muted-foreground">
+                                        No companies yet. Add them in the Contact Directory.
+                                    </p>
+                                ) : (
+                                    <div className="grid max-h-56 gap-2 overflow-y-auto rounded-lg border border-border bg-background/60 p-3 sm:grid-cols-2 lg:grid-cols-3">
+                                        {options.companies.map((company) => (
+                                            <label
+                                                key={company.uuid}
+                                                className="flex items-center gap-2 text-sm text-foreground"
+                                            >
+                                                <input
+                                                    type="checkbox"
+                                                    checked={data.company_uuids.includes(company.uuid)}
+                                                    onChange={(event) =>
+                                                        setData(
+                                                            'company_uuids',
+                                                            event.target.checked
+                                                                ? [...data.company_uuids, company.uuid]
+                                                                : data.company_uuids.filter((uuid) => uuid !== company.uuid),
+                                                        )
+                                                    }
+                                                />
+                                                {company.name}
+                                            </label>
+                                        ))}
+                                    </div>
+                                )}
+                            </section>
+                        )}
+
+                        {canEditCoreFields && (
+                            <section className="flex flex-col gap-4 rounded-xl border p-5 border-sky-200 bg-sky-50/70 dark:border-sky-900 dark:bg-sky-950/30">
                                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                                     <div>
                                         <h3 className="text-base font-semibold text-foreground">
@@ -978,7 +985,7 @@ export default function ProjectForm({
                                             <Button
                                                 asChild
                                                 variant="outline"
-                                                className="w-full sm:w-auto"
+                                                className={`w-full sm:w-auto ${manageButtonClassName}`}
                                             >
                                                 <Link
                                                     href={route(
@@ -997,7 +1004,7 @@ export default function ProjectForm({
                                                     blankContractor(),
                                                 )
                                             }
-                                            className="w-full sm:w-auto"
+                                            className={`w-full sm:w-auto ${addButtonClassName}`}
                                         >
                                             <PlusIcon className="size-4" />
                                             Add contractor
@@ -1214,6 +1221,7 @@ export default function ProjectForm({
                                                         <Button
                                                             type="button"
                                                             variant="outline"
+                                                            className={removeButtonClassName}
                                                             onClick={() =>
                                                                 removeContractor(
                                                                     index,
@@ -1233,8 +1241,107 @@ export default function ProjectForm({
                             </section>
                         )}
 
+                        {canViewSensitive && (
+                            <div className="flex flex-col gap-4 rounded-lg border border-amber-200 bg-amber-50/70 dark:border-amber-900 dark:bg-amber-950/30 p-4">
+                                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                                    <div>
+                                        <h3 className="text-base font-semibold text-foreground">
+                                            Prices
+                                        </h3>
+                                        <p className="text-sm text-muted-foreground">
+                                            Add a price for each option, such
+                                            as one for 2 windows and another
+                                            for 3 windows. Quotes and bids can
+                                            use these prices.
+                                        </p>
+                                    </div>
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        className={addButtonClassName}
+                                        onClick={() => appendPrice(blankPrice())}
+                                    >
+                                        <PlusIcon className="size-4" />
+                                        Add price
+                                    </Button>
+                                </div>
+                                <div className="flex flex-col gap-3">
+                                    {priceFields.map((field, index) => (
+                                        <div
+                                            key={field.id}
+                                            className="grid items-start gap-3 rounded-lg border border-border p-3 sm:grid-cols-[minmax(0,1fr)_12rem_auto]"
+                                        >
+                                            <div className="flex flex-col gap-2">
+                                                <InputLabel
+                                                    htmlFor={`price-label-${field.id}`}
+                                                    value="What this price covers"
+                                                    className={labelClassName}
+                                                />
+                                                <TextInput
+                                                    id={`price-label-${field.id}`}
+                                                    value={data.prices?.[index]?.label ?? ''}
+                                                    className={inputClassName}
+                                                    placeholder="2 windows"
+                                                    onChange={(event) =>
+                                                        setData(
+                                                            `prices.${index}.label`,
+                                                            event.target.value,
+                                                        )
+                                                    }
+                                                />
+                                                <InputError
+                                                    message={
+                                                        validationErrors.prices?.[index]?.label
+                                                            ?.message
+                                                    }
+                                                />
+                                            </div>
+                                            <div className="flex flex-col gap-2">
+                                                <InputLabel
+                                                    htmlFor={`price-amount-${field.id}`}
+                                                    value="Amount"
+                                                    className={labelClassName}
+                                                />
+                                                <MaskedDecimalInput
+                                                    id={`price-amount-${field.id}`}
+                                                    prefix="$"
+                                                    value={data.prices?.[index]?.amount ?? ''}
+                                                    className={inputClassName}
+                                                    placeholder="0.00"
+                                                    onChange={(value) =>
+                                                        setData(
+                                                            `prices.${index}.amount`,
+                                                            value,
+                                                        )
+                                                    }
+                                                />
+                                                <InputError
+                                                    message={
+                                                        validationErrors.prices?.[index]?.amount
+                                                            ?.message
+                                                    }
+                                                />
+                                            </div>
+                                            <div className="flex items-end">
+                                                <Button
+                                                    type="button"
+                                                    variant="outline"
+                                                    className={removeButtonClassName}
+                                                    onClick={() => removePrice(index)}
+                                                    disabled={priceFields.length === 1}
+                                                >
+                                                    <Trash2Icon className="size-4" />
+                                                    Remove
+                                                </Button>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
                         {canEditCoreFields && (
-                            <div className="flex flex-col gap-4 rounded-lg border border-emerald-200 bg-background p-4 dark:border-emerald-900/70">
+                            <div className="flex flex-col gap-4 rounded-lg border border-violet-200 bg-violet-50/70 dark:border-violet-900 dark:bg-violet-950/30 p-4">
                                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                                     <div>
                                         <h3 className="text-base font-semibold text-foreground">
@@ -1248,7 +1355,7 @@ export default function ProjectForm({
                                         type="button"
                                         variant="outline"
                                         onClick={() => appendScope(blankScope())}
-                                        className="w-full sm:w-auto"
+                                        className={`w-full sm:w-auto ${addButtonClassName}`}
                                     >
                                         <PlusIcon className="size-4" />
                                         Add scope
@@ -1333,6 +1440,7 @@ export default function ProjectForm({
                                                         <Button
                                                             type="button"
                                                             variant="outline"
+                                                            className={removeButtonClassName}
                                                             onClick={() =>
                                                                 removeScope(
                                                                     index,
@@ -1352,65 +1460,8 @@ export default function ProjectForm({
                             </div>
                         )}
 
-                        <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
-                            <div className="flex flex-col gap-2">
-                                <InputLabel
-                                    htmlFor="estimated-start-date"
-                                    value="Estimated start"
-                                    className={labelClassName}
-                                />
-                                <TextInput
-                                    id="estimated-start-date"
-                                    type="date"
-                                    value={data.estimated_start_date}
-                                    className={inputClassName}
-                                    onChange={(event) =>
-                                        setData(
-                                            'estimated_start_date',
-                                            event.target.value,
-                                        )
-                                    }
-                                />
-                            </div>
-                            <div className="flex flex-col gap-2">
-                                <InputLabel
-                                    htmlFor="estimated-end-date"
-                                    value="Estimated end"
-                                    className={labelClassName}
-                                />
-                                <TextInput
-                                    id="estimated-end-date"
-                                    type="date"
-                                    value={data.estimated_end_date}
-                                    className={inputClassName}
-                                    onChange={(event) =>
-                                        setData(
-                                            'estimated_end_date',
-                                            event.target.value,
-                                        )
-                                    }
-                                />
-                            </div>
-                            <div className="flex flex-col gap-2">
-                                <InputLabel
-                                    htmlFor="completed-at"
-                                    value="Completed at"
-                                    className={labelClassName}
-                                />
-                                <TextInput
-                                    id="completed-at"
-                                    type="date"
-                                    value={data.completed_at}
-                                    className={inputClassName}
-                                    onChange={(event) =>
-                                        setData('completed_at', event.target.value)
-                                    }
-                                />
-                            </div>
-                        </div>
-
                         {canEditCoreFields && (
-                            <div className="flex flex-col gap-4 rounded-lg border border-emerald-200 bg-background p-4 dark:border-emerald-900/70">
+                            <div className="flex flex-col gap-4 rounded-lg border border-sky-200 bg-sky-50/70 dark:border-sky-900 dark:bg-sky-950/30 p-4">
                                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                                     <div>
                                         <h3 className="text-base font-semibold text-foreground">
@@ -1432,7 +1483,7 @@ export default function ProjectForm({
                                                 ),
                                             )
                                         }
-                                        className="w-full sm:w-auto"
+                                        className={`w-full sm:w-auto ${addButtonClassName}`}
                                     >
                                         <PlusIcon className="size-4" />
                                         Add revision
@@ -1452,7 +1503,7 @@ export default function ProjectForm({
                                             return (
                                                 <div
                                                     key={field.id}
-                                                    className="grid min-w-0 gap-4 rounded-lg border border-border bg-muted/10 p-4 xl:grid-cols-[minmax(0,0.7fr)_minmax(0,0.9fr)_minmax(0,1.1fr)_minmax(0,1.3fr)_auto]"
+                                                    className="grid min-w-0 items-start gap-4 rounded-lg border border-border bg-muted/10 p-4 md:grid-cols-2 xl:grid-cols-[minmax(8rem,0.7fr)_minmax(10rem,0.85fr)_minmax(0,1fr)_minmax(0,1.3fr)_auto]"
                                                 >
                                                     <div className="flex flex-col gap-2">
                                                         <InputLabel
@@ -1575,6 +1626,7 @@ export default function ProjectForm({
                                                         <Button
                                                             type="button"
                                                             variant="outline"
+                                                            className={removeButtonClassName}
                                                             onClick={() =>
                                                                 removeRevision(
                                                                     index,
@@ -1593,22 +1645,22 @@ export default function ProjectForm({
                                 )}
                             </div>
                         )}
-                    </section>
 
-                    <section className="grid gap-5 border-t border-border pt-6 md:grid-cols-2">
+                    <section className="flex flex-col gap-5 rounded-xl border p-5 border-amber-200 bg-amber-50/70 dark:border-amber-900 dark:bg-amber-950/30">
                         <div className="flex flex-col gap-2">
                             <InputLabel
                                 htmlFor="public-notes"
                                 value="Project notes"
                                 className={labelClassName}
                             />
-                            <textarea
+                            <RichTextEditor
                                 id="public-notes"
                                 value={data.public_notes}
-                                className="min-h-32 w-full rounded-md border border-border bg-background px-3 py-3 text-foreground shadow-sm placeholder:text-muted-foreground focus:border-ring focus:ring-ring"
-                                onChange={(event) =>
-                                    setData('public_notes', event.target.value)
-                                }
+                                onChange={(html) => setData('public_notes', html)}
+                                placeholder="Project notes"
+                                error={errors.public_notes}
+                                showPlaceholders={false}
+                                allowSideToolbar={false}
                             />
                             <InputError message={errors.public_notes} />
                         </div>
@@ -1620,16 +1672,16 @@ export default function ProjectForm({
                                     value="Internal notes"
                                     className={labelClassName}
                                 />
-                                <textarea
+                                <RichTextEditor
                                     id="internal-notes"
                                     value={data.internal_notes}
-                                    className="min-h-32 w-full rounded-md border border-border bg-background px-3 py-3 text-foreground shadow-sm placeholder:text-muted-foreground focus:border-ring focus:ring-ring"
-                                    onChange={(event) =>
-                                        setData(
-                                            'internal_notes',
-                                            event.target.value,
-                                        )
+                                    onChange={(html) =>
+                                        setData('internal_notes', html)
                                     }
+                                    placeholder="Internal notes"
+                                    error={errors.internal_notes}
+                                    showPlaceholders={false}
+                                    allowSideToolbar={false}
                                 />
                                 <InputError message={errors.internal_notes} />
                             </div>

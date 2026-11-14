@@ -18,8 +18,11 @@ class TakeoffOpening extends Model
         'origin_opening_id',
         'group_id',
         'tag',
+        'callout',
+        'counted_tag',
         'is_bulk',
         'opening_type',
+        'door_configuration_id',
         'location',
         'quantity',
         'product_category',
@@ -67,6 +70,7 @@ class TakeoffOpening extends Model
     {
         return [
             'is_bulk' => 'boolean',
+            'counted_tag' => 'boolean',
             'needs_review' => 'boolean',
             'quantity' => 'decimal:2',
             'width' => 'decimal:3',
@@ -98,6 +102,11 @@ class TakeoffOpening extends Model
     public function product(): BelongsTo
     {
         return $this->belongsTo(Product::class);
+    }
+
+    public function doorConfiguration(): BelongsTo
+    {
+        return $this->belongsTo(DoorConfiguration::class);
     }
 
     public function verifier(): BelongsTo

@@ -29,4 +29,19 @@ class CertificationController extends Controller
 
         return back()->with('success', 'Certification added successfully.');
     }
+
+    public function update(Request $request, Certification $certification): RedirectResponse
+    {
+        abort_unless(EmployeeAccess::canUpdate($request->user()), 403);
+
+        $validated = $request->validate([
+            'is_competent_person' => ['required', 'boolean'],
+        ]);
+
+        $certification->update([
+            'is_competent_person' => filter_var($validated['is_competent_person'], FILTER_VALIDATE_BOOLEAN),
+        ]);
+
+        return back()->with('success', 'Certification updated successfully.');
+    }
 }

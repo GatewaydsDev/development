@@ -37,7 +37,7 @@ export default function Edit({ product, options }: EditProps) {
             <Head title={`Edit ${product.name}`} />
 
             <div className="py-6 sm:py-8">
-                <div className="mx-auto max-w-[96rem] px-4 sm:px-6 lg:px-8">
+                <div className="w-full px-4 sm:px-6 lg:px-8">
                     <ProductForm
                         action={route('admin.products.update', product.uuid)}
                         method="patch"

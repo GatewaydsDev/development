@@ -1,4 +1,4 @@
-import { useUnreadMail } from '@/lib/unreadMail';
+import { useUnreadMail, useUnreadMailFailing } from '@/lib/unreadMail';
 import { cn } from '@/lib/utils';
 import { Link } from '@inertiajs/react';
 import { MailIcon } from 'lucide-react';
@@ -11,6 +11,7 @@ export default function UnreadMailButton({
     className?: string;
 }) {
     const unread = useUnreadMail();
+    const failing = useUnreadMailFailing();
     const hasUnread = unread > 0;
     const countLabel = unread > 99 ? '99+' : String(unread);
 
@@ -22,6 +23,7 @@ export default function UnreadMailButton({
                     ? `${unread} unread ${unread === 1 ? 'email' : 'emails'}`
                     : 'Email'
             }
+            title={failing ? 'Could not check for new email. Open Email to see the details.' : undefined}
             className={cn(
                 'relative inline-flex size-11 items-center justify-center rounded-md border transition touch-manipulation focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 lg:size-9',
                 hasUnread
@@ -35,6 +37,9 @@ export default function UnreadMailButton({
             <MailIcon
                 className={cn('size-4', hasUnread && 'animate-mail-alert')}
             />
+            {failing && !hasUnread ? (
+                <span className="absolute -right-0.5 -top-0.5 size-2.5 rounded-full bg-amber-500 ring-2 ring-background" />
+            ) : null}
             {hasUnread ? (
                 <span className="absolute -right-1 -top-1 flex min-w-5 items-center justify-center rounded-full bg-red-600 px-1.5 text-[0.65rem] font-semibold leading-5 text-white ring-2 ring-background">
                     {countLabel}

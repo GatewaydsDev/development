@@ -86,6 +86,12 @@ export function getEcho(config?: RealtimeConfig | null): Echo<'reverb'> | null {
     return echo;
 }
 
+export function realtimeSocketId(): string | null {
+    const id = echo?.socketId();
+
+    return id || null;
+}
+
 export function isEchoConnected(): boolean {
     const connector = echo?.connector as
         | { pusher?: { connection?: { state?: string } } }

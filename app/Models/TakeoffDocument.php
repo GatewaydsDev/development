@@ -12,6 +12,13 @@ class TakeoffDocument extends Model
 {
     use HasUuidRouteKey;
 
+    protected function casts(): array
+    {
+        return [
+            'rotation' => 'integer',
+        ];
+    }
+
     protected $fillable = [
         'uuid',
         'takeoff_id',
@@ -24,6 +31,7 @@ class TakeoffDocument extends Model
         'sheet_number',
         'sheet_title',
         'page_count',
+        'rotation',
         'uploaded_by',
     ];
 

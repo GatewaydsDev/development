@@ -434,7 +434,7 @@ export default function ProductForm({
 
     return (
         <form onSubmit={submit} className="flex w-full min-w-0 max-w-full flex-col gap-6 pr-4 pb-28 sm:pr-20 lg:pb-6">
-            <Card className="overflow-visible shadow-sm">
+            <Card className="overflow-visible shadow-sm border-sky-200 bg-sky-50/70 dark:border-sky-900 dark:bg-sky-950/30">
                 <CardHeader>
                     <CardTitle>Product type</CardTitle>
                     <CardDescription>
@@ -510,7 +510,7 @@ export default function ProductForm({
 
             {selectedType ? (
                 <>
-                    <Card className="overflow-visible shadow-sm">
+                    <Card className="overflow-visible shadow-sm border-emerald-200 bg-emerald-50/70 dark:border-emerald-900 dark:bg-emerald-950/30">
                         <CardHeader>
                             <CardTitle>
                                 {title || `${typeName} information`}
@@ -2272,7 +2272,7 @@ export default function ProductForm({
                         </section>
                     ) : null}
 
-                    <section className="flex flex-col gap-5 rounded-xl border border-border bg-background p-5">
+                    <section className="flex flex-col gap-5 rounded-xl border border-violet-200 bg-violet-50/70 p-5 dark:border-violet-900/60 dark:bg-violet-950/30">
                         <div>
                             <h3 className="text-base font-semibold text-foreground">
                                 Additional information

@@ -146,7 +146,7 @@ export default function Edit({ signature }: EditProps) {
             </Head>
 
             <div className="py-6 sm:py-10">
-                <div className="mx-auto flex w-full min-w-0 max-w-5xl flex-col gap-6 px-4 sm:px-6 lg:px-8">
+                <div className="flex w-full min-w-0 flex-col gap-6 px-4 sm:px-6 lg:px-8">
                     <Card className="shadow-sm">
                         <CardHeader className="p-6 sm:p-8">
                             <CardTitle className="text-2xl">

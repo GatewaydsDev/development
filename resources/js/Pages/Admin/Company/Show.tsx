@@ -178,7 +178,7 @@ export default function Show({ company }: ShowProps) {
             <Head title="Company" />
 
             <div className="py-6 sm:py-8">
-                <div className="mx-auto max-w-[96rem] px-4 sm:px-6 lg:px-8">
+                <div className="w-full px-4 sm:px-6 lg:px-8">
                     <Card className="shadow-sm">
                         <CardHeader>
                             <CardTitle>
