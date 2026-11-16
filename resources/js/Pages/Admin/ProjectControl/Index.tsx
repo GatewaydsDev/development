@@ -751,24 +751,68 @@ function JobActions({ jobUuid, projectUrl }: { jobUuid: string; projectUrl: stri
     );
 }
 
+function groupUnordered(rows: LineRow[]) {
+    const groups: Array<{ uuid: string; job_code: string; name: string; items: LineRow[] }> = [];
+    const byJob = new Map<string, (typeof groups)[number]>();
+
+    rows.forEach((row) => {
+        const existing = byJob.get(row.uuid);
+
+        if (existing) {
+            existing.items.push(row);
+
+            return;
+        }
+
+        const group = { uuid: row.uuid, job_code: row.job_code, name: row.name, items: [row] };
+        byJob.set(row.uuid, group);
+        groups.push(group);
+    });
+
+    return groups;
+}
+
+function UnorderedItems({ items }: { items: LineRow[] }) {
+    return (
+        <ul className="space-y-2">
+            {items.map((item, index) => (
+                <li key={`${item.kind}-${item.item}-${index}`} className="rounded-md border border-border bg-background px-3 py-2">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{item.kind}</p>
+                    <p className="break-words text-sm text-foreground">{item.item || '—'}</p>
+                    <p className="break-words text-sm text-muted-foreground">{item.status || 'Not ordered'}</p>
+                </li>
+            ))}
+        </ul>
+    );
+}
+
 function UnorderedTable({ rows }: { rows: LineRow[] }) {
+    const groups = groupUnordered(rows);
+
     return (
         <section className="overflow-hidden rounded-lg border border-emerald-200 dark:border-emerald-900">
-            <div className="border-b border-emerald-200 bg-emerald-50 px-4 py-3 dark:border-emerald-900 dark:bg-emerald-950/40">
+            <div className="flex items-center justify-between border-b border-emerald-200 bg-emerald-50 px-4 py-3 dark:border-emerald-900 dark:bg-emerald-950/40">
                 <h3 className="font-semibold text-foreground">Openings still unordered</h3>
+                <p className="text-sm text-muted-foreground">{groups.length}</p>
             </div>
             <div className="space-y-3 p-3 md:hidden">
-                {rows.length === 0 ? (
+                {groups.length === 0 ? (
                     <p className="text-sm text-muted-foreground">Every active opening has an order or is closed.</p>
                 ) : (
-                    rows.map((row, index) => (
-                        <article key={`${row.uuid}-${index}`} className="rounded-lg border border-border bg-card p-4">
-                            <Link href={route('admin.project-control.edit', row.uuid)} className="font-medium text-emerald-700 hover:underline dark:text-emerald-300">
-                                {row.job_code}
-                            </Link>
-                            <div className="mt-2"><ColumnText label="Item" value={row.item} wide /></div>
-                            <p className="mt-2 text-sm text-muted-foreground">{row.kind}</p>
-                            <div className="mt-2"><ColumnText label="Status" value={row.status} wide /></div>
+                    groups.map((group) => (
+                        <article key={group.uuid} className="rounded-lg border border-border bg-card p-4">
+                            <div className="flex items-start justify-between gap-3">
+                                <div className="min-w-0">
+                                    <Link href={route('admin.project-control.edit', group.uuid)} className="font-medium text-emerald-700 hover:underline dark:text-emerald-300">
+                                        {group.job_code}
+                                    </Link>
+                                    <p className="break-words text-sm text-muted-foreground">{group.name}</p>
+                                </div>
+                                <p className="shrink-0 text-sm text-muted-foreground">{group.items.length} unordered</p>
+                            </div>
+                            <div className="mt-3">
+                                <UnorderedItems items={group.items} />
+                            </div>
                         </article>
                     ))
                 )}
@@ -778,27 +822,27 @@ function UnorderedTable({ rows }: { rows: LineRow[] }) {
                     <thead>
                         <tr>
                             <th className={headCell}>Job</th>
-                            <th className={headCell}>Item</th>
-                            <th className={headCell}>Kind</th>
-                            <th className={headCell}>Status</th>
+                            <th className={headCell}>Unordered</th>
                         </tr>
                     </thead>
                     <tbody>
-                        {rows.length === 0 ? (
+                        {groups.length === 0 ? (
                             <tr>
-                                <td className={cell} colSpan={4}>Every active opening has an order or is closed.</td>
+                                <td className={cell} colSpan={2}>Every active opening has an order or is closed.</td>
                             </tr>
                         ) : (
-                            rows.map((row, index) => (
-                                <tr key={`${row.uuid}-${index}`}>
-                                    <td className={`${cell} whitespace-nowrap`}>
-                                        <Link href={route('admin.project-control.edit', row.uuid)} className="text-emerald-700 hover:underline dark:text-emerald-300">
-                                            {row.job_code}
+                            groups.map((group) => (
+                                <tr key={group.uuid}>
+                                    <td className={`${cell} w-48 whitespace-nowrap align-top`}>
+                                        <Link href={route('admin.project-control.edit', group.uuid)} className="font-medium text-emerald-700 hover:underline dark:text-emerald-300">
+                                            {group.job_code}
                                         </Link>
+                                        <p className="max-w-48 whitespace-normal break-words text-muted-foreground">{group.name}</p>
+                                        <p className="mt-1 text-xs text-muted-foreground">{group.items.length} unordered</p>
                                     </td>
-                                    <td className={cell}><ColumnText label="Item" value={row.item} /></td>
-                                    <td className={cell}>{row.kind}</td>
-                                    <td className={cell}><ColumnText label="Status" value={row.status} /></td>
+                                    <td className={cell}>
+                                        <UnorderedItems items={group.items} />
+                                    </td>
                                 </tr>
                             ))
                         )}
