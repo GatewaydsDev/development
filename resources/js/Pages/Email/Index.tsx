@@ -539,7 +539,8 @@ export default function Index({
     const currentCursor = new URLSearchParams(page.url.split('?')[1] ?? '').get('cursor');
     const listScrollKey = `mailbox-list-scroll:${folder}:${status}:${currentCursor ?? 'first'}`;
     const [refreshing, setRefreshing] = useState(false);
-    const [showCompose, setShowCompose] = useState(false);
+    const composeRequested = new URLSearchParams(page.url.split('?')[1] ?? '').get('compose') === '1';
+    const [showCompose, setShowCompose] = useState(composeRequested);
     const [draft, setDraft] = useState<ComposeDraft | undefined>(undefined);
     const [draftKey, setDraftKey] = useState(0);
     const [acting, setActing] = useState(false);
@@ -557,6 +558,12 @@ export default function Index({
 
         setUnreadMail(Math.max(unreadCount, visible));
     }, [unreadCount, folder, list]);
+
+    useEffect(() => {
+        if (composeRequested) {
+            setShowCompose(true);
+        }
+    }, [composeRequested]);
 
     useEffect(() => {
         if (folder !== 'inbox' || message === null) {
@@ -817,7 +824,12 @@ export default function Index({
                                     draft={draft}
                                     stationery={stationery}
                                     emailTemplates={emailTemplates}
-                                    onDiscard={() => setShowCompose(false)}
+                                    onDiscard={() => {
+                                        setShowCompose(false);
+                                        if (composeRequested) {
+                                            router.get(folderHref(folder), {}, { preserveScroll: true, replace: true });
+                                        }
+                                    }}
                                 />
                             ) : null}
 

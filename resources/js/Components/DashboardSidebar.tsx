@@ -22,11 +22,14 @@ import {
     RulerIcon,
     HardHatIcon,
     IdCardIcon,
+    ArchiveIcon,
+    InboxIcon,
     LayoutDashboardIcon,
     KeyRoundIcon,
     LockKeyholeIcon,
     LogOutIcon,
-    MailIcon,
+    SendIcon,
+    SquarePenIcon,
     MessageSquareIcon,
     PackageIcon,
     PaletteIcon,
@@ -160,6 +163,13 @@ export default function DashboardSidebar({
         return Boolean(route().current(patterns));
     };
 
+    const mailboxQuery = new URLSearchParams(page.url.split('?')[1] ?? '');
+    const mailboxFolder = mailboxQuery.get('folder') === 'sent' || mailboxQuery.get('folder') === 'archive'
+        ? mailboxQuery.get('folder')
+        : 'inbox';
+    const composingMail = mailboxQuery.get('compose') === '1';
+    const onMailbox = isRouteActive('mailbox.*');
+
     const navigationGroups: NavGroup[] = [
         {
             label: 'Overview',
@@ -194,16 +204,49 @@ export default function DashboardSidebar({
                           },
                       ]
                     : []),
+            ],
+        },
+        {
+            label: 'Email',
+            items: [
                 ...(!isClientOnly
                     ? [
                           {
-                              title: 'Email',
-                              href: route('mailbox.index'),
-                              icon: MailIcon,
-                              active: isRouteActive('mailbox.*'),
+                              title: 'Inbox',
+                              href: route('mailbox.index', { folder: 'inbox' }),
+                              icon: InboxIcon,
+                              active: onMailbox && !composingMail && mailboxFolder === 'inbox',
                               alert: unreadMail > 0,
                               badge: unreadMail > 0 ? unreadMail : undefined,
                               badgeVariant: 'destructive' as const,
+                          },
+                          {
+                              title: 'Sent',
+                              href: route('mailbox.index', { folder: 'sent' }),
+                              icon: SendIcon,
+                              active: onMailbox && !composingMail && mailboxFolder === 'sent',
+                          },
+                          {
+                              title: 'Archive',
+                              href: route('mailbox.index', { folder: 'archive' }),
+                              icon: ArchiveIcon,
+                              active: onMailbox && !composingMail && mailboxFolder === 'archive',
+                          },
+                          {
+                              title: 'Compose',
+                              href: route('mailbox.index', { compose: 1 }),
+                              icon: SquarePenIcon,
+                              active: onMailbox && composingMail,
+                          },
+                      ]
+                    : []),
+                ...(canViewContactsDirectory
+                    ? [
+                          {
+                              title: 'Email templates',
+                              href: route('contact-directory.email-templates.index'),
+                              icon: FileCodeIcon,
+                              active: isRouteActive('contact-directory.email-templates.*'),
                           },
                       ]
                     : []),
@@ -380,16 +423,6 @@ export default function DashboardSidebar({
                               icon: Building2Icon,
                               active: isRouteActive(
                                   'contact-directory.companies.*',
-                              ),
-                          },
-                          {
-                              title: 'Email templates',
-                              href: route(
-                                  'contact-directory.email-templates.index',
-                              ),
-                              icon: FileCodeIcon,
-                              active: isRouteActive(
-                                  'contact-directory.email-templates.*',
                               ),
                           },
                       ]

@@ -86,6 +86,7 @@ type InsertBidTextFieldMenuProps = {
     groupOrder?: readonly string[];
     pages?: InsertFieldPage[];
     triggerLabel?: string;
+    triggerTitle?: string;
 };
 
 export default function InsertBidTextFieldMenu({
@@ -99,6 +100,7 @@ export default function InsertBidTextFieldMenu({
     groupOrder = BID_TEXT_FIELD_GROUP_ORDER,
     pages = [],
     triggerLabel,
+    triggerTitle = 'Insert a field that fills in from the project, contractor, or a product',
 }: InsertBidTextFieldMenuProps) {
     const searchRef = useRef<HTMLInputElement>(null);
     const [query, setQuery] = useState('');
@@ -350,7 +352,7 @@ export default function InsertBidTextFieldMenu({
                 }}
             >
                 <DropdownMenuTrigger asChild>
-                    <Button type="button" variant="outline" size={triggerLabel ? 'sm' : 'icon-sm'} title="Insert a field that fills in from the project, contractor, or a product" aria-label={triggerLabel ?? 'Insert a field'}>
+                    <Button type="button" variant="outline" size={triggerLabel ? 'sm' : 'icon-sm'} title={triggerTitle} aria-label={triggerLabel ?? 'Insert a field'}>
                         <BracesIcon data-icon="inline-start" />
                         {triggerLabel}
                     </Button>

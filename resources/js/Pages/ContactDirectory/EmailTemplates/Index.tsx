@@ -1,7 +1,7 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import FormActionFab from '@/Components/FormActionFab';
 import { router, usePage } from '@inertiajs/react';
-import { useState, type FormEvent } from 'react';
+import { useMemo, useState, type FormEvent } from 'react';
 import { Badge } from '@/Components/ui/badge';
 import { Button } from '@/Components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/Components/ui/card';
@@ -69,6 +69,15 @@ export default function EmailTemplatesIndex({
     const flash = page.props.flash;
     const can = (page.props.auth.can ?? {}) as Record<string, boolean>;
     const canManage = Boolean(can.manageEmailTemplates);
+    const emailFields = useMemo(
+        () =>
+            Object.entries(placeholders).map(([key, label]) => ({
+                key,
+                label,
+                group: 'Email',
+            })),
+        [placeholders],
+    );
 
     const [search, setSearch] = useState(filters.search ?? '');
     const [draftName, setDraftName] = useState('');
@@ -336,7 +345,14 @@ export default function EmailTemplatesIndex({
                                         key={editorKey}
                                         id="template-body"
                                         compact
-                                        showPlaceholders={false}
+                                        placeholderCatalog="provided"
+                                        placeholderFields={emailFields}
+                                        placeholderGroupOrder={['Email']}
+                                        allowCreatePlaceholder={false}
+                                        placeholderIntro="Insert a field where the cursor is. It is replaced when the template is used."
+                                        placeholderSearchPlaceholder="Search contact, company, project…"
+                                        placeholderTriggerLabel="Insert field"
+                                        placeholderTriggerTitle="Insert a field where the cursor is"
                                         value={draftBody}
                                         onChange={setDraftBody}
                                         error={errors.body}
@@ -353,7 +369,7 @@ export default function EmailTemplatesIndex({
                                 />
                                 <div className="sm:col-span-2">
                                     <p className="mb-2 text-xs text-muted-foreground">
-                                        Click a field to add it at the end of the message. It is replaced with real details when the template is used.
+                                        The Insert field menu in the body toolbar adds a field where the cursor is, including inside a table cell. These buttons add it at the end of the message.
                                     </p>
                                 <div className="flex flex-wrap gap-2">
                                     {Object.entries(placeholders).map(([token, label]) => (

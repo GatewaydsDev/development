@@ -1024,6 +1024,8 @@ type RichTextEditorProps = {
     placeholderCatalog?: 'bid' | 'provided';
     placeholderIntro?: string;
     placeholderSearchPlaceholder?: string;
+    placeholderTriggerLabel?: string;
+    placeholderTriggerTitle?: string;
     allowCreatePlaceholder?: boolean;
     placeholderGroupOrder?: readonly string[];
     placeholderPages?: Array<{
@@ -1153,6 +1155,8 @@ export default function RichTextEditor({
     placeholderCatalog = 'bid',
     placeholderIntro,
     placeholderSearchPlaceholder,
+    placeholderTriggerLabel,
+    placeholderTriggerTitle,
     allowCreatePlaceholder = true,
     placeholderGroupOrder,
     placeholderPages = [],
@@ -3532,6 +3536,8 @@ export default function RichTextEditor({
                             onInsert={insertPlaceholder}
                             intro={placeholderIntro}
                             searchPlaceholder={placeholderSearchPlaceholder}
+                            triggerLabel={placeholderTriggerLabel}
+                            triggerTitle={placeholderTriggerTitle}
                             allowCreate={allowCreatePlaceholder}
                             groupOrder={placeholderGroupOrder}
                             pages={placeholderPages}
