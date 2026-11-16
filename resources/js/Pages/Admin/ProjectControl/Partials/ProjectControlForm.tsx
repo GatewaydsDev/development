@@ -25,7 +25,7 @@ import {
 } from '@/Components/ui/dialog';
 import { Link, router, useForm, usePage } from '@inertiajs/react';
 import { BellIcon, CheckIcon, MailIcon, PencilIcon, PlusIcon, RulerIcon, Trash2Icon } from 'lucide-react';
-import { FormEvent, ReactNode, useState } from 'react';
+import { FormEvent, ReactNode, useEffect, useState } from 'react';
 import ReminderCards, { displayReminderWhen, type ScheduledReminder } from './ReminderCards';
 import { emailTyping, isEmailAddress, reminderEmails, type ReminderPerson } from './ReminderDialog';
 
@@ -296,6 +296,28 @@ type QueuedReminder = {
     reminder_email: string;
 };
 
+function isUnorderedStatus(status: string, poNumber = ''): boolean {
+    if (poNumber.trim() !== '') {
+        return false;
+    }
+
+    const text = status.trim().toLowerCase();
+
+    if (text.includes('inactive') || text.includes('closed') || text.includes('lost') || text.includes('building detail')) {
+        return false;
+    }
+
+    if (/\bnot ordered\b/.test(text)) {
+        return true;
+    }
+
+    if (text.includes('ordered')) {
+        return false;
+    }
+
+    return true;
+}
+
 const addButtonClass = 'bg-emerald-600 text-white hover:bg-emerald-700';
 const takeoffButtonClass = 'bg-sky-600 text-white hover:bg-sky-700';
 
@@ -307,6 +329,7 @@ export default function ProjectControlForm({
     terms,
     connectedTakeoff = null,
     reminders = [],
+    children,
 }: {
     action: string;
     method: 'post' | 'patch';
@@ -315,6 +338,7 @@ export default function ProjectControlForm({
     terms: ControlTerms;
     connectedTakeoff?: ConnectedTakeoff | null;
     reminders?: ScheduledReminder[];
+    children?: ReactNode;
 }) {
     const userId = usePage().props.auth.user.id;
     const form = useForm<ControlDraft>({
@@ -504,6 +528,48 @@ export default function ProjectControlForm({
         closeOpening();
     };
 
+    const unorderedProblems = [
+        ...form.data.openings.flatMap((opening, index) => {
+            if (!isUnorderedStatus(opening.procurement_status)) {
+                return [];
+            }
+
+            const status = opening.procurement_status.trim() || 'Not set';
+
+            return [{
+                kind: 'opening' as const,
+                index,
+                title: [opening.mark, opening.description].filter((part) => part.trim() !== '').join(' · ') || `Opening ${index + 1}`,
+                detail: `Procurement status is ${status}. Set it to ordered, or mark the opening closed.`,
+            }];
+        }),
+        ...form.data.procurements.flatMap((procurement, index) => {
+            if (!isUnorderedStatus(procurement.order_status, procurement.po_number)) {
+                return [];
+            }
+
+            const status = procurement.order_status.trim() || 'Not set';
+            const missingPo = procurement.po_number.trim() === '';
+
+            return [{
+                kind: 'procurement' as const,
+                index,
+                title: procurement.assembly.trim() || `Procurement ${index + 1}`,
+                detail: missingPo
+                    ? `No purchase order. Status is ${status}. Add a PO, or set the status to ordered.`
+                    : `Status is ${status}. Set it to ordered, or mark the line closed.`,
+            }];
+        }),
+    ];
+
+    useEffect(() => {
+        if (window.location.hash !== '#unordered') {
+            return;
+        }
+
+        document.getElementById('unordered')?.scrollIntoView({ block: 'start' });
+    }, [unorderedProblems.length]);
+
     const openingTotals = summarizeOpenings(form.data.openings);
     const bidTotals = summarizeBids(form.data.bids);
     const procurementTotals = summarizeProcurements(form.data.procurements);
@@ -600,6 +666,36 @@ export default function ProjectControlForm({
     return (
         <>
         <form id="project-control-form" onSubmit={submit} className="space-y-6 pb-24">
+            {unorderedProblems.length > 0 ? (
+                <section id="unordered" className="scroll-mt-24 rounded-lg border border-rose-300 bg-rose-50 p-4 dark:border-rose-900 dark:bg-rose-950/40 sm:p-6">
+                    <h3 className="text-lg font-semibold text-foreground">Still unordered</h3>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                        These lines are why this job is on the unordered list. Open one, fix the status or purchase order, then save the job.
+                    </p>
+                    <ul className="mt-4 space-y-2">
+                        {unorderedProblems.map((problem) => (
+                            <li key={`${problem.kind}-${problem.index}`} className="flex flex-col gap-3 rounded-lg border border-rose-200 bg-background p-3 sm:flex-row sm:items-center sm:justify-between dark:border-rose-900">
+                                <div className="min-w-0">
+                                    <p className="text-xs font-semibold uppercase tracking-wide text-rose-700 dark:text-rose-300">
+                                        {problem.kind === 'opening' ? 'Opening' : 'Procurement'}
+                                    </p>
+                                    <p className="break-words font-medium text-foreground">{problem.title}</p>
+                                    <p className="break-words text-sm text-muted-foreground">{problem.detail}</p>
+                                </div>
+                                <Button
+                                    type="button"
+                                    className="min-h-11 shrink-0 bg-rose-700 text-white hover:bg-rose-800"
+                                    onClick={() => (problem.kind === 'opening' ? openOpening(problem.index) : openProcurement(problem.index))}
+                                >
+                                    <PencilIcon className="h-4 w-4" />
+                                    Fix
+                                </Button>
+                            </li>
+                        ))}
+                    </ul>
+                </section>
+            ) : null}
+            {children}
             <section className="rounded-lg border border-emerald-200 bg-emerald-50/70 p-4 dark:border-emerald-900 dark:bg-emerald-950/30 sm:p-6">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
@@ -913,12 +1009,13 @@ export default function ProjectControlForm({
                         </p>
                     ) : form.data.openings.map((opening, index) => {
                         const error = lineError('openings', index);
+                        const unordered = isUnorderedStatus(opening.procurement_status);
 
                         return (
                             <button
                                 key={opening.id ?? `new-${index}`}
                                 type="button"
-                                className={`w-full rounded-lg border bg-background p-3 text-left shadow-sm ${error ? 'border-red-400 bg-red-50 dark:bg-red-950/30' : 'border-violet-200'}`}
+                                className={`w-full rounded-lg border bg-background p-3 text-left shadow-sm ${error ? 'border-red-400 bg-red-50 dark:bg-red-950/30' : unordered ? 'border-rose-400 bg-rose-50 dark:bg-rose-950/30' : 'border-violet-200'}`}
                                 onClick={() => openOpening(index)}
                             >
                                 <span className="flex items-start justify-between gap-2">
@@ -926,6 +1023,7 @@ export default function ProjectControlForm({
                                     <span className="shrink-0 text-sm text-muted-foreground">Qty {cell(opening.quantity)}</span>
                                 </span>
                                 <span className="mt-1 block break-words text-sm text-foreground">{cell(opening.description)}</span>
+                                {unordered ? <span className="mt-2 inline-flex rounded-full bg-rose-700 px-2 py-0.5 text-xs font-medium text-white">Unordered</span> : null}
                                 <span className="mt-2 block text-xs text-muted-foreground">
                                     {[opening.size, opening.category, opening.requirement, opening.supplier].filter(Boolean).join(' · ') || 'No additional details'}
                                 </span>
@@ -957,15 +1055,19 @@ export default function ProjectControlForm({
                                 </tr>
                             ) : form.data.openings.map((opening, index) => {
                                 const error = lineError('openings', index);
+                                const unordered = isUnorderedStatus(opening.procurement_status);
 
                                 return (
                                     <tr
                                         key={opening.id ?? `new-${index}`}
-                                        className={`cursor-pointer border-t border-border hover:bg-violet-50 dark:hover:bg-violet-950/40 ${error ? 'bg-red-50 dark:bg-red-950/30' : ''}`}
+                                        className={`cursor-pointer border-t border-border hover:bg-violet-50 dark:hover:bg-violet-950/40 ${error ? 'bg-red-50 dark:bg-red-950/30' : unordered ? 'bg-rose-50 dark:bg-rose-950/30' : ''}`}
                                         onClick={() => openOpening(index)}
                                     >
                                         <td className="max-w-[7rem] px-3 py-3 align-top font-medium text-foreground">{cell(opening.mark)}</td>
-                                        <td className="max-w-[16rem] px-3 py-3 align-top text-foreground">{cell(opening.description)}</td>
+                                        <td className="max-w-[16rem] px-3 py-3 align-top text-foreground">
+                                            {cell(opening.description)}
+                                            {unordered ? <span className="mt-1 inline-flex rounded-full bg-rose-700 px-2 py-0.5 text-xs font-medium text-white">Unordered</span> : null}
+                                        </td>
                                         <td className="whitespace-nowrap px-3 py-3 align-top">{cell(opening.size)}</td>
                                         <td className="whitespace-nowrap px-3 py-3 text-right align-top tabular-nums">{cell(opening.quantity)}</td>
                                         <td className="max-w-[10rem] px-3 py-3 align-top">{cell(opening.category)}</td>
@@ -1013,12 +1115,13 @@ export default function ProjectControlForm({
                         </p>
                     ) : form.data.procurements.map((procurement, index) => {
                         const error = lineError('procurements', index);
+                        const unordered = isUnorderedStatus(procurement.order_status, procurement.po_number);
 
                         return (
                             <button
                                 key={`${procurement.assembly}-${index}`}
                                 type="button"
-                                className={`w-full rounded-lg border bg-background p-3 text-left shadow-sm ${error ? 'border-red-400 bg-red-50 dark:bg-red-950/30' : 'border-orange-200'}`}
+                                className={`w-full rounded-lg border bg-background p-3 text-left shadow-sm ${error ? 'border-red-400 bg-red-50 dark:bg-red-950/30' : unordered ? 'border-rose-400 bg-rose-50 dark:bg-rose-950/30' : 'border-orange-200'}`}
                                 onClick={() => openProcurement(index)}
                             >
                                 <span className="flex items-start justify-between gap-2">
@@ -1034,6 +1137,7 @@ export default function ProjectControlForm({
                                 <span className="mt-2 block break-words text-sm text-muted-foreground">
                                     {[procurement.manufacturer, procurement.po_number ? `PO ${procurement.po_number}` : ''].filter(Boolean).join(' · ') || 'No additional details'}
                                 </span>
+                                {unordered ? <span className="mt-2 inline-flex rounded-full bg-rose-700 px-2 py-0.5 text-xs font-medium text-white">Unordered</span> : null}
                                 {error ? <span className="mt-2 block text-sm text-destructive">{error}</span> : null}
                             </button>
                         );
@@ -1061,14 +1165,18 @@ export default function ProjectControlForm({
                                 </tr>
                             ) : form.data.procurements.map((procurement, index) => {
                                 const error = lineError('procurements', index);
+                                const unordered = isUnorderedStatus(procurement.order_status, procurement.po_number);
 
                                 return (
                                     <tr
                                         key={`${procurement.assembly}-${index}`}
-                                        className={`cursor-pointer border-t border-border hover:bg-orange-50 dark:hover:bg-orange-950/40 ${error ? 'bg-red-50 dark:bg-red-950/30' : ''}`}
+                                        className={`cursor-pointer border-t border-border hover:bg-orange-50 dark:hover:bg-orange-950/40 ${error ? 'bg-red-50 dark:bg-red-950/30' : unordered ? 'bg-rose-50 dark:bg-rose-950/30' : ''}`}
                                         onClick={() => openProcurement(index)}
                                     >
-                                        <td className="max-w-[16rem] px-3 py-3 align-top font-medium text-foreground">{cell(procurement.assembly)}</td>
+                                        <td className="max-w-[16rem] px-3 py-3 align-top font-medium text-foreground">
+                                            {cell(procurement.assembly)}
+                                            {unordered ? <span className="mt-1 block w-fit rounded-full bg-rose-700 px-2 py-0.5 text-xs font-medium text-white">Unordered</span> : null}
+                                        </td>
                                         <td className="whitespace-nowrap px-3 py-3 text-right align-top tabular-nums">{cell(procurement.quantity)}</td>
                                         <td className="max-w-[12rem] px-3 py-3 align-top">{cell(procurement.manufacturer)}</td>
                                         <td className="whitespace-nowrap px-3 py-3 text-right align-top tabular-nums">{amount(procurement.supplier_cost) === null ? cell('') : money(amount(procurement.supplier_cost))}</td>
@@ -1344,7 +1452,9 @@ export default function ProjectControlForm({
                     <DialogHeader className="shrink-0 px-4 pt-4 pr-14 pb-2 sm:px-6 sm:pt-6">
                         <DialogTitle>{procurementIndex === null ? 'Add procurement line' : `Procurement ${procurementDraft?.assembly || procurementIndex + 1}`}</DialogTitle>
                         <DialogDescription>
-                            Assembly, supplier cost, and purchase order for this line. Save the job afterward to keep the change.
+                            {procurementDraft && isUnorderedStatus(procurementDraft.order_status, procurementDraft.po_number)
+                                ? 'This line is still unordered. Add a purchase order or set the status to ordered, then save the job.'
+                                : 'Assembly, supplier cost, and purchase order for this line. Save the job afterward to keep the change.'}
                         </DialogDescription>
                     </DialogHeader>
                     {procurementDraft ? (
@@ -1420,7 +1530,9 @@ export default function ProjectControlForm({
                     <DialogHeader className="shrink-0 px-4 pt-4 pr-14 pb-2 sm:px-6 sm:pt-6">
                         <DialogTitle>{openingIndex === null ? 'Add opening' : `Opening ${openingDraft?.mark || openingIndex + 1}`}</DialogTitle>
                         <DialogDescription>
-                            Mark, size, hardware, and the other details for this opening. Save the job afterward to keep the change.
+                            {openingDraft && isUnorderedStatus(openingDraft.procurement_status)
+                                ? 'This opening is still unordered. Set the procurement status to ordered, or mark it closed, then save the job.'
+                                : 'Mark, size, hardware, and the other details for this opening. Save the job afterward to keep the change.'}
                         </DialogDescription>
                     </DialogHeader>
                     {openingDraft ? (

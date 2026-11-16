@@ -33,6 +33,15 @@ export default function Edit({ control, people, terms, connectedTakeoff = null, 
         >
             <Head title={control.name || 'Edit job'} />
             <div className="space-y-4 px-3 py-3 sm:space-y-6 sm:px-6 sm:py-8 lg:px-8">
+                <ProjectControlForm
+                    action={route('admin.project-control.update', control.uuid)}
+                    method="patch"
+                    control={control}
+                    people={people}
+                    terms={terms}
+                    connectedTakeoff={connectedTakeoff}
+                    reminders={reminders}
+                >
                 <section className="rounded-lg border border-emerald-200 bg-emerald-50/70 p-3 dark:border-emerald-900 dark:bg-emerald-950/30 sm:p-4">
                     <h3 className="text-base font-semibold text-foreground">Convert this job</h3>
                     <p className="mt-1 text-sm text-muted-foreground">
@@ -89,15 +98,7 @@ export default function Edit({ control, people, terms, connectedTakeoff = null, 
                         </div>
                     </div>
                 </section>
-                <ProjectControlForm
-                    action={route('admin.project-control.update', control.uuid)}
-                    method="patch"
-                    control={control}
-                    people={people}
-                    terms={terms}
-                    connectedTakeoff={connectedTakeoff}
-                    reminders={reminders}
-                />
+                </ProjectControlForm>
             </div>
             <ConvertJobDialog kind={convert} jobUuid={control.uuid} jobLabel={control.job_code} onClose={() => setConvert(null)} />
         </AuthenticatedLayout>

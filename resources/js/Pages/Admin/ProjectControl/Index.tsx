@@ -803,7 +803,7 @@ function UnorderedTable({ rows }: { rows: LineRow[] }) {
                         <article key={group.uuid} className="rounded-lg border border-border bg-card p-4">
                             <div className="flex items-start justify-between gap-3">
                                 <div className="min-w-0">
-                                    <Link href={route('admin.project-control.edit', group.uuid)} className="font-medium text-emerald-700 hover:underline dark:text-emerald-300">
+                                    <Link href={`${route('admin.project-control.edit', group.uuid)}#unordered`} className="font-medium text-emerald-700 hover:underline dark:text-emerald-300">
                                         {group.job_code}
                                     </Link>
                                     <p className="break-words text-sm text-muted-foreground">{group.name}</p>
@@ -834,7 +834,7 @@ function UnorderedTable({ rows }: { rows: LineRow[] }) {
                             groups.map((group) => (
                                 <tr key={group.uuid}>
                                     <td className={`${cell} w-48 whitespace-nowrap align-top`}>
-                                        <Link href={route('admin.project-control.edit', group.uuid)} className="font-medium text-emerald-700 hover:underline dark:text-emerald-300">
+                                        <Link href={`${route('admin.project-control.edit', group.uuid)}#unordered`} className="font-medium text-emerald-700 hover:underline dark:text-emerald-300">
                                             {group.job_code}
                                         </Link>
                                         <p className="max-w-48 whitespace-normal break-words text-muted-foreground">{group.name}</p>
