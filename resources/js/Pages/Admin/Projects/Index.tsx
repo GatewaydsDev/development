@@ -299,7 +299,7 @@ export default function Index({
                         </CardHeader>
 
                         <CardContent className="p-2 pt-0 sm:p-6 sm:pt-0">
-                            <div className="rounded-lg border border-emerald-200 bg-card max-xl:border-0 max-xl:bg-transparent dark:border-emerald-900">
+                            <div className="overflow-x-auto rounded-lg border border-emerald-200 bg-card max-xl:border-0 max-xl:bg-transparent dark:border-emerald-900">
                                 <div className="grid gap-3 xl:block xl:min-w-[96rem]">
                                 <div
                                     className={cn(
