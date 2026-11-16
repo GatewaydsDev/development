@@ -3,6 +3,7 @@
 use App\Models\Bid;
 use App\Models\BidScopeTitle;
 use App\Models\BidStageType;
+use App\Models\ContactDirectory\ContactCompany;
 use App\Models\Contractor;
 use App\Models\Project;
 use App\Models\ProjectPriority;
@@ -1139,6 +1140,71 @@ test('the projects list shows the linked quotation bid and takeoff with their st
             ->where('summary.in_quotation', 1)
             ->where('summary.in_bid', 1)
             ->where('summary.in_takeoff', 1)
+            ->where('summary.to_bid', 0)
+            ->where('summary.won', 0)
+            ->where('summary.lost', 0)
+        );
+});
+
+test('the projects list totals work still to bid, won, and lost', function () {
+    $admin = projectAdmin();
+    $status = projectStatusId();
+
+    Project::create([
+        'name' => 'Needs a bid',
+        'project_status_id' => $status,
+        'priority' => 'normal',
+        'budget_amount' => 1000,
+        'created_by' => $admin->id,
+    ]);
+
+    $wonProject = Project::create([
+        'name' => 'Awarded hangar',
+        'project_status_id' => $status,
+        'priority' => 'normal',
+        'budget_amount' => 50,
+        'created_by' => $admin->id,
+    ]);
+    $wonBid = Bid::create([
+        'project_id' => $wonProject->id,
+        'created_by' => $admin->id,
+    ]);
+    $wonBid->stages()->create([
+        'bid_stage_type_id' => BidStageType::create(['name' => 'Won'])->id,
+        'sort_order' => 1,
+    ]);
+    $wonBid->scopes()->create([
+        'bid_scope_title_id' => BidScopeTitle::create(['name' => 'Hangar doors'])->id,
+        'extended' => 2500,
+        'sort_order' => 1,
+    ]);
+
+    $lostProject = Project::create([
+        'name' => 'Passed over school',
+        'project_status_id' => $status,
+        'priority' => 'normal',
+        'budget_amount' => 400,
+        'created_by' => $admin->id,
+    ]);
+    $lostBid = Bid::create([
+        'project_id' => $lostProject->id,
+        'created_by' => $admin->id,
+    ]);
+    $lostBid->stages()->create([
+        'bid_stage_type_id' => BidStageType::create(['name' => 'Lost'])->id,
+        'sort_order' => 1,
+    ]);
+
+    $this->actingAs($admin)
+        ->get(route('admin.projects.index'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('summary.to_bid', 1)
+            ->where('summary.to_bid_amount', '1000.00')
+            ->where('summary.won', 1)
+            ->where('summary.won_amount', '2500.00')
+            ->where('summary.lost', 1)
+            ->where('summary.lost_amount', '400.00')
         );
 });
 
@@ -1220,9 +1286,9 @@ test('a new priority can be added and saved on a project', function () {
 
 test('a project can be linked to more than one company and updated', function () {
     $admin = projectAdmin();
-    $a = \App\Models\ContactDirectory\ContactCompany::create(['name' => 'Alpha Builders']);
-    $b = \App\Models\ContactDirectory\ContactCompany::create(['name' => 'Beta Glazing']);
-    $c = \App\Models\ContactDirectory\ContactCompany::create(['name' => 'Gamma Doors']);
+    $a = ContactCompany::create(['name' => 'Alpha Builders']);
+    $b = ContactCompany::create(['name' => 'Beta Glazing']);
+    $c = ContactCompany::create(['name' => 'Gamma Doors']);
     $base = [
         'name' => 'Shared job', 'project_number' => '', 'assigned_to' => '', 'status_id' => projectStatusId(),
         'priority' => 'normal', 'estimated_start_date' => '', 'estimated_end_date' => '', 'completed_at' => '',

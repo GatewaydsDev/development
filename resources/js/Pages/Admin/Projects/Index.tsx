@@ -46,6 +46,12 @@ type IndexProps = {
         in_quotation: number;
         in_bid: number;
         in_takeoff: number;
+        to_bid: number;
+        to_bid_amount: string | null;
+        won: number;
+        won_amount: string | null;
+        lost: number;
+        lost_amount: string | null;
     };
     listVersion: string;
 };
@@ -127,7 +133,7 @@ export default function Index({
     };
 
     const projectRowGridClassName =
-        'w-full xl:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)_minmax(0,1.25fr)_minmax(0,0.8fr)_minmax(0,7rem)_minmax(0,6rem)_12.5rem]';
+        'w-full xl:grid-cols-[minmax(0,1.1fr)_minmax(0,0.95fr)_minmax(22rem,1.4fr)_minmax(0,0.75fr)_minmax(0,7rem)_minmax(0,6rem)_12.5rem]';
 
     return (
         <AuthenticatedLayout
@@ -182,6 +188,27 @@ export default function Index({
                             label="Current projects in takeoff"
                             value={summary.in_takeoff}
                             className="border-amber-300 bg-amber-50 text-amber-950 dark:border-amber-800 dark:bg-amber-950/50 dark:text-amber-100"
+                        />
+                        <ProjectTotal
+                            label="To be placed as bid"
+                            value={summary.to_bid}
+                            amount={summary.to_bid_amount}
+                            className="border-sky-300 bg-sky-50 text-sky-950 dark:border-sky-800 dark:bg-sky-950/50 dark:text-sky-100"
+                            ruleClassName="border-sky-200 dark:border-sky-800"
+                        />
+                        <ProjectTotal
+                            label="Won"
+                            value={summary.won}
+                            amount={summary.won_amount}
+                            className="border-emerald-300 bg-emerald-50 text-emerald-950 dark:border-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-100"
+                            ruleClassName="border-emerald-200 dark:border-emerald-800"
+                        />
+                        <ProjectTotal
+                            label="Marked as lost"
+                            value={summary.lost}
+                            amount={summary.lost_amount}
+                            className="col-span-2 border-rose-300 bg-rose-50 text-rose-950 dark:border-rose-800 dark:bg-rose-950/50 dark:text-rose-100 sm:col-span-1"
+                            ruleClassName="border-rose-200 dark:border-rose-800"
                         />
                     </div>
 
@@ -273,7 +300,7 @@ export default function Index({
 
                         <CardContent className="p-2 pt-0 sm:p-6 sm:pt-0">
                             <div className="rounded-lg border border-emerald-200 bg-card max-xl:border-0 max-xl:bg-transparent dark:border-emerald-900">
-                                <div className="grid gap-3 xl:block xl:min-w-[92rem]">
+                                <div className="grid gap-3 xl:block xl:min-w-[96rem]">
                                 <div
                                     className={cn(
                                         'hidden items-center gap-6 border-b border-emerald-200 bg-emerald-50 px-5 py-4 text-xs font-semibold uppercase tracking-wide text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-200 xl:grid',
@@ -282,7 +309,7 @@ export default function Index({
                                 >
                                     <div>Project</div>
                                     <div>Contractors</div>
-                                    <div>Quotation, bid, takeoff, schedule</div>
+                                    <div className="whitespace-nowrap tracking-normal">Quotation, bid, takeoff, schedule</div>
                                     <div>Bid scope</div>
                                     <div>Status</div>
                                     <div>Priority</div>
@@ -351,10 +378,11 @@ export default function Index({
                                                     <p>No contractor</p>
                                                 )}
                                             </div>
-                                            <div className="flex min-w-0 flex-col gap-2">
+                                            <div className="min-w-0">
                                                 <DirectoryFieldLabel hideFrom="xl">
                                                     Quotation, bid, takeoff, schedule
                                                 </DirectoryFieldLabel>
+                                                <div className="grid grid-cols-2 gap-1.5 xl:grid-cols-4">
                                                 <LinkedRecord
                                                     label="Quotation"
                                                     name={project.quotation?.number || project.quotation?.title}
@@ -364,7 +392,7 @@ export default function Index({
                                                             ? route('admin.quotations.show', project.quotation.uuid)
                                                             : null
                                                     }
-                                                    className="border-indigo-200 bg-indigo-50 text-indigo-950 dark:border-indigo-800 dark:bg-indigo-950/40 dark:text-indigo-100"
+                                                    className="border-indigo-600 bg-indigo-100 text-indigo-950 dark:border-indigo-400 dark:bg-indigo-950 dark:text-indigo-50"
                                                 />
                                                 <LinkedRecord
                                                     label="Bid"
@@ -375,7 +403,7 @@ export default function Index({
                                                             ? route('admin.bids.show', project.bid.uuid)
                                                             : null
                                                     }
-                                                    className="border-sky-200 bg-sky-50 text-sky-950 dark:border-sky-800 dark:bg-sky-950/40 dark:text-sky-100"
+                                                    className="border-sky-600 bg-sky-100 text-sky-950 dark:border-sky-400 dark:bg-sky-950 dark:text-sky-50"
                                                 />
                                                 <LinkedRecord
                                                     label="Takeoff"
@@ -386,7 +414,7 @@ export default function Index({
                                                             ? route('admin.takeoffs.show', project.takeoff.uuid)
                                                             : null
                                                     }
-                                                    className="border-amber-200 bg-amber-50 text-amber-950 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-100"
+                                                    className="border-amber-600 bg-amber-100 text-amber-950 dark:border-amber-400 dark:bg-amber-950 dark:text-amber-50"
                                                 />
                                                 <LinkedRecord
                                                     label="Schedule"
@@ -401,8 +429,9 @@ export default function Index({
                                                             ? route('admin.employee-schedules.edit', project.work_schedule.uuid)
                                                             : null
                                                     }
-                                                    className="border-emerald-200 bg-emerald-50 text-emerald-950 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-100"
+                                                    className="border-emerald-600 bg-emerald-100 text-emerald-950 dark:border-emerald-400 dark:bg-emerald-950 dark:text-emerald-50"
                                                 />
+                                                </div>
                                             </div>
                                             <div className="min-w-0">
                                                 <DirectoryFieldLabel hideFrom="xl">
@@ -647,25 +676,34 @@ function LinkedRecord({
     href?: string | null;
     className: string;
 }) {
+    const present = Boolean(name);
     const content = (
-        <span className="flex min-w-0 items-center justify-between gap-2">
-            <span className="min-w-0">
-                <span className="block text-[11px] font-semibold uppercase tracking-wide opacity-70">
+        <span className="flex min-w-0 flex-col gap-0.5">
+            <span className="flex min-w-0 items-center gap-1">
+                <span
+                    className={cn(
+                        'size-1.5 shrink-0 rounded-full',
+                        present ? 'bg-current' : 'bg-muted-foreground/40',
+                    )}
+                    aria-hidden
+                />
+                <span className="truncate text-[10px] font-bold uppercase leading-tight tracking-wide">
                     {label}
                 </span>
-                <span className="block truncate text-sm font-medium">
-                    {name || `No ${label.toLowerCase()}`}
-                </span>
             </span>
-            {status ? (
-                <Badge variant="outline" className="h-auto shrink-0 whitespace-normal bg-background/80 py-0.5">
-                    {status}
-                </Badge>
+            <span className={cn('truncate text-xs font-medium leading-tight', !present && 'italic')}>
+                {name || 'None'}
+            </span>
+            {present && status ? (
+                <span className="truncate text-[10px] font-semibold leading-tight">{status}</span>
             ) : null}
         </span>
     );
 
-    const boxClassName = cn('block rounded-md border px-2.5 py-1.5', className);
+    const boxClassName = cn(
+        'block min-w-0 rounded-md border-2 px-2 py-1',
+        present ? className : 'border-dashed border-border bg-muted/50 text-muted-foreground',
+    );
 
     if (!name || !href) {
         return <div className={boxClassName}>{content}</div>;

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Bid;
+use App\Models\ClientCompany;
 use App\Models\Company;
 use App\Models\ContactDirectory\ContactCompany;
 use App\Models\Contractor;
@@ -17,7 +18,6 @@ use App\Models\ProjectScopeType;
 use App\Models\ProjectStatus;
 use App\Models\Quotation;
 use App\Models\Service;
-use App\Models\ClientCompany;
 use App\Models\User;
 use App\Models\UserLevel;
 use App\Support\BidAccess;
@@ -34,6 +34,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response as HttpResponse;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
@@ -499,37 +500,147 @@ class ProjectController extends Controller
     }
 
     /**
-     * @return array{total: int, amount: string|null, in_quotation: int, in_bid: int, in_takeoff: int}
+     * @return array{total: int, amount: string|null, in_quotation: int, in_bid: int, in_takeoff: int, to_bid: int, to_bid_amount: string|null, won: int, won_amount: string|null, lost: int, lost_amount: string|null}
      */
     private function projectListSummary(Request $request): array
     {
         $projects = $this->projectListingQuery($request)->reorder();
+        $ids = (clone $projects)->pluck('projects.id');
+        $outcomes = $this->projectBidOutcomes($ids);
         $summary = [
-            'total' => (clone $projects)->count(),
+            'total' => $ids->count(),
             'amount' => null,
             'in_quotation' => (clone $projects)->whereHas('quotations')->count(),
             'in_bid' => (clone $projects)->whereHas('bids')->count(),
             'in_takeoff' => (clone $projects)->whereHas('takeoffs')->count(),
+            'to_bid' => count($outcomes['to_bid']),
+            'to_bid_amount' => null,
+            'won' => count($outcomes['won']),
+            'won_amount' => null,
+            'lost' => count($outcomes['lost']),
+            'lost_amount' => null,
         ];
 
         if (! ProjectAccess::canViewSensitiveFields($request->user())) {
             return $summary;
         }
 
-        $ids = (clone $projects)->pluck('projects.id');
-        $pricedIds = ProjectPrice::query()
-            ->whereIn('project_id', $ids)
-            ->distinct()
-            ->pluck('project_id');
-        $priceSum = (float) ProjectPrice::query()->whereIn('project_id', $ids)->sum('amount');
-        $budgetSum = (float) Project::query()
-            ->whereIn('id', $ids)
-            ->when($pricedIds->isNotEmpty(), fn ($query) => $query->whereNotIn('id', $pricedIds))
-            ->sum('budget_amount');
-
-        $summary['amount'] = number_format($priceSum + $budgetSum, 2, '.', '');
+        $amounts = $this->projectAmounts($ids);
+        $summary['amount'] = $this->summaryMoney(array_sum($amounts));
+        $summary['to_bid_amount'] = $this->summaryMoney($this->outcomeMoney($outcomes['to_bid'], $amounts, false));
+        $summary['won_amount'] = $this->summaryMoney($this->outcomeMoney($outcomes['won'], $amounts, true));
+        $summary['lost_amount'] = $this->summaryMoney($this->outcomeMoney($outcomes['lost'], $amounts, true));
 
         return $summary;
+    }
+
+    /**
+     * @param  Collection<int, int>|array<int, int>  $ids
+     * @return array{to_bid: list<array{id: int, bid_total: float|null}>, won: list<array{id: int, bid_total: float|null}>, lost: list<array{id: int, bid_total: float|null}>}
+     */
+    private function projectBidOutcomes($ids): array
+    {
+        $groups = [
+            'to_bid' => [],
+            'won' => [],
+            'lost' => [],
+        ];
+
+        if ($ids->isEmpty()) {
+            return $groups;
+        }
+
+        $projects = Project::query()
+            ->whereIn('id', $ids)
+            ->with('status:id,name,slug')
+            ->get(['id', 'project_status_id']);
+        $latestBids = Bid::query()
+            ->whereIn('project_id', $ids)
+            ->with(['stages.type', 'scopes.products'])
+            ->orderByDesc('id')
+            ->get()
+            ->unique('project_id')
+            ->keyBy('project_id');
+
+        foreach ($projects as $project) {
+            $bid = $latestBids->get($project->id);
+            $stage = $bid?->stages->last()?->type?->name;
+            $mark = strtolower(trim(implode(' ', array_filter([
+                $project->status?->name,
+                $project->status?->slug,
+                $stage,
+            ]))));
+            $bucket = null;
+
+            if (preg_match('/\blost\b/', $mark) === 1) {
+                $bucket = 'lost';
+            } elseif (preg_match('/\bwon\b/', $mark) === 1) {
+                $bucket = 'won';
+            } elseif ($bid === null) {
+                $bucket = 'to_bid';
+            }
+
+            if ($bucket === null) {
+                continue;
+            }
+
+            $groups[$bucket][] = [
+                'id' => $project->id,
+                'bid_total' => $bid === null ? null : $bid->latestTotal(),
+            ];
+        }
+
+        return $groups;
+    }
+
+    /**
+     * @param  Collection<int, int>|array<int, int>  $ids
+     * @return array<int, float>
+     */
+    private function projectAmounts($ids): array
+    {
+        if ($ids->isEmpty()) {
+            return [];
+        }
+
+        $priceTotals = ProjectPrice::query()
+            ->whereIn('project_id', $ids)
+            ->selectRaw('project_id, SUM(amount) as total')
+            ->groupBy('project_id')
+            ->pluck('total', 'project_id');
+        $budgets = Project::query()->whereIn('id', $ids)->pluck('budget_amount', 'id');
+        $amounts = [];
+
+        foreach ($ids as $id) {
+            $key = (int) $id;
+            $amounts[$key] = $priceTotals->has($key) || $priceTotals->has((string) $key)
+                ? (float) ($priceTotals[$key] ?? $priceTotals[(string) $key])
+                : (float) ($budgets[$key] ?? $budgets[(string) $key] ?? 0);
+        }
+
+        return $amounts;
+    }
+
+    /**
+     * @param  list<array{id: int, bid_total: float|null}>  $rows
+     * @param  array<int, float>  $amounts
+     */
+    private function outcomeMoney(array $rows, array $amounts, bool $preferBid): float
+    {
+        return round(array_sum(array_map(function (array $row) use ($amounts, $preferBid): float {
+            $bidTotal = (float) ($row['bid_total'] ?? 0);
+
+            if ($preferBid && $bidTotal > 0) {
+                return $bidTotal;
+            }
+
+            return (float) ($amounts[$row['id']] ?? 0);
+        }, $rows)), 2);
+    }
+
+    private function summaryMoney(float $amount): string
+    {
+        return number_format($amount, 2, '.', '');
     }
 
     private function listDocument(Request $request): ProjectListDocument
