@@ -8,10 +8,10 @@ import {
     CardTitle,
 } from '@/Components/ui/card';
 import { Separator } from '@/Components/ui/separator';
+import PublicOwners from '@/Components/PublicOwners';
 import PublicLayout from '@/Layouts/PublicLayout';
 import { openContactForm } from '@/lib/contact';
 import { cn } from '@/lib/utils';
-import { Head } from '@inertiajs/react';
 import {
     Building2Icon,
     CheckCircle2Icon,
@@ -105,57 +105,13 @@ function useRevealOnScroll<T extends HTMLElement>() {
     return { ref, isVisible };
 }
 
-type AboutProps = {
-    canonicalUrl?: string;
-};
-
-export default function About({ canonicalUrl }: AboutProps) {
+export default function About() {
     const { t } = useTranslation('about');
     const heroReveal = useRevealOnScroll<HTMLElement>();
     const capabilityReveal = useRevealOnScroll<HTMLElement>();
-    const pageUrl =
-        canonicalUrl ??
-        (typeof window !== 'undefined' ? window.location.href : '');
-    const metaTitle = t('meta.title');
-    const metaDescription = t('meta.description');
-    const imageUrl = pageUrl
-        ? new URL('/images/products/door-row.svg', pageUrl).href
-        : '/images/products/door-row.svg';
-    const structuredData = {
-        '@context': 'https://schema.org',
-        '@type': 'AboutPage',
-        name: metaTitle,
-        description: metaDescription,
-        url: pageUrl || undefined,
-        primaryImageOfPage: imageUrl,
-        publisher: {
-            '@type': 'Organization',
-            name: 'Gateway Door Systems',
-        },
-    };
 
     return (
         <PublicLayout>
-            <Head title={metaTitle}>
-                <meta name="description" content={metaDescription} />
-                {pageUrl && <link rel="canonical" href={pageUrl} />}
-                <meta property="og:title" content={metaTitle} />
-                <meta
-                    property="og:description"
-                    content={metaDescription}
-                />
-                <meta property="og:type" content="website" />
-                <meta property="og:site_name" content="Gateway Door Systems" />
-                {pageUrl && <meta property="og:url" content={pageUrl} />}
-                <meta property="og:image" content={imageUrl} />
-                <meta name="twitter:card" content="summary_large_image" />
-                <meta name="twitter:title" content={metaTitle} />
-                <meta name="twitter:description" content={metaDescription} />
-                <meta name="twitter:image" content={imageUrl} />
-                <script type="application/ld+json">
-                    {JSON.stringify(structuredData)}
-                </script>
-            </Head>
 
             <section
                 ref={heroReveal.ref}
@@ -199,7 +155,7 @@ export default function About({ canonicalUrl }: AboutProps) {
                             ))}
                         </div>
 
-                        <div className="mt-8 flex flex-col gap-3 sm:mt-10 sm:flex-row">
+                        <div className="mt-8 flex flex-col gap-3 sm:mt-10 sm:flex-row sm:items-center">
                             <Button
                                 type="button"
                                 size="lg"
@@ -219,10 +175,18 @@ export default function About({ canonicalUrl }: AboutProps) {
                                     {t('hero.secondaryCta')}
                                 </a>
                             </Button>
+                            <a
+                                href="#owners"
+                                className="inline-flex min-h-11 items-center text-sm font-semibold text-foreground underline decoration-emerald-500 underline-offset-4"
+                            >
+                                {t('owners.link')}
+                            </a>
                         </div>
                     </div>
                 </div>
             </section>
+
+            <PublicOwners />
 
             <section
                 ref={capabilityReveal.ref}

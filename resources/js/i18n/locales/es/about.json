@@ -1,7 +1,7 @@
 {
   "meta": {
-    "title": "Nosotros",
-    "description": "Conozca cómo Gateway Door Systems ofrece construcción de salas SCIF e instalación profesional de puertas seguras, marcos reforzados, herrajes comerciales y aperturas listas para control de acceso para instalaciones comerciales, gubernamentales y sensibles."
+    "title": "Empresa de instalación de puertas seguras",
+    "description": "Gateway Door Systems instala puertas seguras, salas SCIF y cerraduras Kaba Mas X-10 y LKM10K para instalaciones comerciales y gubernamentales en Nueva York, Nueva Jersey y Pensilvania."
   },
   "hero": {
     "badge": "Sobre Gateway Door Systems",
@@ -80,6 +80,25 @@
       "handoff": {
         "title": "Apoyar la entrega",
         "description": "Comunicamos el trabajo completado, notas de instalación y cualquier seguimiento necesario para el equipo del proyecto."
+      }
+    }
+  },
+  "owners": {
+    "badge": "Los propietarios",
+    "title": "Larry Deminski y Ricardo Scarpim",
+    "description": "Los dos propietarios de Gateway Door Systems. Dirigen la empresa que suministra e instala puertas, ventanas y aperturas seguras especializadas en Nueva York, Nueva Jersey y Pensilvania.",
+    "shared": "Cada apertura recibe el mismo cuidado: un alcance claro, una instalación cuidadosa y una respuesta directa cuando llama.",
+    "link": "Conocer a los propietarios",
+    "people": {
+      "larry": {
+        "name": "Larry Deminski",
+        "role": "Propietario",
+        "text": "Larry dirige la relación con los clientes. Acompaña cada proyecto desde la primera conversación hasta las decisiones que llevan una apertura a la instalación."
+      },
+      "ricardo": {
+        "name": "Ricardo Scarpim",
+        "role": "Propietario",
+        "text": "Ricardo dirige la estimación y el trabajo práctico, para que el precio, el plan y la instalación sigan alineados."
       }
     }
   },

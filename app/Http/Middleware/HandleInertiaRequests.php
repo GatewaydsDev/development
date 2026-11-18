@@ -18,6 +18,7 @@ use App\Support\QuotationAccess;
 use App\Support\QuotationRevisionAssignments;
 use App\Support\ServiceAccess;
 use App\Support\SystemUpdateAccess;
+use App\Support\PublicSeo;
 use App\Support\TakeoffAccess;
 use Closure;
 use Illuminate\Http\Request;
@@ -89,6 +90,7 @@ class HandleInertiaRequests extends Middleware
             ],
             'companyPhoneNumber' => $company?->contact_phone_number,
             'companyEmail' => $company?->email,
+            'publicSeo' => PublicSeo::forRequest($request),
             'dailyTasksPending' => fn (): int => $request->user() instanceof User
                 ? DailyTaskAccess::pendingCount($request->user())
                 : 0,

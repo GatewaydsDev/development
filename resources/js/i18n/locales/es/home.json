@@ -1,7 +1,7 @@
 {
   "meta": {
-    "title": "Puertas y ventanas especiales — suministro e instalación",
-    "description": "Soluciones de puertas y ventanas para proyectos comerciales, industriales y de especialidad. Gateway Door Systems suministra e instala en el área tri-estatal."
+    "title": "Puertas y ventanas especiales en NY, NJ y PA",
+    "description": "Suministro e instalación de puertas y ventanas especiales, salas SCIF, puertas RF y cerraduras Kaba Mas X-10 y LKM10K en Nueva York, Nueva Jersey y Pensilvania."
   },
   "serviceArea": {
     "banner": "Orgullosamente sirviendo el área tri-estatal: NY · NJ · PA"
@@ -48,6 +48,21 @@
       "dock": {
         "title": "Equipo de muelle",
         "description": "Niveladores, sellos, shelters y equipo relacionado en el muelle de carga."
+      }
+    },
+    "supplies": {
+      "title": "Cerraduras que suministramos e instalamos",
+      "description": "Cerraduras de alta seguridad suministradas e instaladas con la apertura. Las imágenes son dibujos originales del tipo de cerradura, no fotografías del fabricante.",
+      "details": "Ver la certificación",
+      "kabaMasX10": {
+        "title": "Kaba Mas X-10",
+        "description": "Cerradura de combinación electromecánica para aperturas GSA y SCIF. Gateway tiene certificación de fábrica para instalar y dar servicio a la X-10 FF-L-2740B.",
+        "imageAlt": "Dibujo de una puerta con un disco de cerradura de combinación"
+      },
+      "lkm10k": {
+        "title": "Lockmasters LKM10K",
+        "description": "Serie LockOne LKM10K para aperturas seguras FF-L-2890C, incluidos los modelos de pánico y de empujar y tirar. Gateway tiene la credencial de fábrica de Lockmasters.",
+        "imageAlt": "Dibujo de una puerta con una cerradura de palanca y pestillo"
       }
     },
     "manufacturers": {

@@ -5,6 +5,7 @@ import SiteVaultIntro from '@/Components/SiteVaultIntro';
 import HelpCenter from '@/Components/HelpCenter';
 import LanguageSwitcher from '@/Components/LanguageSwitcher';
 import PublicActionFab from '@/Components/PublicActionFab';
+import PublicSeoHead from '@/Components/PublicSeoHead';
 import { openContactForm } from '@/lib/contact';
 import {
     PublicMobileServiceLinks,
@@ -247,6 +248,7 @@ export default function PublicLayout({ children }: PropsWithChildren) {
 
     return (
         <div className="min-h-screen bg-background text-foreground">
+            <PublicSeoHead />
             {!isAuthPage && <SiteVaultIntro />}
             {!isAuthPage && (
                 <FloatingSiteGear

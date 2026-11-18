@@ -401,6 +401,9 @@ export default function Authenticated({
     if (embedded) {
         return (
             <div className="min-h-screen bg-muted/30 text-foreground">
+                <Head>
+                    <meta head-key="robots" name="robots" content="noindex, nofollow" />
+                </Head>
                 {stickyTitle?.trim() && <Head title={stickyTitle.trim()} />}
                 {header ? (
                     <header className="border-b border-border bg-card">
@@ -416,6 +419,9 @@ export default function Authenticated({
 
     return (
         <div className="min-h-screen bg-muted/30 text-foreground">
+            <Head>
+                <meta head-key="robots" name="robots" content="noindex, nofollow" />
+            </Head>
             {stickyTitle?.trim() && <Head title={stickyTitle.trim()} />}
             <RevisionAssignmentListener userId={user.id} />
             <TabUnreadBadge />

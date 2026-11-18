@@ -140,6 +140,14 @@ export const serviceVisuals = {
         'security-equipment.svg',
         'Original drawing of a door with an access reader and a lock. Not a photograph.',
     ),
+    kabaMasX10: drawing(
+        'kaba-mas-x10.svg',
+        'Original drawing of a door with a combination-lock dial. Not a photograph and not a manufacturer image.',
+    ),
+    lkm10k: drawing(
+        'lkm10k.svg',
+        'Original drawing of a door with a lever lock and latch. Not a photograph and not a manufacturer image.',
+    ),
     pipeBollards: drawing(
         'bollards.svg',
         'Original drawing of pipe bollards. Not a photograph.',

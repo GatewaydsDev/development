@@ -1,7 +1,7 @@
 {
   "meta": {
-    "title": "About Us",
-    "description": "Learn how Gateway Door Systems delivers SCIF rooms construction and professional installation of secure doors, reinforced frames, commercial hardware, and access-control-ready openings for commercial, government, and sensitive facilities."
+    "title": "Secure Door Installation Company",
+    "description": "Gateway Door Systems installs secure doors, SCIF rooms, and Kaba Mas X-10 and LKM10K locks for commercial and government facilities in New York, New Jersey, and Pennsylvania."
   },
   "hero": {
     "badge": "About Gateway Door Systems",
@@ -80,6 +80,25 @@
       "handoff": {
         "title": "Support the handoff",
         "description": "We communicate completed work, installation notes, and any follow-up items needed for the project team."
+      }
+    }
+  },
+  "owners": {
+    "badge": "The owners",
+    "title": "Larry Deminski and Ricardo Scarpim",
+    "description": "The two owners of Gateway Door Systems. They lead the company that supplies and installs specialty doors, windows, and secure openings across New York, New Jersey, and Pennsylvania.",
+    "shared": "Every opening still gets the same care: a clear scope, a careful installation, and a direct answer when you call.",
+    "link": "Meet the owners",
+    "people": {
+      "larry": {
+        "name": "Larry Deminski",
+        "role": "Owner",
+        "text": "Larry leads the customer side of Gateway. He stays with a project from the first conversation through the decisions that get an opening built and installed."
+      },
+      "ricardo": {
+        "name": "Ricardo Scarpim",
+        "role": "Owner",
+        "text": "Ricardo leads the estimating and the practical side of the work, so the price, the plan, and the installation stay aligned."
       }
     }
   },

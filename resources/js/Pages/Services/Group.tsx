@@ -22,7 +22,6 @@ type GroupProps = {
 
 export default function Group({
     groupKey,
-    canonicalUrl,
 }: GroupProps) {
     const { t } = useTranslation('services');
     const { t: tHome } = useTranslation('home');
@@ -46,72 +45,10 @@ export default function Group({
     }
 
     const groupPath = `groups.${groupKey}`;
-    const metaTitle = t(`${groupPath}.metaTitle`);
-    const metaDescription = t(`${groupPath}.metaDescription`);
     const visual = serviceVisuals[groupKey];
-    const imageUrl = visual.hero
-        ? new URL(visual.hero, canonicalUrl).href
-        : undefined;
-    const origin = new URL(canonicalUrl).origin;
-    const structuredData = {
-        '@context': 'https://schema.org',
-        '@graph': [
-            {
-                '@type': 'Service',
-                name: t(`${groupPath}.title`),
-                description: metaDescription,
-                serviceType: t(`${groupPath}.title`),
-                provider: {
-                    '@type': 'LocalBusiness',
-                    name: 'Gateway Door Systems',
-                },
-                areaServed: ['New York', 'New Jersey', 'Pennsylvania'],
-                url: canonicalUrl,
-            },
-            {
-                '@type': 'BreadcrumbList',
-                itemListElement: [
-                    {
-                        '@type': 'ListItem',
-                        position: 1,
-                        name: 'Home',
-                        item: origin,
-                    },
-                    {
-                        '@type': 'ListItem',
-                        position: 2,
-                        name: t(`${groupPath}.title`),
-                        item: canonicalUrl,
-                    },
-                ],
-            },
-        ],
-    };
 
     return (
         <PublicLayout>
-            <Head title={metaTitle}>
-                <meta name="description" content={metaDescription} />
-                <link rel="canonical" href={canonicalUrl} />
-                <meta property="og:title" content={metaTitle} />
-                <meta property="og:description" content={metaDescription} />
-                <meta property="og:type" content="website" />
-                <meta property="og:site_name" content="Gateway Door Systems" />
-                <meta property="og:url" content={canonicalUrl} />
-                {imageUrl ? (
-                    <meta property="og:image" content={imageUrl} />
-                ) : null}
-                <meta name="twitter:card" content="summary_large_image" />
-                <meta name="twitter:title" content={metaTitle} />
-                <meta name="twitter:description" content={metaDescription} />
-                {imageUrl ? (
-                    <meta name="twitter:image" content={imageUrl} />
-                ) : null}
-                <script type="application/ld+json">
-                    {JSON.stringify(structuredData)}
-                </script>
-            </Head>
-
             <section className="relative overflow-hidden border-b border-border bg-background">
                 <div className="mx-auto grid max-w-7xl gap-8 px-4 py-12 sm:px-6 sm:py-16 lg:grid-cols-[1.1fr_0.9fr] lg:items-center lg:px-8 lg:py-24">
                     <div>

@@ -4,7 +4,6 @@ import { Button } from '@/Components/ui/button';
 import { certifications } from '@/data/certifications';
 import PublicLayout from '@/Layouts/PublicLayout';
 import { openContactForm } from '@/lib/contact';
-import { Head } from '@inertiajs/react';
 import {
     BadgeCheckIcon,
     DoorOpenIcon,
@@ -15,10 +14,6 @@ import {
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
-type CertificationsProps = {
-    canonicalUrl?: string;
-};
-
 const highlightItems = [
     { key: 'factory', Icon: BadgeCheckIcon },
     { key: 'kabaMasX10', Icon: KeyRoundIcon },
@@ -27,70 +22,11 @@ const highlightItems = [
     { key: 'scifRooms', Icon: ShieldCheckIcon },
 ] as const;
 
-export default function Certifications({ canonicalUrl }: CertificationsProps) {
+export default function Certifications() {
     const { t } = useTranslation('certifications');
-    const pageUrl =
-        canonicalUrl ??
-        (typeof window !== 'undefined' ? window.location.href : '');
-    const metaTitle = t('meta.title');
-    const metaDescription = t('meta.description');
-    const imageUrl = pageUrl
-        ? new URL('/images/lockmasters-logo.webp', pageUrl).href
-        : '/images/lockmasters-logo.webp';
-    const scifServiceUrl = pageUrl
-        ? new URL('/services/scif-rooms-construction', pageUrl).href
-        : '/services/scif-rooms-construction';
-    const structuredData = {
-        '@context': 'https://schema.org',
-        '@type': 'WebPage',
-        name: metaTitle,
-        description: metaDescription,
-        url: pageUrl || undefined,
-        about: [
-            ...certifications.map((certification) => ({
-                '@type': 'EducationalOccupationalCredential',
-                name: t(`items.${certification.key}.title`),
-                description: t(`items.${certification.key}.summary`),
-                ...(certification.website
-                    ? {
-                          recognizedBy: {
-                              '@type': 'Organization',
-                              url: certification.website,
-                          },
-                      }
-                    : {}),
-            })),
-            {
-                '@type': 'Service',
-                name: 'SCIF Rooms Construction',
-                url: scifServiceUrl,
-            },
-        ],
-        publisher: {
-            '@type': 'Organization',
-            name: 'Gateway Door Systems',
-        },
-    };
 
     return (
         <PublicLayout>
-            <Head title={metaTitle}>
-                <meta name="description" content={metaDescription} />
-                {pageUrl && <link rel="canonical" href={pageUrl} />}
-                <meta property="og:title" content={metaTitle} />
-                <meta property="og:description" content={metaDescription} />
-                <meta property="og:type" content="website" />
-                <meta property="og:site_name" content="Gateway Door Systems" />
-                {pageUrl && <meta property="og:url" content={pageUrl} />}
-                <meta property="og:image" content={imageUrl} />
-                <meta name="twitter:card" content="summary_large_image" />
-                <meta name="twitter:title" content={metaTitle} />
-                <meta name="twitter:description" content={metaDescription} />
-                <meta name="twitter:image" content={imageUrl} />
-                <script type="application/ld+json">
-                    {JSON.stringify(structuredData)}
-                </script>
-            </Head>
 
             <section className="relative overflow-hidden border-b border-border bg-background">
                 <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(52,211,153,0.14),_transparent_42%),linear-gradient(rgba(0,0,0,0.02)_1px,_transparent_1px),linear-gradient(90deg,_rgba(0,0,0,0.02)_1px,_transparent_1px)] bg-[size:auto_auto,56px_56px,56px_56px] dark:bg-[radial-gradient(circle_at_top_left,_rgba(52,211,153,0.12),_transparent_42%),linear-gradient(rgba(255,255,255,0.025)_1px,_transparent_1px),linear-gradient(90deg,_rgba(255,255,255,0.025)_1px,_transparent_1px)]" />

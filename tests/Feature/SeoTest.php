@@ -21,6 +21,9 @@ it('serves robots.txt with a sitemap directive and private path blocks', functio
         ->assertSee('Allow: /', false)
         ->assertSee('Disallow: /dashboard', false)
         ->assertSee('Disallow: /administration', false)
+        ->assertSee('Disallow: /portal', false)
+        ->assertSee('Disallow: /email', false)
+        ->assertSee('Disallow: /contact-directory', false)
         ->assertSee('Sitemap: '.url('/sitemap.xml'), false);
 });
 
@@ -52,4 +55,22 @@ it('renders the scif rooms construction service page', function () {
             ->where('serviceKey', 'scifRoomsConstruction')
             ->where('serviceSlug', 'scif-rooms-construction')
         );
+});
+
+it('prints indexable metadata for the home page before javascript runs', function () {
+    $this->get('/')
+        ->assertOk()
+        ->assertSee('<title inertia>Specialty Doors &amp; Windows in NY, NJ &amp; PA - '.e(config('app.name')).'</title>', false)
+        ->assertSee('name="description" content="Supply and installation of specialty doors, windows, SCIF rooms, RF doors, and Kaba Mas X-10 and LKM10K locks', false)
+        ->assertSee('rel="canonical"', false)
+        ->assertSee('Kaba Mas X-10', false)
+        ->assertSee('Lockmasters LKM10K', false)
+        ->assertSee('application/ld+json', false)
+        ->assertSee('content="index, follow"', false);
+});
+
+it('asks search engines not to index the sign-in page', function () {
+    $this->get('/login')
+        ->assertOk()
+        ->assertSee('name="robots" content="noindex, nofollow"', false);
 });

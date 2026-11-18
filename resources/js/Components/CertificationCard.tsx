@@ -39,7 +39,10 @@ export default function CertificationCard({
     const translationRoot = `items.${certification.key}`;
 
     return (
-        <article className="flex h-full flex-col overflow-hidden rounded-3xl border border-border bg-card shadow-xl shadow-emerald-950/5 ring-1 ring-emerald-500/10">
+        <article
+            id={certification.id}
+            className="scroll-mt-28 flex h-full flex-col overflow-hidden rounded-3xl border border-border bg-card shadow-xl shadow-emerald-950/5 ring-1 ring-emerald-500/10"
+        >
             <div
                 className={
                     'flex min-h-36 items-center justify-center px-6 py-8 ' +

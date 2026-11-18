@@ -1,7 +1,7 @@
 {
   "meta": {
-    "title": "Specialty Doors & Windows — Supply and Installation",
-    "description": "Door and window solutions for commercial, industrial, and specialty projects. Gateway Door Systems supplies and installs across the tri-state area."
+    "title": "Specialty Doors & Windows in NY, NJ & PA",
+    "description": "Supply and installation of specialty doors, windows, SCIF rooms, RF doors, and Kaba Mas X-10 and LKM10K locks in New York, New Jersey, and Pennsylvania."
   },
   "serviceArea": {
     "banner": "Proudly serving the tri-state area: NY · NJ · PA"
@@ -48,6 +48,21 @@
       "dock": {
         "title": "Dock Equipment",
         "description": "Dock levelers, seals, shelters, and related equipment at the loading dock."
+      }
+    },
+    "supplies": {
+      "title": "Locks we supply and install",
+      "description": "High-security locks supplied and installed with the opening. The pictures are original drawings of the lock type, not manufacturer photographs.",
+      "details": "See the certification",
+      "kabaMasX10": {
+        "title": "Kaba Mas X-10",
+        "description": "Electromechanical combination lock for GSA and SCIF openings. Gateway is factory-certified to install and service the FF-L-2740B X-10.",
+        "imageAlt": "Drawing of a door with a combination lock dial"
+      },
+      "lkm10k": {
+        "title": "Lockmasters LKM10K",
+        "description": "LockOne LKM10K series for FF-L-2890C secure openings, including panic and push/pull models. Gateway holds the Lockmasters factory credential.",
+        "imageAlt": "Drawing of a door with a lever lock and latch"
       }
     },
     "manufacturers": {

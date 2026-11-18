@@ -4,9 +4,9 @@ import ServiceVisual from '@/Components/ServiceVisual';
 import PublicLayout from '@/Layouts/PublicLayout';
 import { certifications } from '@/data/certifications';
 import { serviceVisuals, type ServiceVisualKey } from '@/data/serviceVisuals';
-import { catalogItemHref, catalogItems } from '@/data/services';
 import { openContactForm } from '@/lib/contact';
-import { Head, Link } from '@inertiajs/react';
+import { Link } from '@inertiajs/react';
+import { type ImgHTMLAttributes } from 'react';
 import { useTranslation } from 'react-i18next';
 
 const categories: Array<{
@@ -46,92 +46,23 @@ const categories: Array<{
     },
 ];
 
+const supplies = [
+    { key: 'kabaMasX10', visualKey: 'kabaMasX10', anchor: 'kaba-mas-x-10' },
+    { key: 'lkm10k', visualKey: 'lkm10k', anchor: 'lkm10k' },
+] as const satisfies ReadonlyArray<{
+    key: 'kabaMasX10' | 'lkm10k';
+    visualKey: ServiceVisualKey;
+    anchor: string;
+}>;
+
 const steps = ['plans', 'review', 'install'] as const;
 
-type HomeProps = {
-    companyPhoneNumber?: string | null;
-    companyEmail?: string | null;
-    canonicalUrl?: string;
-};
-
-export default function Home({
-    companyPhoneNumber,
-    companyEmail,
-    canonicalUrl,
-}: HomeProps) {
+export default function Home() {
     const { t } = useTranslation('home');
     const { t: tCertifications } = useTranslation('certifications');
-    const pageUrl =
-        canonicalUrl ??
-        (typeof window !== 'undefined' ? window.location.href : '');
-    const metaTitle = t('meta.title');
-    const metaDescription = t('meta.description');
-    const imageUrl = pageUrl
-        ? new URL('/images/products/hero.svg', pageUrl).href
-        : '/images/products/hero.svg';
-    const logoUrl = pageUrl
-        ? new URL('/images/Gateway_Door_Systems_Logo.png', pageUrl).href
-        : '/images/Gateway_Door_Systems_Logo.png';
-    const structuredData = {
-        '@context': 'https://schema.org',
-        '@graph': [
-            {
-                '@type': 'LocalBusiness',
-                name: 'Gateway Door Systems',
-                description: metaDescription,
-                url: pageUrl || undefined,
-                image: imageUrl,
-                logo: logoUrl,
-                areaServed: ['New York', 'New Jersey', 'Pennsylvania'],
-                knowsAbout: [
-                    'Specialty doors',
-                    'Specialty windows',
-                    'Door installation',
-                    'Window installation',
-                ],
-                hasOfferCatalog: {
-                    '@type': 'OfferCatalog',
-                    name: t('publicSite.categories.title'),
-                    itemListElement: catalogItems.map((item) => ({
-                        '@type': 'Offer',
-                        itemOffered: {
-                            '@type': 'Service',
-                            name: t(`services.items.${item.key}.title`),
-                            description: t(
-                                `services.items.${item.key}.description`,
-                            ),
-                            url: pageUrl
-                                ? new URL(catalogItemHref(item), pageUrl).href
-                                : catalogItemHref(item),
-                        },
-                    })),
-                },
-                ...(companyPhoneNumber
-                    ? { telephone: companyPhoneNumber }
-                    : {}),
-                ...(companyEmail ? { email: companyEmail } : {}),
-            },
-            {
-                '@type': 'WebSite',
-                name: 'Gateway Door Systems',
-                url: pageUrl || undefined,
-            },
-        ],
-    };
 
     return (
         <PublicLayout>
-            <Head title={metaTitle}>
-                <meta head-key="description" name="description" content={metaDescription} />
-                <link head-key="canonical" rel="canonical" href={pageUrl} />
-                <meta head-key="og:title" property="og:title" content={metaTitle} />
-                <meta head-key="og:description" property="og:description" content={metaDescription} />
-                <meta head-key="og:image" property="og:image" content={imageUrl} />
-                <meta head-key="og:url" property="og:url" content={pageUrl} />
-                <script head-key="ldjson" type="application/ld+json">
-                    {JSON.stringify(structuredData)}
-                </script>
-            </Head>
 
             <section className="bg-[#111827] text-white">
                 <div className="mx-auto grid min-h-[28rem] max-w-7xl lg:min-h-[calc(100svh-5.5rem)] lg:max-h-[42rem] lg:grid-cols-2 lg:items-stretch">
@@ -169,8 +100,8 @@ export default function Home({
                             alt={t('publicSite.hero.imageAlt')}
                             width={640}
                             height={400}
-                            fetchPriority="high"
                             className="h-64 w-full object-contain sm:h-80 lg:h-full lg:min-h-[28rem]"
+                            {...({ fetchpriority: 'high' } as ImgHTMLAttributes<HTMLImageElement>)}
                         />
                     </div>
                 </div>
@@ -235,6 +166,49 @@ export default function Home({
                                     </Link>
                                 </div>
                             </article>
+                            );
+                        })}
+                    </div>
+                </div>
+            </section>
+
+            <section className="border-t border-border bg-background" aria-labelledby="supplies-title">
+                <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8 lg:py-20">
+                    <h2 id="supplies-title" className="text-3xl font-semibold tracking-tight text-foreground">
+                        {t('publicSite.supplies.title')}
+                    </h2>
+                    <p className="mt-3 max-w-2xl text-base leading-7 text-muted-foreground">
+                        {t('publicSite.supplies.description')}
+                    </p>
+                    <div className="mt-10 grid gap-6 sm:grid-cols-2">
+                        {supplies.map((item) => {
+                            const visual = serviceVisuals[item.visualKey];
+                            const title = t(`publicSite.supplies.${item.key}.title`);
+
+                            return (
+                                <article key={item.key} className="flex flex-col overflow-hidden border border-border bg-card">
+                                    <ServiceVisual
+                                        src={visual.hero}
+                                        alt={t(`publicSite.supplies.${item.key}.imageAlt`)}
+                                        label={title}
+                                        fit={visual.fit}
+                                        className="aspect-[16/10]"
+                                    />
+                                    <div className="flex flex-1 flex-col p-5">
+                                        <h3 className="text-lg font-semibold text-foreground">
+                                            {title}
+                                        </h3>
+                                        <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                                            {t(`publicSite.supplies.${item.key}.description`)}
+                                        </p>
+                                        <Link
+                                            href={`/certifications#${item.anchor}`}
+                                            className="mt-4 inline-flex min-h-11 items-center text-sm font-semibold text-foreground underline decoration-[#3FCF8E] underline-offset-4"
+                                        >
+                                            {t('publicSite.supplies.details')}
+                                        </Link>
+                                    </div>
+                                </article>
                             );
                         })}
                     </div>

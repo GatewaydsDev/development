@@ -75,6 +75,12 @@ class SeoController extends Controller
             'Disallow: /confirm-password',
             'Disallow: /notifications',
             'Disallow: /send-sms',
+            'Disallow: /portal',
+            'Disallow: /email',
+            'Disallow: /internal-chat',
+            'Disallow: /contact-directory',
+            'Disallow: /presence',
+            'Disallow: /appearance',
             '',
             'Sitemap: '.url('/sitemap.xml'),
         ];

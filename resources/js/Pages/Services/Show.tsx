@@ -44,8 +44,6 @@ const processItems = ['review', 'coordinate', 'install', 'verify'];
 
 export default function ServiceShow({
     serviceKey,
-    serviceSlug,
-    canonicalUrl,
 }: ServiceShowProps) {
     const { t } = useTranslation('services');
     const service = serviceDefinitionsByKey[serviceKey];
@@ -69,65 +67,11 @@ export default function ServiceShow({
     const ServiceIcon = service.Icon;
     const isRadioFrequencyDoors = serviceKey === 'radioFrequencyDoors';
     const servicePath = `services.${service.key}`;
-    const metaTitle = t(`${servicePath}.metaTitle`);
-    const metaDescription = t(`${servicePath}.metaDescription`);
     const visual = serviceVisuals[serviceKey];
     const factKeys = ['one', 'two', 'three'] as const;
     const facts = factKeys
         .map((key) => t(`${servicePath}.facts.${key}`, { defaultValue: '' }))
         .filter((text) => text !== '');
-    const imageUrl = visual.hero
-        ? new URL(visual.hero, canonicalUrl).href
-        : undefined;
-    const origin = new URL(canonicalUrl).origin;
-    const structuredData = {
-        '@context': 'https://schema.org',
-        '@graph': [
-            {
-                '@type': 'Service',
-                name: t(`${servicePath}.title`),
-                description: metaDescription,
-                serviceType: t(`${servicePath}.title`),
-                provider: {
-                    '@type': 'LocalBusiness',
-                    name: 'Gateway Door Systems',
-                    areaServed: [
-                        'New York',
-                        'New Jersey',
-                        'Pennsylvania',
-                    ],
-                },
-                url: canonicalUrl,
-                ...(imageUrl ? { image: imageUrl } : {}),
-                areaServed: ['New York', 'New Jersey', 'Pennsylvania'],
-                mainEntityOfPage: canonicalUrl,
-                identifier: serviceSlug,
-            },
-            {
-                '@type': 'BreadcrumbList',
-                itemListElement: [
-                    {
-                        '@type': 'ListItem',
-                        position: 1,
-                        name: 'Home',
-                        item: origin + '/',
-                    },
-                    {
-                        '@type': 'ListItem',
-                        position: 2,
-                        name: 'Services',
-                        item: origin + '/#services',
-                    },
-                    {
-                        '@type': 'ListItem',
-                        position: 3,
-                        name: t(`${servicePath}.title`),
-                        item: canonicalUrl,
-                    },
-                ],
-            },
-        ],
-    };
 
     const heroIntro = (
         <>
@@ -191,27 +135,6 @@ export default function ServiceShow({
 
     return (
         <PublicLayout>
-            <Head title={metaTitle}>
-                <meta name="description" content={metaDescription} />
-                <link rel="canonical" href={canonicalUrl} />
-                <meta property="og:title" content={metaTitle} />
-                <meta property="og:description" content={metaDescription} />
-                <meta property="og:type" content="website" />
-                <meta property="og:site_name" content="Gateway Door Systems" />
-                <meta property="og:url" content={canonicalUrl} />
-                {imageUrl ? (
-                    <meta property="og:image" content={imageUrl} />
-                ) : null}
-                <meta name="twitter:card" content="summary_large_image" />
-                <meta name="twitter:title" content={metaTitle} />
-                <meta name="twitter:description" content={metaDescription} />
-                {imageUrl ? (
-                    <meta name="twitter:image" content={imageUrl} />
-                ) : null}
-                <script type="application/ld+json">
-                    {JSON.stringify(structuredData)}
-                </script>
-            </Head>
 
             <section className="relative overflow-hidden border-b border-border bg-background">
                 {isRadioFrequencyDoors ? (

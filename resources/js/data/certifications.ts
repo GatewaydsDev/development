@@ -10,6 +10,7 @@ export const certificationImageSize = {
 export const certifications = [
     {
         key: 'lockmasters',
+        id: 'lockmasters',
         logo: '/images/lockmasters-logo.webp',
         image: '/images/certification-lockmasters.webp',
         website: lockmastersWebsite,
@@ -19,6 +20,7 @@ export const certifications = [
     },
     {
         key: 'kabaMasX10',
+        id: 'kaba-mas-x-10',
         logo: '/images/lockmasters-logo.webp',
         image: null,
         website: kabaMasWebsite,
@@ -28,6 +30,7 @@ export const certifications = [
     },
     {
         key: 'lkm10k',
+        id: 'lkm10k',
         logo: '/images/lockmasters-logo.webp',
         image: null,
         website: lockmastersInstituteWebsite,
@@ -37,6 +40,7 @@ export const certifications = [
     },
     {
         key: 'rf',
+        id: 'rf',
         logo: null,
         image: '/images/products/rf.svg',
         website: null,
@@ -46,6 +50,7 @@ export const certifications = [
     },
     {
         key: 'scifRooms',
+        id: 'scif-rooms',
         logo: null,
         image: '/images/products/scif.svg',
         website: null,
