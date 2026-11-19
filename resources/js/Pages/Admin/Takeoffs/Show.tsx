@@ -1,4 +1,6 @@
 import AiDraftButton from '@/Components/AiDraftButton';
+import RichTextEditor from '@/Components/RichTextEditor';
+import { notesToHtml } from '@/lib/notesHtml';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import FormActionFab from '@/Components/FormActionFab';
 import TextInput from '@/Components/TextInput';
@@ -1148,19 +1150,14 @@ export default function Show({ takeoff, templates, quotations, can }: Props) {
                         }}
                         currentText={[details.data.notes, openingSummary].filter(Boolean).join('\n')}
                         onDraft={(text) => {
-                            const plain = text
-                                .replace(/<br\s*\/?>/gi, '\n')
-                                .replace(/<\/p>/gi, '\n')
-                                .replace(/<[^>]+>/g, '')
-                                .replace(/\n{3,}/g, '\n\n')
-                                .trim();
+                            const incoming = notesToHtml(text.trim());
 
-                            if (plain === '') {
+                            if (incoming === '') {
                                 return;
                             }
 
                             const notes = details.data.notes.trim();
-                            details.setData('notes', notes === '' ? plain : `${notes}\n\n${plain}`);
+                            details.setData('notes', notes === '' ? incoming : `${notes}${incoming}`);
                         }}
                     />
                     <label className="text-sm">Title<TextInput className="mt-1 w-full" value={details.data.title} onChange={(event) => details.setData('title', event.target.value)} /></label>
@@ -1188,15 +1185,20 @@ export default function Show({ takeoff, templates, quotations, can }: Props) {
                                 : <label className="text-sm">Target margin percent<TextInput className="mt-1 w-full" value={details.data.margin_percent} onChange={(event) => details.setData('margin_percent', event.target.value)} /></label>}
                         </>
                     ) : null}
-                    <label className="text-sm md:col-span-4">
+                    <div className="text-sm md:col-span-4">
                         Notes
-                        <textarea
-                            className="mt-1 w-full rounded-md border-gray-300 shadow-sm"
-                            rows={3}
-                            value={details.data.notes}
-                            onChange={(event) => details.setData('notes', event.target.value)}
-                        />
-                    </label>
+                        <div className="mt-1">
+                            <RichTextEditor
+                                id="takeoff-notes"
+                                compact
+                                showPlaceholders={false}
+                                allowSideToolbar={false}
+                                value={notesToHtml(details.data.notes)}
+                                onChange={(html) => details.setData('notes', html)}
+                                placeholder="Notes for this takeoff"
+                            />
+                        </div>
+                    </div>
                     <div className="md:col-span-4 flex gap-2">
                         {details.errors.pricing_method ? <p className="text-sm text-destructive">{details.errors.pricing_method}</p> : null}
                         {details.errors.margin_percent ? <p className="text-sm text-destructive">{details.errors.margin_percent}</p> : null}

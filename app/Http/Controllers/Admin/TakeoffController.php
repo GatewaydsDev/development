@@ -98,7 +98,7 @@ class TakeoffController extends Controller
         $data = $request->validate([
             'project_id' => ['nullable', 'integer', 'exists:projects,id'],
             'title' => ['nullable', 'string', 'max:255'],
-            'notes' => ['nullable', 'string', 'max:5000'],
+            'notes' => ['nullable', 'string', 'max:60000'],
             'file' => ['nullable', 'file', 'mimes:pdf', 'max:'.config('takeoffs.max_kilobytes')],
         ]);
 
@@ -272,7 +272,7 @@ class TakeoffController extends Controller
             'title' => ['required', 'string', 'max:255'],
             'revision_number' => ['sometimes', 'integer', 'min:1', 'max:9999'],
             'revision_label' => ['sometimes', 'nullable', 'string', 'max:40'],
-            'notes' => ['nullable', 'string', 'max:5000'],
+            'notes' => ['nullable', 'string', 'max:60000'],
             'status' => ['required', Rule::in(config('takeoffs.statuses'))],
             'pricing_method' => ['nullable', Rule::in(config('takeoffs.pricing_methods'))],
             'markup_percent' => ['nullable', 'numeric', 'min:0', 'max:1000'],

@@ -4,7 +4,9 @@ import FormActionFab from '@/Components/FormActionFab';
 import InputError from '@/Components/InputError';
 import InputLabel from '@/Components/InputLabel';
 import QuickProjectDialog from '@/Components/QuickProjectDialog';
+import RichTextEditor from '@/Components/RichTextEditor';
 import TextInput from '@/Components/TextInput';
+import { notesToHtml } from '@/lib/notesHtml';
 import { Button } from '@/Components/ui/button';
 import {
     Card,
@@ -100,7 +102,7 @@ export default function Create({ projects, projectId }: { projects: ProjectOptio
                         <CardHeader>
                             <CardTitle>Takeoff information</CardTitle>
                             <CardDescription>
-                                Choose the project, then add the drawing the openings will be counted from.
+                                Add the drawing, then choose the project the openings will be counted for.
                             </CardDescription>
                         </CardHeader>
                         <CardContent>
@@ -121,21 +123,45 @@ export default function Create({ projects, projectId }: { projects: ProjectOptio
                                     }}
                                     currentText={form.data.notes}
                                     onDraft={(text) => {
-                                        const plain = text
-                                            .replace(/<br\s*\/?>/gi, '\n')
-                                            .replace(/<\/p>/gi, '\n')
-                                            .replace(/<[^>]+>/g, '')
-                                            .replace(/\n{3,}/g, '\n\n')
-                                            .trim();
+                                        const incoming = notesToHtml(text.trim());
 
-                                        if (plain === '') {
+                                        if (incoming === '') {
                                             return;
                                         }
 
                                         const notes = form.data.notes.trim();
-                                        form.setData('notes', notes === '' ? plain : `${notes}\n\n${plain}`);
+                                        form.setData('notes', notes === '' ? incoming : `${notes}${incoming}`);
                                     }}
                                 />
+                                <section className="flex flex-col gap-5 rounded-xl border border-amber-200 bg-amber-50 p-5 dark:border-amber-900/60 dark:bg-amber-950/30">
+                                    <div className="flex items-start gap-3">
+                                        <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-200">
+                                            <FileTextIcon className="size-4" />
+                                        </span>
+                                        <div>
+                                            <h3 className="text-base font-semibold text-foreground">Drawing or door schedule</h3>
+                                            <p className="text-sm text-muted-foreground">
+                                                Upload a PDF up to 64 MB. The drawing is read for every door and window. You confirm each one before it is added, and the measurements, location, and other specs that can be read come with it.
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <div className="flex flex-col gap-2">
+                                        <InputLabel htmlFor="drawing" value="PDF" className={labelClassName} />
+                                        <input
+                                            id="drawing"
+                                            type="file"
+                                            accept="application/pdf,.pdf"
+                                            className="block w-full text-sm text-muted-foreground file:mr-4 file:h-11 file:rounded-md file:border-0 file:bg-emerald-600 file:px-3 file:text-sm file:font-medium file:text-white hover:file:bg-emerald-700"
+                                            onChange={(event) => form.setData('file', event.target.files?.[0] ?? null)}
+                                        />
+                                        {form.data.file ? (
+                                            <p className="text-sm text-foreground">{form.data.file.name}</p>
+                                        ) : (
+                                            <p className="text-sm text-muted-foreground">A drawing can also be added after the takeoff is created.</p>
+                                        )}
+                                        <InputError message={form.errors.file} />
+                                    </div>
+                                </section>
                                 <section className="flex flex-col gap-5 rounded-xl border border-emerald-200 bg-emerald-50 p-5 dark:border-emerald-900/60 dark:bg-emerald-950/30">
                                     <div>
                                         <h3 className="text-base font-semibold text-foreground">Project</h3>
@@ -195,35 +221,6 @@ export default function Create({ projects, projectId }: { projects: ProjectOptio
                                         </div>
                                     </div>
                                 </section>
-                                <section className="flex flex-col gap-5 rounded-xl border border-amber-200 bg-amber-50 p-5 dark:border-amber-900/60 dark:bg-amber-950/30">
-                                    <div className="flex items-start gap-3">
-                                        <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-200">
-                                            <FileTextIcon className="size-4" />
-                                        </span>
-                                        <div>
-                                            <h3 className="text-base font-semibold text-foreground">Drawing or door schedule</h3>
-                                            <p className="text-sm text-muted-foreground">
-                                                Upload a PDF up to 64 MB. The drawing is read for every door and window. You confirm each one before it is added, and the measurements, location, and other specs that can be read come with it.
-                                            </p>
-                                        </div>
-                                    </div>
-                                    <div className="flex flex-col gap-2">
-                                        <InputLabel htmlFor="drawing" value="PDF" className={labelClassName} />
-                                        <input
-                                            id="drawing"
-                                            type="file"
-                                            accept="application/pdf,.pdf"
-                                            className="block w-full text-sm text-muted-foreground file:mr-4 file:h-11 file:rounded-md file:border-0 file:bg-emerald-600 file:px-3 file:text-sm file:font-medium file:text-white hover:file:bg-emerald-700"
-                                            onChange={(event) => form.setData('file', event.target.files?.[0] ?? null)}
-                                        />
-                                        {form.data.file ? (
-                                            <p className="text-sm text-foreground">{form.data.file.name}</p>
-                                        ) : (
-                                            <p className="text-sm text-muted-foreground">A drawing can also be added after the takeoff is created.</p>
-                                        )}
-                                        <InputError message={form.errors.file} />
-                                    </div>
-                                </section>
                                 <section className="flex flex-col gap-5 rounded-xl border border-violet-200 bg-violet-50 p-5 dark:border-violet-900/60 dark:bg-violet-950/30">
                                     <div className="flex items-start gap-3">
                                         <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-violet-100 text-violet-800 dark:bg-violet-950 dark:text-violet-200">
@@ -238,12 +235,15 @@ export default function Create({ projects, projectId }: { projects: ProjectOptio
                                     </div>
                                     <div className="flex flex-col gap-2">
                                         <InputLabel htmlFor="notes" value="Notes" className={labelClassName} />
-                                        <textarea
+                                        <RichTextEditor
                                             id="notes"
-                                            rows={4}
-                                            value={form.data.notes}
-                                            onChange={(event) => form.setData('notes', event.target.value)}
-                                            className="w-full rounded-md border border-border bg-background px-3 py-2 text-base text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring sm:text-sm"
+                                            compact
+                                            showPlaceholders={false}
+                                            allowSideToolbar={false}
+                                            value={notesToHtml(form.data.notes)}
+                                            onChange={(html) => form.setData('notes', html)}
+                                            placeholder="Notes for this takeoff"
+                                            error={form.errors.notes}
                                         />
                                         <InputError message={form.errors.notes} />
                                     </div>
