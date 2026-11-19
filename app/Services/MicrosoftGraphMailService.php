@@ -142,6 +142,125 @@ class MicrosoftGraphMailService
     }
 
     /**
+     * @param  list<string>  $to
+     * @param  list<string>  $cc
+     * @param  list<string>  $bcc
+     * @param  list<array{name: string, contentType: string, bytes: string}>  $attachments
+     */
+    public function saveDraft(
+        string $mailbox,
+        ?string $draftId,
+        array $to,
+        string $subject,
+        string $content,
+        string $contentType,
+        array $cc = [],
+        array $bcc = [],
+        string $importance = 'normal',
+        array $attachments = [],
+    ): string {
+        $mailbox = $this->resolveMailbox($mailbox);
+        $files = $this->attachmentPayload($attachments);
+        $subject = trim(preg_replace('/\s+/u', ' ', $subject) ?? $subject);
+
+        if ($subject === '') {
+            $subject = '(No subject)';
+        }
+
+        if (strcasecmp($contentType, 'HTML') === 0 && trim($content) !== '') {
+            $content = OutboundMailHtml::document($content, $subject);
+        }
+
+        if (trim($content) === '') {
+            $content = '<p></p>';
+            $contentType = 'HTML';
+        }
+
+        $message = [
+            'subject' => $subject,
+            'importance' => in_array($importance, ['low', 'high'], true) ? $importance : 'normal',
+            'body' => [
+                'contentType' => $contentType,
+                'content' => $content,
+            ],
+            'toRecipients' => $this->emailRecipients($to),
+            'ccRecipients' => $this->emailRecipients($cc),
+            'bccRecipients' => $this->emailRecipients($bcc),
+        ];
+
+        if (is_string($draftId) && $draftId !== '') {
+            $this->assertGraphId($draftId);
+            $response = $this->graph('PATCH', $this->userUrl($mailbox).'/messages/'.rawurlencode($draftId), $message, false);
+
+            if ($response->failed()) {
+                throw new MicrosoftGraphException($this->failureMessage($response, false));
+            }
+
+            foreach ($files as $file) {
+                $attached = $this->graph(
+                    'POST',
+                    $this->userUrl($mailbox).'/messages/'.rawurlencode($draftId).'/attachments',
+                    $file,
+                    false,
+                );
+
+                if ($attached->failed()) {
+                    throw new MicrosoftGraphException($this->failureMessage($attached, false));
+                }
+            }
+
+            return $draftId;
+        }
+
+        if ($files !== []) {
+            $message['attachments'] = $files;
+        }
+
+        $response = $this->graph('POST', $this->userUrl($mailbox).'/messages', $message, false);
+
+        if ($response->failed()) {
+            throw new MicrosoftGraphException($this->failureMessage($response, false));
+        }
+
+        $id = $response->json('id');
+
+        if (! is_string($id) || $id === '') {
+            throw new MicrosoftGraphException('Microsoft 365 did not keep that draft.');
+        }
+
+        return $id;
+    }
+
+    public function sendSavedDraft(string $mailbox, string $draftId): void
+    {
+        $mailbox = $this->resolveMailbox($mailbox);
+        $this->assertGraphId($draftId);
+
+        try {
+            $response = $this->graph(
+                'POST',
+                $this->userUrl($mailbox).'/messages/'.rawurlencode($draftId).'/send',
+                null,
+                true,
+            );
+        } catch (ConnectionException) {
+            throw new MicrosoftGraphException(
+                'Microsoft 365 did not confirm the message. It was not sent again.'
+            );
+        }
+
+        if ($response->failed()) {
+            throw new MicrosoftGraphException($this->failureMessage($response, true));
+        }
+
+        try {
+            $this->auditSend($mailbox);
+        } catch (\Throwable $exception) {
+            report($exception);
+        }
+    }
+
+    /**
      * @return array{messages: list<array<string, mixed>>, nextLink: ?string}
      */
     public function listFolder(
@@ -341,20 +460,20 @@ class MicrosoftGraphMailService
     /**
      * @return array<string, mixed>
      */
-    public function readMessage(string $mailbox, string $messageId): array
+    public function readMessage(string $mailbox, string $messageId, bool $keepHtml = false): array
     {
         $query = http_build_query([
-            '$select' => 'id,subject,from,toRecipients,ccRecipients,receivedDateTime,sentDateTime,body,bodyPreview,hasAttachments',
+            '$select' => 'id,subject,from,toRecipients,ccRecipients,bccRecipients,receivedDateTime,sentDateTime,body,bodyPreview,hasAttachments,isDraft',
         ]);
         $url = $this->userUrl($mailbox).'/messages/'.rawurlencode($messageId).'?'.$query;
 
-        $response = $this->graph('GET', $url, null, false);
+        $response = $this->graph('GET', $url, null, false, ! $keepHtml);
 
         if ($response->failed() && $response->status() !== 404) {
             $fallback = http_build_query([
                 '$select' => 'id,subject,from,toRecipients,receivedDateTime,sentDateTime,body,bodyPreview,hasAttachments',
             ]);
-            $response = $this->graph('GET', $this->userUrl($mailbox).'/messages/'.rawurlencode($messageId).'?'.$fallback, null, false);
+            $response = $this->graph('GET', $this->userUrl($mailbox).'/messages/'.rawurlencode($messageId).'?'.$fallback, null, false, ! $keepHtml);
         }
 
         if ($response->status() === 404) {
@@ -372,6 +491,8 @@ class MicrosoftGraphMailService
         }
 
         $body = is_array($item['body'] ?? null) ? $item['body'] : [];
+        $contentType = is_string($body['contentType'] ?? null) ? $body['contentType'] : null;
+        $content = is_string($body['content'] ?? null) ? $body['content'] : (string) ($item['bodyPreview'] ?? '');
         $graphId = (string) ($item['id'] ?? $messageId);
         $presented = $this->presentAttachments($mailbox, $graphId);
 
@@ -381,11 +502,14 @@ class MicrosoftGraphMailService
             'from' => $this->address($item['from'] ?? null),
             'to' => $this->addresses($item['toRecipients'] ?? []),
             'cc' => $this->addresses($item['ccRecipients'] ?? []),
+            'bcc' => $this->addresses($item['bccRecipients'] ?? []),
             'received_at' => $item['receivedDateTime'] ?? null,
             'sent_at' => $item['sentDateTime'] ?? null,
+            'is_draft' => ($item['isDraft'] ?? false) === true,
+            'html' => strcasecmp((string) $contentType, 'html') === 0 ? $content : '',
             'body' => EmailPlainText::fromGraph(
-                is_string($body['contentType'] ?? null) ? $body['contentType'] : null,
-                is_string($body['content'] ?? null) ? $body['content'] : (string) ($item['bodyPreview'] ?? ''),
+                $contentType,
+                $content,
             ),
             'images' => $presented['images'],
             'attachments' => $presented['attachments'],
@@ -954,7 +1078,7 @@ class MicrosoftGraphMailService
         return $files;
     }
 
-    private function graph(string $method, string $url, ?array $body, bool $sending): Response
+    private function graph(string $method, string $url, ?array $body, bool $sending, bool $preferText = true): Response
     {
         $attempt = 0;
 
@@ -966,7 +1090,7 @@ class MicrosoftGraphMailService
                 ->timeout($this->requestTimeout())
                 ->connectTimeout($this->connectTimeout());
 
-            if ($method === 'GET') {
+            if ($method === 'GET' && $preferText) {
                 $pending = $pending->withHeaders([
                     'Prefer' => 'outlook.body-content-type="text"',
                 ]);
@@ -1306,11 +1430,16 @@ class MicrosoftGraphMailService
         $graphFolder = match ($folder) {
             'sent' => 'sentitems',
             'archive' => 'archive',
+            'drafts' => 'drafts',
             default => 'inbox',
         };
-        $order = $folder === 'sent' ? 'sentDateTime desc' : 'receivedDateTime desc';
+        $order = match ($folder) {
+            'sent' => 'sentDateTime desc',
+            'drafts' => 'lastModifiedDateTime desc',
+            default => 'receivedDateTime desc',
+        };
         $query = http_build_query([
-            '$select' => 'id,subject,from,toRecipients,receivedDateTime,sentDateTime,bodyPreview,isRead,hasAttachments',
+            '$select' => 'id,subject,from,toRecipients,receivedDateTime,sentDateTime,lastModifiedDateTime,bodyPreview,isRead,hasAttachments',
             '$top' => 25,
             '$orderby' => $order,
         ] + ($folder === 'inbox' && in_array($status, ['read', 'unread'], true)

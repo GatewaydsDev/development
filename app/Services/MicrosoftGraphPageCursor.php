@@ -96,6 +96,7 @@ class MicrosoftGraphPageCursor
         $graphFolder = match ($folder) {
             'sent' => 'sentitems',
             'archive' => 'archive',
+            'drafts' => 'drafts',
             default => 'inbox',
         };
         $folderSegments = array_values(array_filter(explode('/', $matches[2]), fn (string $segment): bool => $segment !== ''));

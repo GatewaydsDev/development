@@ -24,10 +24,12 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from '@/Components/ui/dropdown-menu';
-import { ArchiveIcon, ArrowLeftIcon, ChevronDownIcon, DownloadIcon, ForwardIcon, MailIcon, MailOpenIcon, MoreVerticalIcon, PaperclipIcon, RefreshCwIcon, ReplyAllIcon, ReplyIcon, SendIcon, SquarePenIcon, XIcon } from 'lucide-react';
+import { ArchiveIcon, ArrowLeftIcon, ChevronDownIcon, DownloadIcon, FilePenLineIcon, ForwardIcon, MailIcon, MailOpenIcon, MoreVerticalIcon, PaperclipIcon, RefreshCwIcon, ReplyAllIcon, ReplyIcon, SendIcon, SquarePenIcon, XIcon } from 'lucide-react';
 import { type ReactNode, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { emptyStationery, type MailStationeryData } from '@/Pages/Email/mailLayouts';
+
+type MailFolder = MailFolder | 'drafts';
 
 type MailSummary = {
     id: string;
@@ -59,6 +61,8 @@ type MailMessage = {
     received_at: string | null;
     sent_at: string | null;
     body: string;
+    html?: string;
+    bcc?: string[];
     images?: Array<{ name: string; src: string }>;
     attachments?: MailAttachment[];
     has_attachments?: boolean;
@@ -71,7 +75,7 @@ type AttachmentViewer = {
 
 type Props = {
     mailbox: string | null;
-    folder: 'inbox' | 'sent' | 'archive';
+    folder: MailFolder;
     status: 'all' | 'unread' | 'read';
     messages: MailSummary[];
     nextCursor: string | null;
@@ -188,10 +192,19 @@ function MessageStatus({
     folder,
     isRead,
 }: {
-    folder: 'inbox' | 'sent' | 'archive';
+    folder: MailFolder;
     isRead: boolean;
 }) {
     const { t } = useTranslation('mail');
+
+    if (folder === 'drafts') {
+        return (
+            <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800 dark:bg-amber-950 dark:text-amber-200">
+                <FilePenLineIcon className="size-3.5" />
+                {t('drafts')}
+            </span>
+        );
+    }
 
     if (folder === 'sent') {
         return (
@@ -227,7 +240,7 @@ function MessageOptions({
     onArchive,
 }: {
     messageId: string;
-    folder: 'inbox' | 'sent' | 'archive';
+    folder: MailFolder;
     acting: boolean;
     onRead: (messageId: string, isRead: boolean) => void;
     onArchive: (messageId: string, archived: boolean) => void;
@@ -613,7 +626,7 @@ export default function Index({
     };
 
     const folderHref = (
-        nextFolder: 'inbox' | 'sent' | 'archive',
+        nextFolder: MailFolder,
         cursor?: string | null,
         nextStatus: 'all' | 'unread' | 'read' = nextFolder === 'inbox' ? status : 'all',
     ) =>
@@ -641,7 +654,7 @@ export default function Index({
         setShowCompose(true);
     };
 
-    const folderTitle = folder === 'sent' ? t('sent') : folder === 'archive' ? t('archive') : t('inbox');
+    const folderTitle = folder === 'sent' ? t('sent') : folder === 'archive' ? t('archive') : folder === 'drafts' ? t('drafts') : t('inbox');
 
     const changeRead = (messageId: string, isRead: boolean) => {
         const current = list.find((item) => item.id === messageId);
@@ -795,6 +808,9 @@ export default function Index({
                                 <Button className="min-h-11 touch-manipulation" variant={folder === 'inbox' ? 'default' : 'outline'} asChild>
                                     <Link href={folderHref('inbox')}>{t('inbox')}</Link>
                                 </Button>
+                                <Button className="min-h-11 touch-manipulation" variant={folder === 'drafts' ? 'default' : 'outline'} asChild>
+                                    <Link href={folderHref('drafts')}>{t('drafts')}</Link>
+                                </Button>
                                 <Button className="min-h-11 touch-manipulation" variant={folder === 'sent' ? 'default' : 'outline'} asChild>
                                     <Link href={folderHref('sent')}>{t('sent')}</Link>
                                 </Button>
@@ -921,7 +937,7 @@ export default function Index({
                                                     key={item.id}
                                                     className={cn(
                                                         'relative min-w-0 rounded-md border',
-                                                        folder !== 'sent' && !item.is_read
+                                                        folder === 'inbox' && !item.is_read
                                                             ? 'border-sky-400/70 bg-sky-100/70 dark:border-sky-700 dark:bg-sky-950/45'
                                                             : 'border-border',
                                                     )}
@@ -953,14 +969,16 @@ export default function Index({
                                                     className="block min-h-11 min-w-0 rounded-md py-3.5 pe-12 ps-3 text-left touch-manipulation hover:bg-muted sm:py-3"
                                                 >
                                                     <p className="flex items-center gap-2 break-words text-foreground">
-                                                        {folder === 'sent' ? (
+                                                        {folder === 'drafts' ? (
+                                                            <FilePenLineIcon className="size-3.5 shrink-0 text-amber-700 dark:text-amber-300" />
+                                                        ) : folder === 'sent' ? (
                                                             <SendIcon className="size-3.5 shrink-0 text-sky-600" />
                                                         ) : item.is_read ? (
                                                             <MailOpenIcon className="size-3.5 shrink-0 text-emerald-600" />
                                                         ) : (
                                                             <MailIcon className="size-3.5 shrink-0 text-sky-700 dark:text-sky-300" />
                                                         )}
-                                                        <span className={folder !== 'sent' && !item.is_read ? 'font-semibold' : 'font-medium'}>
+                                                        <span className={folder === 'inbox' && !item.is_read ? 'font-semibold' : 'font-medium'}>
                                                             {item.subject || t('noSubject')}
                                                         </span>
                                                         {item.has_attachments ? (
@@ -968,7 +986,7 @@ export default function Index({
                                                         ) : null}
                                                     </p>
                                                     <p className="break-all text-sm text-muted-foreground">
-                                                        {folder === 'sent' ? (Array.isArray(item.to) ? item.to : []).join(', ') : item.from}
+                                                        {folder === 'sent' || folder === 'drafts' ? (Array.isArray(item.to) ? item.to : []).join(', ') : item.from}
                                                     </p>
                                                     <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">
                                                         {item.preview}
@@ -1050,6 +1068,26 @@ export default function Index({
                                         {message ? (
                                             <div className="grid gap-3">
                                                 <div className="grid grid-cols-3 gap-1.5 md:flex md:flex-wrap md:gap-2">
+                                                    {folder === 'drafts' ? (
+                                                        <Button
+                                                            type="button"
+                                                            className="col-span-3 min-h-11 bg-emerald-700 text-white touch-manipulation hover:bg-emerald-800 md:col-span-1"
+                                                            onClick={() =>
+                                                                openCompose({
+                                                                    id: message.id,
+                                                                    saved: true,
+                                                                    to: (message.to ?? []).join(', '),
+                                                                    cc: (message.cc ?? []).join(', '),
+                                                                    bcc: (message.bcc ?? []).join(', '),
+                                                                    subject: message.subject === '(No subject)' ? '' : message.subject,
+                                                                    body: message.html || message.body,
+                                                                })
+                                                            }
+                                                        >
+                                                            <FilePenLineIcon className="size-4" />
+                                                            {t('continueDraft')}
+                                                        </Button>
+                                                    ) : null}
                                                     <Button
                                                         type="button"
                                                         variant="outline"
@@ -1244,7 +1282,7 @@ export default function Index({
                 <nav
                     aria-label={t('mailbox')}
                     className={cn(
-                        'fixed inset-x-0 bottom-0 z-40 grid grid-cols-5 border-t border-border bg-background/95 px-1 pb-[env(safe-area-inset-bottom)] shadow-[0_-8px_24px_-16px_rgba(15,23,42,0.55)] backdrop-blur sm:hidden',
+                        'fixed inset-x-0 bottom-0 z-40 grid grid-cols-6 border-t border-border bg-background/95 px-1 pb-[env(safe-area-inset-bottom)] shadow-[0_-8px_24px_-16px_rgba(15,23,42,0.55)] backdrop-blur sm:hidden',
                         showCompose ? 'hidden' : '',
                     )}
                 >
@@ -1262,6 +1300,16 @@ export default function Index({
                                 {unreadCount > 99 ? '99+' : unreadCount}
                             </span>
                         ) : null}
+                    </Link>
+                    <Link
+                        href={folderHref('drafts')}
+                        className={cn(
+                            'flex min-h-16 flex-col items-center justify-center gap-1 rounded-md px-1 text-[11px] font-medium touch-manipulation',
+                            folder === 'drafts' ? 'text-emerald-700 dark:text-emerald-300' : 'text-muted-foreground',
+                        )}
+                    >
+                        <FilePenLineIcon className="size-5" />
+                        {t('drafts')}
                     </Link>
                     <Link
                         href={folderHref('sent')}

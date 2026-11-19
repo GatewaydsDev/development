@@ -45,6 +45,7 @@ import {
     PaperclipIcon,
     QuoteIcon,
     Redo2Icon,
+    SaveIcon,
     RemoveFormattingIcon,
     SendIcon,
     Settings2Icon,
@@ -68,6 +69,8 @@ export type SavedRecipient = {
 };
 
 export type ComposeDraft = {
+    id?: string;
+    saved?: boolean;
     to: string;
     cc: string;
     bcc: string;
@@ -609,9 +612,11 @@ export default function ComposeMail({
 }: ComposeMailProps) {
     const { t } = useTranslation('mail');
     const fileRef = useRef<HTMLInputElement>(null);
-    const initialBody = draft
-        ? placeReplySignature(draft.body ?? '', signatureHtml(stationery, 'reply'))
-        : buildLayout('letter', stationery);
+    const initialBody = draft?.saved
+        ? (draft.body ?? '')
+        : draft
+          ? placeReplySignature(draft.body ?? '', signatureHtml(stationery, 'reply'))
+          : buildLayout('letter', stationery);
     const [showCc, setShowCc] = useState(Boolean(draft?.cc));
     const [selectedLayout, setSelectedLayout] = useState<MailLayoutId | null>(draft ? null : 'letter');
     const [composeStationery, setComposeStationery] = useState(stationery);
@@ -639,6 +644,7 @@ export default function ComposeMail({
         body: initialBody,
         importance: 'normal' as 'low' | 'normal' | 'high',
         save_recipients: true,
+        draft_id: draft?.saved ? (draft.id ?? '') : '',
         attachments: [] as File[],
     });
 
@@ -829,6 +835,23 @@ export default function ComposeMail({
         });
     };
 
+    const saveDraft = () => {
+        if (!editor || form.processing) {
+            return;
+        }
+
+        form.transform((data) => ({
+            ...data,
+            body: editor.getHTML(),
+            draft_id: data.draft_id || undefined,
+            attachments: attachedFiles.length > 0 ? attachedFiles : undefined,
+        }));
+        form.post(route('mailbox.drafts.store'), {
+            preserveScroll: true,
+            forceFormData: true,
+        });
+    };
+
     const updateAttachments = (next: File[]) => {
         const files = uniqueAttachments(next);
         setAttachedFiles(files);
@@ -994,6 +1017,16 @@ export default function ComposeMail({
                 <p className="min-w-0 flex-1 truncate text-center text-base font-semibold text-foreground">
                     {t('newMessage')}
                 </p>
+                <Button
+                    type="button"
+                    variant="outline"
+                    disabled={form.processing}
+                    className="min-h-10 shrink-0 px-3"
+                    onClick={saveDraft}
+                >
+                    <SaveIcon className="size-4" />
+                    {form.processing ? t('savingDraft') : t('saveDraft')}
+                </Button>
                 <Button
                     type="submit"
                     disabled={form.processing}
@@ -1171,6 +1204,10 @@ export default function ComposeMail({
                             <Button type="submit" disabled={form.processing} className="h-10 shrink-0 bg-emerald-700 px-4 text-white hover:bg-emerald-800 max-sm:hidden">
                                 <SendIcon className="size-4" />
                                 {form.processing ? t('sending') : t('send')}
+                            </Button>
+                            <Button type="button" variant="outline" className="h-10 shrink-0" disabled={form.processing} onClick={saveDraft}>
+                                <SaveIcon className="size-4" />
+                                {form.processing ? t('savingDraft') : t('saveDraft')}
                             </Button>
                             <Button type="button" variant="outline" className="h-10 shrink-0 max-sm:hidden" onClick={onDiscard}>
                                 <XIcon className="size-4" />

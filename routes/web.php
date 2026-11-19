@@ -171,6 +171,9 @@ Route::middleware(['auth', 'prevent-back-history'])->group(function () {
     Route::post('/email', [MailboxController::class, 'send'])
         ->middleware('throttle:20,1,mailbox-send')
         ->name('mailbox.send');
+    Route::post('/email/drafts', [MailboxController::class, 'storeDraft'])
+        ->middleware('throttle:30,1,mailbox-draft')
+        ->name('mailbox.drafts.store');
     Route::patch('/email/state', [MailboxController::class, 'updateState'])
         ->middleware('throttle:60,1,mailbox-state')
         ->name('mailbox.state');

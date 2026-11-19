@@ -85,7 +85,7 @@ class MailboxController extends Controller
             abort_if($messageId === null, 404);
 
             try {
-                $message = $graph->actingAs($user)->readMessage($mailbox, $messageId);
+                $message = $graph->actingAs($user)->readMessage($mailbox, $messageId, $folder === 'drafts');
 
                 if ($folder === 'inbox') {
                     $states->markRead(
@@ -394,6 +394,7 @@ class MailboxController extends Controller
             'body' => ['required', 'string', 'max:20000'],
             'importance' => ['nullable', 'in:low,normal,high'],
             'save_recipients' => ['sometimes', 'boolean'],
+            'draft_id' => ['nullable', 'string', 'max:500'],
             'attachments' => ['nullable', 'array', 'max:5'],
             'attachments.*' => ['file', 'max:2048'],
         ]);
@@ -425,18 +426,36 @@ class MailboxController extends Controller
             ]);
         }
 
+        $draftId = $this->graphDraftId($validated['draft_id'] ?? null);
+
         try {
-            $graph->actingAs($sender)->sendComposed(
-                '',
-                $to,
-                $validated['subject'],
-                $composed['content'],
-                $composed['type'],
-                $cc,
-                $bcc,
-                $validated['importance'] ?? 'normal',
-                $composed['attachments'],
-            );
+            if ($draftId !== null) {
+                $graph->actingAs($sender)->saveDraft(
+                    '',
+                    $draftId,
+                    $to,
+                    $validated['subject'],
+                    $composed['content'],
+                    $composed['type'],
+                    $cc,
+                    $bcc,
+                    $validated['importance'] ?? 'normal',
+                    $composed['attachments'],
+                );
+                $graph->actingAs($sender)->sendSavedDraft('', $draftId);
+            } else {
+                $graph->actingAs($sender)->sendComposed(
+                    '',
+                    $to,
+                    $validated['subject'],
+                    $composed['content'],
+                    $composed['type'],
+                    $cc,
+                    $bcc,
+                    $validated['importance'] ?? 'normal',
+                    $composed['attachments'],
+                );
+            }
         } catch (MicrosoftGraphException $exception) {
             throw ValidationException::withMessages([
                 'body' => $exception->getMessage(),
@@ -454,6 +473,66 @@ class MailboxController extends Controller
         return redirect()
             ->route('mailbox.index', ['folder' => 'sent'])
             ->with('success', 'The message was saved and sent.');
+    }
+
+    public function storeDraft(Request $request, MicrosoftGraphMailService $graph): RedirectResponse
+    {
+        $sender = $this->effectiveUser($request->user());
+        abort_unless($sender instanceof User, 403);
+
+        $validated = $request->validate([
+            'to' => ['nullable', 'string', 'max:2000', $this->addressRule()],
+            'cc' => ['nullable', 'string', 'max:2000', $this->addressRule()],
+            'bcc' => ['nullable', 'string', 'max:2000', $this->addressRule()],
+            'subject' => ['nullable', 'string', 'max:255'],
+            'body' => ['nullable', 'string', 'max:20000'],
+            'importance' => ['nullable', 'in:low,normal,high'],
+            'draft_id' => ['nullable', 'string', 'max:500'],
+            'attachments' => ['nullable', 'array', 'max:5'],
+            'attachments.*' => ['file', 'max:2048'],
+        ]);
+
+        $body = (string) ($validated['body'] ?? '');
+        $subject = trim((string) ($validated['subject'] ?? ''));
+        $hasMessage = trim($this->messageText($body)) !== '' || $subject !== '' || trim((string) ($validated['to'] ?? '')) !== '';
+        $files = $request->file('attachments', []);
+        $hasFiles = $files instanceof UploadedFile || (is_array($files) && $files !== []);
+
+        if (! $hasMessage && ! $hasFiles) {
+            throw ValidationException::withMessages([
+                'body' => 'Write a subject, a recipient, or a message before saving the draft.',
+            ]);
+        }
+
+        $senderMailbox = strtolower(trim((string) $sender->microsoft_mailbox));
+        $to = $this->withoutMailbox($this->addresses($validated['to'] ?? '', 'to'), $senderMailbox);
+        $cc = $this->withoutMailbox($this->addresses($validated['cc'] ?? '', 'cc'), $senderMailbox, $to);
+        $bcc = $this->withoutMailbox($this->addresses($validated['bcc'] ?? '', 'bcc'), $senderMailbox, [...$to, ...$cc]);
+        $content = preg_replace('#<script\b[^>]*>.*?</script>#is', '', $body) ?? $body;
+        $type = $content !== strip_tags($content) ? 'HTML' : 'Text';
+
+        try {
+            $graph->actingAs($sender)->saveDraft(
+                '',
+                $this->graphDraftId($validated['draft_id'] ?? null),
+                $to,
+                $subject,
+                $content,
+                $type,
+                $cc,
+                $bcc,
+                $validated['importance'] ?? 'normal',
+                $this->attachments($request),
+            );
+        } catch (MicrosoftGraphException $exception) {
+            throw ValidationException::withMessages([
+                'body' => $exception->getMessage(),
+            ]);
+        }
+
+        return redirect()
+            ->route('mailbox.index', ['folder' => 'drafts'])
+            ->with('success', 'The message was saved as a draft.');
     }
 
     public function storeRecipient(Request $request): RedirectResponse
@@ -507,6 +586,23 @@ class MailboxController extends Controller
         return $this->unreadCacheKey($user, $mailbox).':stale';
     }
 
+    private function graphDraftId(mixed $token): ?string
+    {
+        if (! is_string($token) || trim($token) === '') {
+            return null;
+        }
+
+        $id = EmailPlainText::decodeMessageId($token);
+
+        if ($id === null) {
+            throw ValidationException::withMessages([
+                'body' => 'That draft could not be opened.',
+            ]);
+        }
+
+        return $id;
+    }
+
     private function mailbox(mixed $mailbox): ?string
     {
         if (! is_string($mailbox)) {
@@ -520,7 +616,7 @@ class MailboxController extends Controller
 
     private function folder(mixed $folder): string
     {
-        return in_array($folder, ['sent', 'archive'], true) ? $folder : 'inbox';
+        return in_array($folder, ['sent', 'archive', 'drafts'], true) ? $folder : 'inbox';
     }
 
     private function status(string $folder, mixed $status): string

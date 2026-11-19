@@ -1648,3 +1648,75 @@ test('sending too many messages stays on the form', function () {
         ->assertRedirect(route('mailbox.index'))
         ->assertSessionHasErrors('body');
 });
+
+test('an unsent message can be saved in drafts', function () {
+    $user = mailboxUser();
+
+    $this->actingAs($user)
+        ->from(route('mailbox.index'))
+        ->post(route('mailbox.drafts.store'), [
+            'to' => '',
+            'subject' => '',
+            'body' => '',
+        ])
+        ->assertRedirect(route('mailbox.index'))
+        ->assertSessionHasErrors('body');
+
+    Cache::flush();
+    config([
+        'services.microsoft.tenant_id' => 'tenant-id',
+        'services.microsoft.client_id' => 'client-id',
+        'services.microsoft.client_secret' => 'client-secret',
+        'services.microsoft.mail_from' => 'sales@gateway-ds.com',
+    ]);
+
+    Http::fake(function ($request) {
+        if (str_contains($request->url(), 'login.microsoftonline.com')) {
+            return Http::response([
+                'access_token' => 'graph-token',
+                'expires_in' => 3600,
+            ]);
+        }
+
+        $path = rawurldecode((string) (parse_url($request->url(), PHP_URL_PATH) ?? ''));
+
+        if ($request->method() === 'POST' && str_ends_with($path, '/users/ricardo@gateway-ds.com/messages')) {
+            return Http::response(['id' => 'draft-1'], 201);
+        }
+
+        return Http::response([
+            'value' => [[
+                'id' => 'draft-1',
+                'subject' => 'Hold this',
+                'from' => ['emailAddress' => ['address' => 'ricardo@gateway-ds.com']],
+                'toRecipients' => [['emailAddress' => ['address' => 'buyer@example.com']]],
+                'bodyPreview' => 'Not ready',
+                'receivedDateTime' => '2026-11-19T18:00:00Z',
+                'isRead' => false,
+            ]],
+        ]);
+    });
+
+    $this->actingAs($user)
+        ->post(route('mailbox.drafts.store'), [
+            'to' => 'buyer@example.com',
+            'subject' => 'Hold this',
+            'body' => '<p>Not ready to send.</p>',
+        ])
+        ->assertRedirect(route('mailbox.index', ['folder' => 'drafts']));
+
+    Http::assertSent(function ($request): bool {
+        $path = rawurldecode((string) (parse_url($request->url(), PHP_URL_PATH) ?? ''));
+
+        return $request->method() === 'POST'
+            && str_ends_with($path, '/users/ricardo@gateway-ds.com/messages')
+            && $request['subject'] === 'Hold this';
+    });
+
+    $this->actingAs($user)
+        ->get(route('mailbox.index', ['folder' => 'drafts']))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('folder', 'drafts')
+            ->where('messages.0.subject', 'Hold this'));
+});
