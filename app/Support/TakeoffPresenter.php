@@ -8,6 +8,7 @@ use App\Models\TakeoffDocument;
 use App\Models\TakeoffGroup;
 use App\Models\TakeoffMarkup;
 use App\Models\TakeoffOpening;
+use App\Models\TakeoffSection;
 use App\Models\TakeoffSupplierQuote;
 use App\Models\User;
 
@@ -48,6 +49,7 @@ class TakeoffPresenter
             'documents.uploader:id,name',
             'openings.markers',
             'markups',
+            'sections',
             'openings.references',
             'openings.costs',
             'openings.product:id,name',
@@ -117,6 +119,17 @@ class TakeoffPresenter
                 'kind' => $markup->kind,
                 'color' => $markup->color,
                 'points' => $markup->points,
+            ])->values()->all(),
+            'sections' => $takeoff->sections->map(fn (TakeoffSection $section): array => [
+                'id' => $section->id,
+                'document_id' => $section->document_id,
+                'page' => $section->page,
+                'title' => $section->title,
+                'body' => $section->body,
+                'x' => (float) $section->x,
+                'y' => (float) $section->y,
+                'x2' => (float) $section->x2,
+                'y2' => (float) $section->y2,
             ])->values()->all(),
             'openings' => $takeoff->openings->map(function (TakeoffOpening $opening) use ($showPricing, $pricing, $flagsByOpening): array {
                 return self::opening($opening, $showPricing, $pricing['openings'][$opening->id] ?? null, $flagsByOpening[$opening->id] ?? []);

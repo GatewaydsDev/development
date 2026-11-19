@@ -12,6 +12,7 @@ import {
     Maximize2Icon,
     Minimize2Icon,
     MousePointer2Icon,
+    CopyIcon,
     PenLineIcon,
     RotateCwIcon,
     SquareDashedIcon,
@@ -116,6 +117,8 @@ const tools: { id: CountTool; label: string; key: string; icon: typeof DoorOpenI
 const outlineTools: { id: CountTool; label: string; key: string; icon: typeof DoorOpenIcon }[] = [
     { id: 'pen', label: 'Pen', key: 'P', icon: PenLineIcon },
     { id: 'box', label: 'Box', key: 'B', icon: SquareDashedIcon },
+    { id: 'copy', label: 'Copy', key: 'C', icon: CopyIcon },
+    { id: 'openings', label: 'Openings', key: 'O', icon: DoorOpenIcon },
 ];
 
 export default function DrawingPalette(props: Props) {
@@ -216,9 +219,13 @@ export default function DrawingPalette(props: Props) {
         ? `Click the sheet to place ${props.nextMark}`
         : props.tool === 'pen'
             ? 'Drag around a door or window. The colored line stays on the sheet.'
-            : props.tool === 'box'
+                : props.tool === 'box'
                 ? `Drag a box around a ${props.boxKind}. It is counted as number ${props.nextMark || 'the next mark'}.`
-                : props.tool === 'hand'
+                : props.tool === 'copy'
+                    ? 'Drag around the part to copy, such as door hardware sets. The text in that area is saved as a section.'
+                    : props.tool === 'openings'
+                        ? 'Drag around the schedule. When you let go, name the openings as a door, a window, or any other type.'
+                    : props.tool === 'hand'
                     ? 'Drag the sheet. Hold Space for the hand from any tool.'
                     : props.tool === 'remove'
                         ? 'Click a mark or an outline to remove it.'

@@ -4,10 +4,12 @@ import FormActionFab from '@/Components/FormActionFab';
 import TextInput from '@/Components/TextInput';
 import { Badge } from '@/Components/ui/badge';
 import { Button } from '@/Components/ui/button';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/Components/ui/dropdown-menu';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/Components/ui/dialog';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
 import type { PageProps } from '@/types';
 import { cn } from '@/lib/utils';
-import { DownloadIcon, DraftingCompassIcon, ListIcon, PlusIcon } from 'lucide-react';
+import { BookmarkIcon, CheckIcon, ChevronDownIcon, CopyIcon, DoorOpenIcon, DownloadIcon, DraftingCompassIcon, EyeIcon, ListIcon, PencilIcon, PlusIcon, RefreshCwIcon, Trash2Icon, XIcon } from 'lucide-react';
 import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { countMark } from './pinLabels';
 import OpeningEditor, { openingForm, openingPayload, type OpeningForm } from './Partials/OpeningEditor';
@@ -22,6 +24,7 @@ import {
     type ConversionLine,
     type TakeoffAbilities,
     type TakeoffDetail,
+    type TakeoffSheetSection,
 } from './types';
 
 type Props = {
@@ -30,6 +33,91 @@ type Props = {
     quotations: { id: number; number: string; title: string; status: string }[];
     can: TakeoffAbilities;
 };
+
+function copiedLines(body: string): string[] {
+    return body
+        .split(/\r?\n/)
+        .map((line) => line.split('\t').map((cell) => cell.trim()).filter(Boolean).join(' ').replace(/\s+/g, ' ').trim())
+        .filter((line) => line !== '');
+}
+
+function lineMarker(line: string): { marker: string; text: string } | null {
+    const bullet = line.match(/^([•·●◦▪‣]|\*|-|–|—)\s+(.*)$/);
+
+    if (bullet) {
+        return { marker: bullet[1], text: bullet[2] };
+    }
+
+    const number = line.match(/^(\d{1,4}[\.\)]?)\s+(.*)$/);
+
+    if (number) {
+        return { marker: number[1], text: number[2] };
+    }
+
+    const letter = line.match(/^([A-Z][\.\)]?)\s+(.*)$/);
+
+    if (letter) {
+        return { marker: letter[1], text: letter[2] };
+    }
+
+    return null;
+}
+
+function CopiedLine({ line }: { line: string }) {
+    const marked = lineMarker(line);
+
+    if (!marked) {
+        return <>{line}</>;
+    }
+
+    return (
+        <>
+            <span className="font-bold text-neutral-950 dark:text-white">{marked.marker}</span>
+            {marked.text ? ` ${marked.text}` : ''}
+        </>
+    );
+}
+
+function SectionSheet({ body, onChange, compact = false }: { body: string; onChange?: (body: string) => void; compact?: boolean }) {
+    const lines = copiedLines(body);
+
+    if (lines.length === 0) {
+        return <p className="px-4 py-6 text-sm text-muted-foreground">No lines were copied from this area.</p>;
+    }
+
+    const edit = (index: number, value: string) => {
+        if (!onChange) {
+            return;
+        }
+
+        const next = lines.map((line, lineIndex) => lineIndex === index ? value : line);
+        onChange(next.join('\n'));
+    };
+
+    return (
+        <ul className={`list-none space-y-1 text-foreground ${compact ? 'max-h-40 overflow-auto px-2 py-2 text-xs' : 'max-h-80 overflow-auto px-3 py-3 text-sm'}`}>
+            {lines.map((line, index) => (
+                <li key={index}>
+                    {onChange ? (
+                        <input
+                            value={line}
+                            onChange={(event) => edit(index, event.target.value)}
+                            className="w-full rounded-md border border-transparent bg-transparent px-1 py-0.5 hover:border-border focus:border-ring focus:bg-background focus:outline-none"
+                        />
+                    ) : <CopiedLine line={line} />}
+                </li>
+            ))}
+        </ul>
+    );
+}
+
+const scanStages = [
+    { label: 'Opening the drawing', at: 4 },
+    { label: 'Reading the pages', at: 8 },
+    { label: 'Reading schedules', at: 74 },
+    { label: 'Checking marks', at: 88 },
+    { label: 'Saving the openings', at: 99 },
+];
 
 const sections = [
     { id: 'workspace', label: 'Scope' },
@@ -44,6 +132,7 @@ function openingSpecs(opening: TakeoffDetail['openings'][number]): string {
         opening.door_type,
         opening.product_category,
         opening.frame_type ? `Frame ${opening.frame_type}` : null,
+        opening.handing ? `Hand ${opening.handing}` : null,
         opening.hardware_set ? `Hardware ${opening.hardware_set}` : null,
         opening.finish,
         opening.glazing,
@@ -55,6 +144,35 @@ function openingSpecs(opening: TakeoffDetail['openings'][number]): string {
 export default function Show({ takeoff, templates, quotations, can }: Props) {
     const countedOpeningId = usePage<PageProps>().props.flash?.counted_opening_id;
     const [section, setSection] = useState<(typeof sections)[number]['id']>('workspace');
+    const [scanOpen, setScanOpen] = useState(false);
+    const [scanning, setScanning] = useState(false);
+    const [scanPercent, setScanPercent] = useState(0);
+    const [scanLabel, setScanLabel] = useState('Opening the drawing');
+    const [scanError, setScanError] = useState<string | null>(null);
+    const [copyOpen, setCopyOpen] = useState(false);
+    const [copyReading, setCopyReading] = useState(false);
+    const [copyPercent, setCopyPercent] = useState(0);
+    const [copyLabel, setCopyLabel] = useState('Opening the marked area');
+    const [copyTitle, setCopyTitle] = useState('');
+    const [copyBody, setCopyBody] = useState('');
+    const [copyError, setCopyError] = useState<string | null>(null);
+    const [copyRegion, setCopyRegion] = useState<{ documentId: number; page: number; x: number; y: number; x2: number; y2: number } | null>(null);
+    const [editingSectionId, setEditingSectionId] = useState<number | null>(null);
+    const [copiedKey, setCopiedKey] = useState<string | null>(null);
+    const [clipboardNote, setClipboardNote] = useState<string | null>(null);
+    const [viewingSection, setViewingSection] = useState<TakeoffSheetSection | null>(null);
+    const [selectedSectionId, setSelectedSectionId] = useState<number | null>(null);
+    const [openingsDragOpen, setOpeningsDragOpen] = useState(false);
+    const [openingsDragReading, setOpeningsDragReading] = useState(false);
+    const [openingsDragPercent, setOpeningsDragPercent] = useState(0);
+    const [openingsDragLabel, setOpeningsDragLabel] = useState('Reading the marked area');
+    const [openingsDragError, setOpeningsDragError] = useState<string | null>(null);
+    const [openingsBox, setOpeningsBox] = useState<{ documentId: number; page: number; x: number; y: number; x2: number; y2: number; openingType: string } | null>(null);
+    const [openingsNaming, setOpeningsNaming] = useState(false);
+    const [openingTypeName, setOpeningTypeName] = useState('');
+    const [openingsFound, setOpeningsFound] = useState<{ id?: number; tag: string; opening_type: string; quantity: string; width: string | null; height: string | null; location: string | null }[]>([]);
+    const [selectedOpeningIds, setSelectedOpeningIds] = useState<number[]>([]);
+    const [savedSectionId, setSavedSectionId] = useState<number | null>(null);
     const [selectedOpeningId, setSelectedOpeningId] = useState<number | null>(null);
     const [selectedDocumentId, setSelectedDocumentId] = useState<number | null>(() => {
         try {
@@ -342,7 +460,550 @@ export default function Show({ takeoff, templates, quotations, can }: Props) {
         });
     };
 
+    const copyAbort = useRef<AbortController | null>(null);
     const csrf = () => decodeURIComponent(document.cookie.split('; ').find((row) => row.startsWith('XSRF-TOKEN='))?.split('=')[1] ?? '');
+
+    const reloadDrawing = async () => {
+        if (!selectedDocumentId || scanning) {
+            return;
+        }
+
+        const token = crypto.randomUUID();
+        const seen = { current: 0 };
+        setScanning(true);
+        setScanOpen(true);
+        setScanError(null);
+        setScanPercent(0);
+        setScanLabel('Opening the drawing');
+
+        const apply = (percent: number, label: string) => {
+            if (percent < seen.current) {
+                return;
+            }
+
+            seen.current = percent;
+            setScanPercent(percent);
+            setScanLabel(label || 'Reading the drawing');
+        };
+
+        try {
+            const response = await fetch(route('admin.takeoffs.documents.scan', [takeoff.uuid, selectedDocumentId]), {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: {
+                    Accept: 'text/event-stream',
+                    'Content-Type': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-XSRF-TOKEN': csrf(),
+                },
+                body: JSON.stringify({ progress: token }),
+            });
+
+            if (!response.ok || !response.body) {
+                const body = await response.json().catch(() => ({ message: 'The drawing could not be read.' })) as { message?: string };
+                setScanError(body.message || 'The drawing could not be read.');
+
+                return;
+            }
+
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+            let buffer = '';
+            let message = 'Drawing scanned.';
+            let failed = false;
+            const readEvents = (block: string) => {
+                block.split('\n\n').forEach((part) => {
+                    const line = part.split('\n').find((item) => item.startsWith('data: '));
+
+                    if (!line) {
+                        return;
+                    }
+
+                    try {
+                        const event = JSON.parse(line.slice(6)) as { percent?: number; label?: string; message?: string; error?: boolean };
+                        apply(event.percent ?? seen.current, event.label || 'Reading the drawing');
+
+                        if (event.message) {
+                            message = event.message;
+                        }
+
+                        if (event.error) {
+                            failed = true;
+                        }
+                    } catch {
+                        // A split chunk is completed by the next read.
+                    }
+                });
+            };
+
+            while (true) {
+                const chunk = await reader.read();
+
+                if (chunk.done) {
+                    break;
+                }
+
+                buffer += decoder.decode(chunk.value, { stream: true });
+                const parts = buffer.split('\n\n');
+                buffer = parts.pop() ?? '';
+                readEvents(parts.join('\n\n'));
+            }
+
+            readEvents(buffer);
+
+            if (failed || seen.current < 100) {
+                setScanError(failed ? message : 'The drawing read stopped before it finished.');
+
+                return;
+            }
+
+            apply(100, message);
+            router.reload({ preserveScroll: true });
+        } catch {
+            setScanError('The drawing could not be read.');
+        } finally {
+            setScanning(false);
+        }
+    };
+
+    const copyText = async (text: string, key: string) => {
+        try {
+            await navigator.clipboard.writeText(text);
+            setCopiedKey(key);
+            setClipboardNote(null);
+            window.setTimeout(() => setCopiedKey((current) => (current === key ? null : current)), 1600);
+        } catch {
+            setClipboardNote('The browser blocked the copy. Select the text and copy it.');
+        }
+    };
+
+    const discardSelection = () => {
+        copyAbort.current?.abort();
+        copyAbort.current = null;
+        const removing = editingSectionId;
+        setCopyOpen(false);
+        setCopyReading(false);
+        setCopyRegion(null);
+        setEditingSectionId(null);
+
+        if (removing) {
+            router.delete(route('admin.takeoffs.sections.destroy', [takeoff.uuid, removing]), { preserveScroll: true });
+        }
+    };
+
+    const readRegion = async (region: { documentId: number; page: number; x: number; y: number; x2: number; y2: number }) => {
+        copyAbort.current?.abort();
+        const controller = new AbortController();
+        copyAbort.current = controller;
+        const seen = { current: 0 };
+        setCopyRegion(region);
+        setEditingSectionId(null);
+        setCopyOpen(true);
+        setCopyReading(true);
+        setCopyError(null);
+        setClipboardNote(null);
+        setCopyPercent(0);
+        setCopyLabel('Opening the marked area');
+        setCopyTitle('');
+        setCopyBody('');
+
+        const apply = (percent: number, label: string) => {
+            if (percent < seen.current) {
+                return;
+            }
+
+            seen.current = percent;
+            setCopyPercent(percent);
+            setCopyLabel(label || 'Reading the marked area');
+        };
+
+        try {
+            const response = await fetch(route('admin.takeoffs.sections.read', takeoff.uuid), {
+                method: 'POST',
+                credentials: 'same-origin',
+                signal: controller.signal,
+                headers: {
+                    Accept: 'text/event-stream',
+                    'Content-Type': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-XSRF-TOKEN': csrf(),
+                },
+                body: JSON.stringify({
+                    document_id: region.documentId,
+                    page: region.page,
+                    x: region.x,
+                    y: region.y,
+                    x2: region.x2,
+                    y2: region.y2,
+                }),
+            });
+
+            if (!response.ok || !response.body) {
+                const body = await response.json().catch(() => ({ message: 'That part of the drawing could not be read.' })) as { message?: string };
+                setCopyError(body.message || 'That part of the drawing could not be read.');
+
+                return;
+            }
+
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+            let buffer = '';
+            let title = '';
+            let copied = '';
+            let failed = false;
+            let message = 'That part of the drawing could not be read.';
+            const readEvents = (block: string) => {
+                block.split('\n\n').forEach((part) => {
+                    const line = part.split('\n').find((item) => item.startsWith('data: '));
+
+                    if (!line) {
+                        return;
+                    }
+
+                    try {
+                        const event = JSON.parse(line.slice(6)) as { percent?: number; label?: string; title?: string; body?: string; message?: string; error?: boolean };
+                        apply(event.percent ?? seen.current, event.label || 'Reading the marked area');
+
+                        if (event.title) {
+                            title = event.title;
+                        }
+
+                        if (event.body) {
+                            copied = event.body;
+                        }
+
+                        if (event.message) {
+                            message = event.message;
+                        }
+
+                        if (event.error) {
+                            failed = true;
+                        }
+                    } catch {
+                        // A split chunk is completed by the next read.
+                    }
+                });
+            };
+
+            while (true) {
+                const chunk = await reader.read();
+
+                if (chunk.done) {
+                    break;
+                }
+
+                buffer += decoder.decode(chunk.value, { stream: true });
+                const parts = buffer.split('\n\n');
+                buffer = parts.pop() ?? '';
+                readEvents(parts.join('\n\n'));
+            }
+
+            readEvents(buffer);
+
+            if (failed || !copied) {
+                setCopyError(message);
+
+                return;
+            }
+
+            apply(100, 'Section ready');
+            setCopyTitle(title || 'Copied section');
+            setCopyBody(copied);
+        } catch (error) {
+            if (error instanceof DOMException && error.name === 'AbortError') {
+                return;
+            }
+
+            setCopyError('That part of the drawing could not be read.');
+        } finally {
+            if (copyAbort.current === controller) {
+                setCopyReading(false);
+            }
+        }
+    };
+
+    const openingTypeChoices = Array.from(new Set([
+        'Door',
+        'Window',
+        ...takeoff.openings.map((opening) => opening.opening_type === 'window' ? 'Window' : opening.opening_type === 'door' ? 'Door' : opening.opening_type).filter((type) => type !== ''),
+    ]));
+
+    const normalizeOpeningType = (value: string) => {
+        const trimmed = value.trim();
+        const lower = trimmed.toLowerCase();
+
+        if (lower === 'door' || lower === 'doors') {
+            return 'door';
+        }
+
+        if (lower === 'window' || lower === 'windows') {
+            return 'window';
+        }
+
+        return trimmed;
+    };
+
+    const beginOpeningSelection = (region: { documentId: number; page: number; x: number; y: number; x2: number; y2: number }) => {
+        copyAbort.current?.abort();
+        setOpeningsBox({ ...region, openingType: '' });
+        setOpeningTypeName('');
+        setOpeningsFound([]);
+        setSelectedOpeningIds([]);
+        setOpeningsDragError(null);
+        setOpeningsDragReading(false);
+        setOpeningsNaming(true);
+        setOpeningsDragOpen(true);
+        setOpeningsDragPercent(0);
+        setOpeningsDragLabel('Name the openings in this selection.');
+    };
+
+    const readOpenings = async (region: { documentId: number; page: number; x: number; y: number; x2: number; y2: number }, openingType: string) => {
+        copyAbort.current?.abort();
+        const controller = new AbortController();
+        copyAbort.current = controller;
+        const seen = { current: 0 };
+        const named = openingType === 'window' ? 'Window' : openingType === 'door' ? 'Door' : openingType;
+        setOpeningsBox({ ...region, openingType });
+        setOpeningsNaming(false);
+        setOpeningsFound([]);
+        setSelectedOpeningIds([]);
+        setOpeningsDragOpen(true);
+        setOpeningsDragReading(true);
+        setOpeningsDragError(null);
+        setOpeningsDragPercent(0);
+        setOpeningsDragLabel(`Reading the ${named.toLowerCase()} selection`);
+
+        const apply = (percent: number, label: string) => {
+            if (percent < seen.current) {
+                return;
+            }
+
+            seen.current = percent;
+            setOpeningsDragPercent(percent);
+            setOpeningsDragLabel(label || `Reading the ${named.toLowerCase()}s`);
+        };
+
+        try {
+            const response = await fetch(route('admin.takeoffs.sections.read', takeoff.uuid), {
+                method: 'POST',
+                credentials: 'same-origin',
+                signal: controller.signal,
+                headers: {
+                    Accept: 'text/event-stream',
+                    'Content-Type': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-XSRF-TOKEN': csrf(),
+                },
+                body: JSON.stringify({
+                    document_id: region.documentId,
+                    page: region.page,
+                    x: region.x,
+                    y: region.y,
+                    x2: region.x2,
+                    y2: region.y2,
+                }),
+            });
+
+            if (!response.ok || !response.body) {
+                const body = await response.json().catch(() => ({ message: 'That part of the drawing could not be read.' })) as { message?: string };
+                setOpeningsDragError(body.message || 'That part of the drawing could not be read.');
+                setOpeningsDragReading(false);
+
+                return;
+            }
+
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+            let buffer = '';
+            let title = '';
+            let copied = '';
+            let failed = false;
+            let message = 'That part of the drawing could not be read.';
+            const readEvents = (block: string) => {
+                block.split('\n\n').forEach((part) => {
+                    const line = part.split('\n').find((item) => item.startsWith('data: '));
+
+                    if (!line) {
+                        return;
+                    }
+
+                    try {
+                        const event = JSON.parse(line.slice(6)) as { percent?: number; label?: string; title?: string; body?: string; message?: string; error?: boolean };
+                        apply(event.percent ?? seen.current, event.label || 'Reading the marked area');
+
+                        if (event.title) {
+                            title = event.title;
+                        }
+
+                        if (event.body) {
+                            copied = event.body;
+                        }
+
+                        if (event.message) {
+                            message = event.message;
+                        }
+
+                        if (event.error) {
+                            failed = true;
+                        }
+                    } catch {
+                        // A split chunk is completed by the next read.
+                    }
+                });
+            };
+
+            while (true) {
+                const chunk = await reader.read();
+
+                if (chunk.done) {
+                    break;
+                }
+
+                buffer += decoder.decode(chunk.value, { stream: true });
+                const parts = buffer.split('\n\n');
+                buffer = parts.pop() ?? '';
+                readEvents(parts.join('\n\n'));
+            }
+
+            readEvents(buffer);
+
+            if (failed || !copied) {
+                setOpeningsDragError(message);
+                setOpeningsDragReading(false);
+
+                return;
+            }
+
+            apply(100, `Adding the ${named.toLowerCase()}s to the list`);
+            router.post(route('admin.takeoffs.openings.from-text', takeoff.uuid), {
+                document_id: region.documentId,
+                page: region.page,
+                opening_type: openingType,
+                title: title || named,
+                body: copied,
+                x: region.x,
+                y: region.y,
+                x2: region.x2,
+                y2: region.y2,
+            }, {
+                preserveScroll: true,
+                preserveState: true,
+                onSuccess: (page) => {
+                    const flash = (page.props.flash ?? {}) as {
+                        success?: string | null;
+                        error?: string | null;
+                        created_section_id?: number | null;
+                        created_openings?: { id?: number; tag: string; opening_type: string; quantity: string; width: string | null; height: string | null; location: string | null }[];
+                    };
+                    const created = flash.created_openings ?? [];
+                    setOpeningsDragReading(false);
+                    setSavedSectionId(typeof flash.created_section_id === 'number' ? flash.created_section_id : null);
+                    setOpeningsBox(null);
+
+                    if (flash.error) {
+                        setOpeningsFound([]);
+                        setSelectedOpeningIds([]);
+                        setOpeningsDragError(flash.error);
+
+                        return;
+                    }
+
+                    setOpeningsDragError(null);
+                    setOpeningsDragLabel(flash.success || `${named} openings were added to the list.`);
+                    setOpeningsFound(created);
+                    setSelectedOpeningIds(created.map((item) => item.id).filter((id): id is number => typeof id === 'number' && id > 0));
+                    window.setTimeout(() => window.document.getElementById('takeoff-openings')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 200);
+                },
+                onError: () => {
+                    setOpeningsDragReading(false);
+                    setOpeningsFound([]);
+                    setOpeningsDragError(`This ${named.toLowerCase()} selection cannot be created.`);
+                },
+            });
+        } catch (error) {
+            if (error instanceof DOMException && error.name === 'AbortError') {
+                return;
+            }
+
+            setOpeningsDragError('That part of the drawing could not be read.');
+            setOpeningsDragReading(false);
+        }
+    };
+
+    const clearOpeningSelection = () => {
+        copyAbort.current?.abort();
+        setOpeningsBox(null);
+        setOpeningsFound([]);
+        setSelectedOpeningIds([]);
+        setSavedSectionId(null);
+        setOpeningsNaming(false);
+        setOpeningTypeName('');
+        setOpeningsDragOpen(false);
+        setOpeningsDragError(null);
+    };
+
+    const confirmOpeningType = () => {
+        const type = normalizeOpeningType(openingTypeName);
+
+        if (!type || !openingsBox) {
+            return;
+        }
+
+        void readOpenings(openingsBox, type);
+    };
+
+    const cancelOpeningSelection = () => {
+        if (selectedOpeningIds.length === 0) {
+            clearOpeningSelection();
+
+            return;
+        }
+
+        const ids = selectedOpeningIds;
+        router.post(route('admin.takeoffs.openings.forget', takeoff.uuid), { ids, section_id: savedSectionId }, {
+            preserveScroll: true,
+            preserveState: true,
+            onSuccess: () => clearOpeningSelection(),
+        });
+    };
+
+    const saveSection = () => {
+        const title = copyTitle.trim();
+        const body = copyBody.trim();
+
+        if (!title || !body) {
+            return;
+        }
+
+        void copyText(body, 'draft');
+
+        if (editingSectionId) {
+            router.patch(route('admin.takeoffs.sections.update', [takeoff.uuid, editingSectionId]), { title, body }, {
+                preserveScroll: true,
+                onSuccess: () => setCopyOpen(false),
+            });
+
+            return;
+        }
+
+        if (!copyRegion) {
+            return;
+        }
+
+        router.post(route('admin.takeoffs.sections.store', takeoff.uuid), {
+            document_id: copyRegion.documentId,
+            page: copyRegion.page,
+            title,
+            body,
+            x: copyRegion.x,
+            y: copyRegion.y,
+            x2: copyRegion.x2,
+            y2: copyRegion.y2,
+        }, {
+            preserveScroll: true,
+            onSuccess: () => setCopyOpen(false),
+        });
+    };
 
     const loadPreview = async () => {
         setPreviewError('');
@@ -581,9 +1242,270 @@ export default function Show({ takeoff, templates, quotations, can }: Props) {
                             <DraftingCompassIcon className="size-4" />
                             Drawing
                         </button>
+                        {editable && selectedDocumentId ? (
+                            <button type="button" onClick={reloadDrawing} disabled={scanning} className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-60">
+                                <RefreshCwIcon className={`size-4 ${scanning ? 'animate-spin' : ''}`} />
+                                Reload
+                            </button>
+                        ) : null}
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <button type="button" className="inline-flex items-center gap-2 rounded-lg bg-amber-600 px-3 py-2 text-sm font-medium text-white hover:bg-amber-700">
+                                    <BookmarkIcon className="size-4" />
+                                    Sections
+                                    <ChevronDownIcon className="size-4" />
+                                </button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="start" className="max-h-80 min-w-64 overflow-y-auto">
+                                {editable ? (
+                                    <>
+                                        <DropdownMenuItem onSelect={() => {
+                                            setCountTool('copy');
+                                            setPaletteView('drawing');
+                                            document.getElementById('takeoff-drawing')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                                        }}>
+                                            <CopyIcon />
+                                            Copy
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem onSelect={() => {
+                                            setCountTool('openings');
+                                            setPaletteView('drawing');
+                                            document.getElementById('takeoff-drawing')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                                        }}>
+                                            <DoorOpenIcon />
+                                            Openings
+                                        </DropdownMenuItem>
+                                    </>
+                                ) : null}
+                                {editable ? <DropdownMenuSeparator /> : null}
+                                <DropdownMenuLabel>Select a section</DropdownMenuLabel>
+                                {(takeoff.sections ?? []).length === 0 ? (
+                                    <p className="px-2 py-2 text-sm text-muted-foreground">Copy a part of the drawing to save a section.</p>
+                                ) : (takeoff.sections ?? []).map((item) => (
+                                    <DropdownMenuItem key={item.id} onSelect={() => {
+                                        setSelectedSectionId(item.id);
+                                        setSelectedDocumentId(item.document_id);
+                                        document.getElementById('takeoff-drawing')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                                    }}>
+                                        {selectedSectionId === item.id ? <CheckIcon /> : <span className="size-4" />}
+                                        <span className="min-w-0 flex-1 truncate">{item.title}</span>
+                                        <span className="text-xs text-muted-foreground">p. {item.page}</span>
+                                    </DropdownMenuItem>
+                                ))}
+                            </DropdownMenuContent>
+                        </DropdownMenu>
                     </div>
                 ) : null}
                 </div>
+                {openingsDragOpen ? (
+                    <div className="pointer-events-none fixed inset-0 z-40 flex items-center justify-center p-4">
+                    <div className="pointer-events-auto w-[min(24rem,calc(100vw-2rem))] rounded-xl border border-[#b7ebc9] bg-[#e7f8ee] p-4 text-neutral-950 shadow-xl">
+                        <div className="flex items-start justify-between gap-3">
+                            <div>
+                                <p className="text-base font-semibold">{openingsNaming ? 'Name this selection' : openingsDragError ? 'This selection cannot be created' : openingsDragReading ? 'Reading the selection' : openingsFound.length > 0 && openingsDragLabel.toLowerCase().includes('already') ? 'Already on the list' : openingsFound.length > 0 ? 'Openings added' : 'Selection checked'}</p>
+                                <p className="mt-1 text-sm text-neutral-700">{openingsDragError ?? openingsDragLabel}</p>
+                            </div>
+                            {openingsDragReading ? null : (
+                                <button
+                                    type="button"
+                                    className="rounded-full p-1 text-neutral-600 hover:bg-[#d4f3e1] hover:text-neutral-950"
+                                    aria-label="Close"
+                                    onClick={clearOpeningSelection}
+                                >
+                                    <XIcon className="size-4" />
+                                </button>
+                            )}
+                        </div>
+                        {openingsNaming ? (
+                            <form className="mt-3 grid gap-3" onSubmit={(event) => { event.preventDefault(); confirmOpeningType(); }}>
+                                <label className="grid gap-1 text-sm font-medium" htmlFor="opening-type-name">
+                                    These openings are
+                                    <input
+                                        id="opening-type-name"
+                                        list="opening-type-choices"
+                                        className="h-11 rounded-md border border-neutral-300 bg-white px-3 text-sm font-normal text-neutral-950 dark:border-neutral-600 dark:bg-neutral-800 dark:text-white"
+                                        value={openingTypeName}
+                                        placeholder="Door, Window, or type a name"
+                                        autoFocus
+                                        onChange={(event) => setOpeningTypeName(event.target.value)}
+                                    />
+                                </label>
+                                <datalist id="opening-type-choices">
+                                    {openingTypeChoices.map((choice) => <option key={choice} value={choice} />)}
+                                </datalist>
+                                <div className="flex justify-end gap-2">
+                                    <Button type="button" variant="outline" size="sm" className="rounded-full" onClick={clearOpeningSelection}>Cancel</Button>
+                                    <Button type="submit" variant="create" size="sm" className="rounded-full" disabled={normalizeOpeningType(openingTypeName) === ''}>Add openings</Button>
+                                </div>
+                            </form>
+                        ) : null}
+                        {openingsDragReading ? (
+                            <div className="mt-3 grid gap-3">
+                                <p className="text-3xl font-semibold tabular-nums">{openingsDragPercent}%</p>
+                                <div className="relative h-3 overflow-hidden rounded-full bg-neutral-200 dark:bg-neutral-700" role="progressbar" aria-valuenow={openingsDragPercent} aria-valuemin={0} aria-valuemax={100} aria-label="Opening read progress">
+                                    <div className="h-full rounded-full bg-indigo-600 transition-[width] duration-500 ease-out" style={{ width: `${openingsDragPercent}%` }} />
+                                </div>
+                            </div>
+                        ) : null}
+                        {openingsDragReading || openingsNaming ? null : (
+                            <div className="mt-3 flex items-center justify-end gap-3">
+                                {selectedOpeningIds.length > 0 ? <p className="mr-auto text-xs text-neutral-500">Removes these openings from the list.</p> : null}
+                                <Button type="button" variant="outline" size="sm" className="rounded-full" onClick={cancelOpeningSelection}>
+                                    Cancel selection
+                                </Button>
+                            </div>
+                        )}
+                        {openingsFound.length > 0 ? (
+                            <ul className="mt-3 max-h-64 overflow-y-auto rounded-md border">
+                                {openingsFound.map((item) => (
+                                    <li key={item.tag} className="grid grid-cols-[4rem_4.5rem_1fr] items-center gap-2 border-b px-3 py-2 text-sm last:border-b-0">
+                                        <span className="font-semibold">{item.tag}</span>
+                                        <span>{item.opening_type === 'window' ? 'Window' : item.opening_type === 'door' ? 'Door' : item.opening_type}</span>
+                                        <span className="truncate text-neutral-500">{[item.width, item.height].filter(Boolean).join(' x ')}{item.location ? ` · ${item.location}` : ''}</span>
+                                    </li>
+                                ))}
+                            </ul>
+                        ) : null}
+                    </div>
+                    </div>
+                ) : null}
+                <Dialog open={scanOpen} onOpenChange={(next) => {
+                    if (!next && scanning) {
+                        return;
+                    }
+
+                    setScanOpen(next);
+                }}>
+                    <DialogContent className="sm:max-w-md" showCloseButton={!scanning} onPointerDownOutside={(event) => {
+                        if (scanning) {
+                            event.preventDefault();
+                        }
+                    }} onEscapeKeyDown={(event) => {
+                        if (scanning) {
+                            event.preventDefault();
+                        }
+                    }}>
+                        <DialogHeader>
+                            <DialogTitle>{scanError ? 'The drawing could not be read' : scanning ? 'Reading the drawing' : 'Drawing read'}</DialogTitle>
+                            <DialogDescription>
+                                {scanError ?? scanLabel}
+                            </DialogDescription>
+                        </DialogHeader>
+                        <div className="grid gap-3">
+                            <div className="flex items-end justify-between gap-3">
+                                <p className="text-3xl font-semibold tabular-nums text-foreground">{scanPercent}%</p>
+                                <p className="pb-1 text-sm text-muted-foreground">{scanning ? 'Reading' : 'Finished'}</p>
+                            </div>
+                            <div className="relative h-3 overflow-hidden rounded-full bg-muted" role="progressbar" aria-valuenow={scanPercent} aria-valuemin={0} aria-valuemax={100} aria-label="Drawing read progress">
+                                <div className="h-full rounded-full bg-emerald-600 transition-[width] duration-500 ease-out" style={{ width: `${scanPercent}%` }} />
+                                {scanning ? <div className="absolute inset-0 animate-pulse bg-white/25" /> : null}
+                            </div>
+                            <ol className="grid gap-1.5">
+                                {scanStages.map((stage) => {
+                                    const activeAt = scanStages.find((item) => scanPercent < item.at)?.at ?? scanStages[scanStages.length - 1].at;
+                                    const current = scanning && stage.at === activeAt;
+                                    const reached = scanPercent >= stage.at && !current;
+
+                                    return (
+                                        <li key={stage.label} className={`flex items-center gap-2 text-sm ${reached || current ? 'text-foreground' : 'text-muted-foreground'}`}>
+                                            <span className={`flex size-5 items-center justify-center rounded-full text-[11px] font-semibold ${reached ? 'bg-emerald-600 text-white' : current ? 'bg-emerald-100 text-emerald-800 animate-pulse' : 'bg-muted text-muted-foreground'}`}>
+                                                {reached ? '✓' : current ? '…' : ''}
+                                            </span>
+                                            {stage.label}
+                                        </li>
+                                    );
+                                })}
+                            </ol>
+                        </div>
+                        {scanning ? null : (
+                            <Button type="button" onClick={() => setScanOpen(false)}>Close</Button>
+                        )}
+                    </DialogContent>
+                </Dialog>
+                <Dialog open={copyOpen} onOpenChange={(next) => {
+                    if (!next) {
+                        copyAbort.current?.abort();
+                        copyAbort.current = null;
+                        setCopyReading(false);
+                    }
+
+                    setCopyOpen(next);
+                }}>
+                    <DialogContent className="sm:max-w-xl">
+                        <DialogHeader>
+                            <DialogTitle>{editingSectionId ? 'Edit section' : 'Save copied section'}</DialogTitle>
+                            <DialogDescription>
+                                {copyReading ? copyLabel : copyError ?? 'The text inside the mark is below. Save it as a section, copy it, or remove the selection.'}
+                            </DialogDescription>
+                        </DialogHeader>
+                        {copyReading ? (
+                            <div className="grid gap-2">
+                                <div className="flex items-end justify-between gap-3">
+                                    <p className="text-2xl font-semibold tabular-nums text-foreground">{copyPercent}%</p>
+                                    <p className="pb-1 text-sm text-muted-foreground">{copyLabel}</p>
+                                </div>
+                                <div className="relative h-2.5 overflow-hidden rounded-full bg-muted" role="progressbar" aria-valuenow={copyPercent} aria-valuemin={0} aria-valuemax={100} aria-label="Copied section progress">
+                                    <div className="h-full rounded-full bg-emerald-600 transition-[width] duration-500 ease-out" style={{ width: `${copyPercent}%` }} />
+                                </div>
+                                <Button type="button" variant="outline" onClick={discardSelection}>Remove selection</Button>
+                            </div>
+                        ) : copyError && !copyBody ? (
+                            <Button type="button" variant="outline" onClick={discardSelection}>Remove selection</Button>
+                        ) : (
+                            <div className="grid gap-3">
+                                <label className="grid gap-1 text-sm font-medium text-foreground">
+                                    Section name
+                                    <input value={copyTitle} onChange={(event) => setCopyTitle(event.target.value)} className="h-11 rounded-md border border-border bg-background px-3 text-sm" />
+                                </label>
+                                <div className="grid gap-1">
+                                    <p className="text-sm font-medium text-foreground">Information</p>
+                                    <div className="overflow-hidden rounded-xl border border-border">
+                                        <SectionSheet body={copyBody} onChange={setCopyBody} />
+                                    </div>
+                                </div>
+                                {clipboardNote ? <p className="text-sm text-amber-700">{clipboardNote}</p> : null}
+                                <div className="flex flex-wrap gap-2">
+                                    {editable ? (
+                                        <Button type="button" disabled={!copyTitle.trim() || !copyBody.trim()} onClick={saveSection}>Save section</Button>
+                                    ) : null}
+                                    <Button type="button" variant="outline" disabled={!copyBody.trim()} onClick={() => copyText(copyBody, 'draft')}>
+                                        <CopyIcon className="size-4" />
+                                        {copiedKey === 'draft' ? 'Copied' : 'Copy'}
+                                    </Button>
+                                    <Button type="button" variant="outline" onClick={discardSelection}>Remove selection</Button>
+                                </div>
+                            </div>
+                        )}
+                    </DialogContent>
+                </Dialog>
+                <Dialog open={viewingSection !== null} onOpenChange={(next) => {
+                    if (!next) {
+                        setViewingSection(null);
+                    }
+                }}>
+                    <DialogContent className="sm:max-w-2xl">
+                        <DialogHeader>
+                            <DialogTitle>{viewingSection?.title ?? 'Section'}</DialogTitle>
+                            <DialogDescription>
+                                {viewingSection ? `Page ${viewingSection.page}` : ''}
+                            </DialogDescription>
+                        </DialogHeader>
+                        {viewingSection ? (
+                            <div className="grid gap-3">
+                                <div className="overflow-hidden rounded-xl border border-border">
+                                    <SectionSheet body={viewingSection.body} />
+                                </div>
+                                <div className="flex flex-wrap gap-2">
+                                    <Button type="button" variant="outline" onClick={() => copyText(viewingSection.body, `view-${viewingSection.id}`)}>
+                                        <CopyIcon className="size-4" />
+                                        {copiedKey === `view-${viewingSection.id}` ? 'Copied' : 'Copy'}
+                                    </Button>
+                                    <Button type="button" variant="outline" onClick={() => setViewingSection(null)}>Close</Button>
+                                </div>
+                            </div>
+                        ) : null}
+                    </DialogContent>
+                </Dialog>
 
                 {section === 'workspace' ? (
                     <div className="flex flex-col gap-3">
@@ -655,7 +1577,19 @@ export default function Show({ takeoff, templates, quotations, can }: Props) {
                                     onRename={(openingId, callout) => router.patch(route('admin.takeoffs.openings.callout', [takeoff.uuid, openingId]), { callout }, { preserveScroll: true })}
                                     onRemove={(markerId) => router.delete(route('admin.takeoffs.markers.destroy', [takeoff.uuid, markerId]), { preserveScroll: true })}
                                     onUpload={editable ? uploadPdf : undefined}
-                                    onScan={editable && selectedDocumentId ? () => router.post(route('admin.takeoffs.documents.scan', [takeoff.uuid, selectedDocumentId]), {}, { preserveScroll: true }) : undefined}
+                                    onScan={editable && selectedDocumentId ? reloadDrawing : undefined}
+                                    sections={takeoff.sections ?? []}
+                                    focusedSection={(() => {
+                                        const focused = (takeoff.sections ?? []).find((item) => item.id === selectedSectionId);
+
+                                        return focused ? { id: focused.id, page: focused.page, documentId: focused.document_id } : null;
+                                    })()}
+                                    onCopyRegion={editable ? readRegion : undefined}
+                                    onOpeningsRegion={editable ? beginOpeningSelection : undefined}
+                                    openingsBox={openingsBox}
+                                    onDeleteSection={editable ? (sectionId) => {
+                                        router.delete(route('admin.takeoffs.sections.destroy', [takeoff.uuid, sectionId]), { preserveScroll: true });
+                                    } : undefined}
                                     uploading={uploadingPdf}
                                     uploadError={uploadError}
                                     tool={countTool}
@@ -735,6 +1669,66 @@ export default function Show({ takeoff, templates, quotations, can }: Props) {
                                     )}
                                 />
                             </div>
+                            <div id="takeoff-sections" className="flex flex-col gap-3">
+                                <div>
+                                    <h3 className="flex items-center gap-2 text-base font-semibold text-amber-800">
+                                        <BookmarkIcon className="size-4" />
+                                        Sections
+                                    </h3>
+                                    <p className="text-sm text-muted-foreground">Marked parts of the drawing. Use Openings, next to Copy, to drag a schedule. Name it as a door, a window, or another type, and those marks are added to the list.</p>
+                                </div>
+                                {(takeoff.sections ?? []).length === 0 ? (
+                                    <p className="rounded-xl border border-dashed border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-950 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-100">Choose Copy on the drawing tools and drag around the part you want to keep.</p>
+                                ) : (
+                                    <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+                                        {(takeoff.sections ?? []).map((item) => {
+                                            const lines = copiedLines(item.body).length;
+
+                                            return (
+                                                <article id={`takeoff-section-${item.id}`} className={cn('flex min-w-0 flex-col overflow-hidden rounded-xl border bg-card shadow-sm', selectedSectionId === item.id ? 'border-amber-500 ring-2 ring-amber-500' : 'border-border')}>
+                                                    <div className="border-b border-amber-200 bg-amber-50 px-3 py-2 dark:border-amber-900 dark:bg-amber-950/40">
+                                                        <div className="min-w-0">
+                                                            <h4 className="truncate text-sm font-semibold text-foreground">{item.title}</h4>
+                                                            <p className="text-[11px] text-muted-foreground">Page {item.page} · {lines === 1 ? '1 line' : `${lines} lines`}</p>
+                                                        </div>
+                                                        <div className="mt-2 flex flex-nowrap items-center gap-1 overflow-x-auto">
+                                                            <Button type="button" variant="outline" size="xs" onClick={() => setViewingSection(item)}>
+                                                                <EyeIcon className="size-3.5" />
+                                                                View
+                                                            </Button>
+                                                            <Button type="button" variant="outline" size="xs" aria-label={copiedKey === String(item.id) ? 'Copied' : 'Copy'} onClick={() => copyText(item.body, String(item.id))}>
+                                                                <CopyIcon className="size-3.5" />
+                                                                {copiedKey === String(item.id) ? 'Copied' : 'Copy'}
+                                                            </Button>
+                                                            {editable ? (
+                                                                <>
+                                                                    <Button type="button" variant="outline" size="xs" onClick={() => {
+                                                                        setEditingSectionId(item.id);
+                                                                        setCopyTitle(item.title);
+                                                                        setCopyBody(item.body);
+                                                                        setCopyError(null);
+                                                                        setClipboardNote(null);
+                                                                        setCopyReading(false);
+                                                                        setCopyOpen(true);
+                                                                    }}>
+                                                                        <PencilIcon className="size-3.5" />
+                                                                        Edit
+                                                                    </Button>
+                                                                    <Button type="button" variant="outline" size="xs" onClick={() => router.delete(route('admin.takeoffs.sections.destroy', [takeoff.uuid, item.id]), { preserveScroll: true })}>
+                                                                        <Trash2Icon className="size-3.5" />
+                                                                        Remove
+                                                                    </Button>
+                                                                </>
+                                                            ) : null}
+                                                        </div>
+                                                    </div>
+                                                    <SectionSheet body={item.body} compact />
+                                                </article>
+                                            );
+                                        })}
+                                    </div>
+                                )}
+                            </div>
                             <div id="takeoff-openings" className="flex flex-col gap-3">
                                 <div>
                                     <h3 className="flex items-center gap-2 text-base font-semibold text-indigo-800">
@@ -762,17 +1756,17 @@ export default function Show({ takeoff, templates, quotations, can }: Props) {
                                         <option value="not_applicable">Not applicable</option>
                                     </select>
                                 </div>
-                                <div className="flex flex-wrap items-center gap-2">
+                                <div className="flex w-full flex-wrap items-center gap-2">
+                                    {unsavedCount > 0 ? (
+                                        <p className="mr-auto rounded-md border border-red-300 bg-red-50 px-3 py-2 text-sm font-semibold text-red-800">
+                                            {unsavedCount === 1 ? '1 opening is not saved.' : `${unsavedCount} openings are not saved.`} Open Actions and choose Save takeoff to keep them.
+                                        </p>
+                                    ) : null}
                                     {editable ? (
-                                        <Button type="button" variant="create" size="sm" onClick={() => { setCreating(true); setSelectedOpeningId(null); }}>
+                                        <Button type="button" variant="create" size="sm" className="ml-auto rounded-full px-4" onClick={() => { setCreating(true); setSelectedOpeningId(null); }}>
                                             <PlusIcon data-icon="inline-start" />
                                             Add opening
                                         </Button>
-                                    ) : null}
-                                    {unsavedCount > 0 ? (
-                                        <p className="rounded-md border border-red-300 bg-red-50 px-3 py-2 text-sm font-semibold text-red-800">
-                                            {unsavedCount === 1 ? '1 opening is not saved.' : `${unsavedCount} openings are not saved.`} Open Actions and choose Save takeoff to keep them.
-                                        </p>
                                     ) : null}
                                 </div>
                                 <div className="max-h-[32rem] overflow-auto rounded-md border">
@@ -803,7 +1797,7 @@ export default function Show({ takeoff, templates, quotations, can }: Props) {
                                                         {drafts.new.tag || 'New opening'}
                                                         <span className="ml-2 rounded bg-red-600 px-1.5 py-0.5 text-[11px] font-semibold text-white">Not saved</span>
                                                     </td>
-                                                    <td className="px-2 py-2">{drafts.new.opening_type === 'window' ? 'Window' : 'Door'}</td>
+                                                    <td className="px-2 py-2">{drafts.new.opening_type === 'window' ? 'Window' : drafts.new.opening_type === 'door' ? 'Door' : drafts.new.opening_type}</td>
                                                     <td className="px-2 py-2">{drafts.new.quantity}</td>
                                                     <td className="px-2 py-2">{[drafts.new.width, drafts.new.height, drafts.new.depth].filter(Boolean).join(' x ')} {drafts.new.dimension_unit}</td>
                                                     <td className="px-2 py-2">{drafts.new.location || '—'}</td>
@@ -822,13 +1816,13 @@ export default function Show({ takeoff, templates, quotations, can }: Props) {
                                                 const kind = draft?.opening_type ?? opening.opening_type;
 
                                                 return (
-                                                <tr key={opening.id} className={`cursor-pointer border-t ${unsaved ? 'border-l-4 border-l-red-600 bg-red-100 text-red-950' : selectedOpeningId === opening.id ? 'bg-[#3FCF8E]/20' : ''}`} onClick={() => openOpening(opening.id)}>
+                                                <tr key={opening.id} className={`cursor-pointer border-t ${unsaved ? 'border-l-4 border-l-red-600 bg-red-100 text-red-950' : selectedOpeningIds.includes(opening.id) ? 'bg-sky-100' : selectedOpeningId === opening.id ? 'bg-[#3FCF8E]/20' : ''}`} onClick={() => openOpening(opening.id)}>
                                                     <td className="px-2 py-2 text-right font-semibold tabular-nums">{countMark(opening.callout, lineByOpening.get(opening.id) ?? 1)}</td>
                                                     <td className="px-2 py-2">
                                                         {opening.is_bulk ? `Bulk ${tag ?? ''}`.trim() : tag}
                                                         {unsaved ? <span className="ml-2 rounded bg-red-600 px-1.5 py-0.5 text-[11px] font-semibold text-white">Not saved</span> : null}
                                                     </td>
-                                                    <td className="px-2 py-2">{kind === 'door' ? (opening.door_type || 'Door') : 'Window'}</td>
+                                                    <td className="px-2 py-2">{kind === 'door' ? (opening.door_type || 'Door') : kind === 'window' ? 'Window' : kind}</td>
                                                     <td className="px-2 py-2">{quantity}</td>
                                                     <td className="px-2 py-2">{[width, height, depth].filter(Boolean).join(' x ')} {unit}</td>
                                                     <td className={`px-2 py-2 ${selectedOpeningId === opening.id ? 'font-medium' : ''}`}>{locationText || '—'}</td>

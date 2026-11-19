@@ -4,7 +4,7 @@ import worker from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { arrangePinLabels, calloutBox, clampCallout, countMark, type PinAnchor } from '../pinLabels';
-import type { SheetMarkup, TakeoffDocument, TakeoffOpening } from '../types';
+import type { SheetMarkup, TakeoffDocument, TakeoffOpening, TakeoffSheetSection } from '../types';
 import DrawingPalette, { type MarkDraft } from './DrawingPalette';
 
 GlobalWorkerOptions.workerSrc = worker;
@@ -18,7 +18,24 @@ function isCountBox(marker: { x2?: string | null; y2?: string | null }): marker 
     return marker.x2 != null && marker.x2 !== '' && marker.y2 != null && marker.y2 !== '';
 }
 type PinPosition = { anchorLeft: number; anchorTop: number; left: number; top: number; width: number; height: number };
-type CountTool = 'door' | 'window' | 'select' | 'hand' | 'remove' | 'pen' | 'box';
+type CountTool = 'door' | 'window' | 'select' | 'hand' | 'remove' | 'pen' | 'box' | 'copy' | 'openings';
+type TraceKind = 'pen' | 'box' | 'copy' | 'openings';
+
+function isAreaTrace(kind: string): kind is 'box' | 'copy' | 'openings' {
+    return kind === 'box' || kind === 'copy' || kind === 'openings';
+}
+
+function openingTypeLabel(type: string): string {
+    if (type === 'window') {
+        return 'Window';
+    }
+
+    if (type === 'door') {
+        return 'Door';
+    }
+
+    return type || 'Selection';
+}
 
 export type { CountTool };
 
@@ -41,12 +58,12 @@ function markupKey(markup: Pick<SheetMarkup, 'kind' | 'color' | 'document_id' | 
     ].join('|');
 }
 
-function tracePath(points: { x: number; y: number }[], kind: 'pen' | 'box'): string {
+function tracePath(points: { x: number; y: number }[], kind: TraceKind): string {
     if (points.length === 0) {
         return '';
     }
 
-    if (kind === 'box') {
+    if (isAreaTrace(kind)) {
         const start = points[0];
         const end = points[points.length - 1];
         const x = Math.min(start.x, end.x);
@@ -132,7 +149,7 @@ function readDrawingTools(): SavedDrawingTools {
 
         return {
             zoom: Number.isFinite(zoom) && zoom >= 0.05 && zoom <= 8 ? zoom : 1,
-            tool: tool === 'window' || tool === 'select' || tool === 'hand' || tool === 'remove' || tool === 'pen' || tool === 'box' || tool === 'door' ? tool : 'door',
+            tool: tool === 'window' || tool === 'select' || tool === 'hand' || tool === 'remove' || tool === 'pen' || tool === 'box' || tool === 'copy' || tool === 'openings' || tool === 'door' ? tool : 'door',
             byDocument: parsed?.byDocument && typeof parsed.byDocument === 'object' ? parsed.byDocument : {},
         };
     } catch {
@@ -176,6 +193,12 @@ type Props = {
     review?: { tag: string; page: number; x: number; y: number } | null;
     onMarkup?: (markup: { documentId: number; page: number; kind: 'pen' | 'box'; color: string; points: { x: number; y: number }[] }) => void;
     onDeleteMarkup?: (markupId: number) => void;
+    sections?: TakeoffSheetSection[];
+    focusedSection?: { id: number; page: number; documentId: number } | null;
+    onCopyRegion?: (region: { documentId: number; page: number; x: number; y: number; x2: number; y2: number }) => void;
+    onOpeningsRegion?: (region: { documentId: number; page: number; x: number; y: number; x2: number; y2: number }) => void;
+    openingsBox?: { documentId: number; page: number; x: number; y: number; x2: number; y2: number; openingType: string } | null;
+    onDeleteSection?: (sectionId: number) => void;
     inspector?: ReactNode;
     paletteView?: 'drawing' | 'inspector';
     onPaletteView?: (view: 'drawing' | 'inspector') => void;
@@ -209,6 +232,12 @@ export default function PdfWorkspace({
     review = null,
     onMarkup,
     onDeleteMarkup,
+    sections = [],
+    focusedSection = null,
+    onCopyRegion,
+    onOpeningsRegion,
+    openingsBox = null,
+    onDeleteSection,
     inspector = null,
     paletteView = 'drawing',
     onPaletteView,
@@ -261,7 +290,7 @@ export default function PdfWorkspace({
     const [boxNudge, setBoxNudge] = useState<{ id: number; dx: number; dy: number } | null>(null);
     const [localMarkups, setLocalMarkups] = useState<SheetMarkup[]>([]);
     const [markupPaths, setMarkupPaths] = useState<{ id: number; kind: 'pen' | 'box'; color: string; points: { x: number; y: number }[] }[]>([]);
-    const [trace, setTrace] = useState<{ kind: 'pen' | 'box'; color: string; points: { x: number; y: number }[]; pixels: { x: number; y: number }[] } | null>(null);
+    const [trace, setTrace] = useState<{ kind: TraceKind; color: string; points: { x: number; y: number }[]; pixels: { x: number; y: number }[] } | null>(null);
     const traceRef = useRef(trace);
     const [sheetVersion, setSheetVersion] = useState(0);
     const document = documents.find((item) => item.id === selectedDocumentId) ?? documents[0] ?? null;
@@ -344,6 +373,14 @@ export default function PdfWorkspace({
         setPage(nextPage);
         setRotation(nextRotation);
     }, [document?.id]);
+
+    useEffect(() => {
+        if (!focusedSection || focusedSection.documentId !== document?.id || focusedSection.page < 1) {
+            return;
+        }
+
+        setPage(focusedSection.page);
+    }, [focusedSection?.id, focusedSection?.page, focusedSection?.documentId, document?.id]);
 
     useEffect(() => {
         if (skipToolWrite.current) {
@@ -890,7 +927,8 @@ export default function PdfWorkspace({
             }
 
             const key = event.key.toLowerCase();
-            const tools: Record<string, CountTool> = { d: 'door', w: 'window', v: 'select', h: 'hand', x: 'remove', p: 'pen', b: 'box' };
+
+            const tools: Record<string, CountTool> = { d: 'door', w: 'window', v: 'select', h: 'hand', x: 'remove', p: 'pen', b: 'box', c: 'copy', o: 'openings' };
 
             if (canEdit && tools[key]) {
                 onToolChange(tools[key]);
@@ -1173,7 +1211,35 @@ export default function PdfWorkspace({
 
     const choosePdf = () => fileRef.current?.click();
     const placing = tool === 'door' || tool === 'window';
-    const tracing = tool === 'pen' || tool === 'box';
+    const tracing = tool === 'pen' || tool === 'box' || tool === 'copy' || tool === 'openings';
+    const savedSections = sections.flatMap((section) => {
+        if (!document || section.document_id !== document.id || section.page !== page) {
+            return [];
+        }
+
+        const a = sheetPoint(section.x, section.y);
+        const b = sheetPoint(section.x2, section.y2);
+
+        if (!a || !b) {
+            return [];
+        }
+
+        return [{ ...section, a, b }];
+    });
+    const openingsOutline = (() => {
+        if (!openingsBox || !document || openingsBox.documentId !== document.id || openingsBox.page !== page) {
+            return null;
+        }
+
+        const a = sheetPoint(openingsBox.x, openingsBox.y);
+        const b = sheetPoint(openingsBox.x2, openingsBox.y2);
+
+        if (!a || !b) {
+            return null;
+        }
+
+        return { a, b, openingType: openingsBox.openingType };
+    })();
 
     const rememberMarkup = (kind: 'pen' | 'box', points: { x: number; y: number }[]) => {
         if (!document || points.length < 2) {
@@ -1212,7 +1278,7 @@ export default function PdfWorkspace({
             return;
         }
 
-        if (current.kind === 'box') {
+        if (isAreaTrace(current.kind)) {
             const start = current.points[0];
             const end = current.points[current.points.length - 1];
 
@@ -1227,6 +1293,26 @@ export default function PdfWorkspace({
                 x2: round(Math.max(start.x, end.x)),
                 y2: round(Math.max(start.y, end.y)),
             };
+            if (current.kind === 'copy') {
+                onCopyRegion?.({
+                    documentId: document.id,
+                    page,
+                    ...box,
+                });
+
+                return;
+            }
+
+            if (current.kind === 'openings') {
+                onOpeningsRegion?.({
+                    documentId: document.id,
+                    page,
+                    ...box,
+                });
+
+                return;
+            }
+
             setPendingBoxes((items) => [...items, {
                 ...box,
                 id: -Date.now(),
@@ -1268,8 +1354,8 @@ export default function PdfWorkspace({
         event.stopPropagation();
         event.currentTarget.setPointerCapture(event.pointerId);
         const next = {
-            kind: tool as 'pen' | 'box',
-            color: ink,
+            kind: tool as TraceKind,
+            color: tool === 'copy' ? '#059669' : tool === 'openings' ? '#4f46e5' : ink,
             points: [{ x: point.x, y: point.y }],
             pixels: [pixel],
         };
@@ -1291,7 +1377,7 @@ export default function PdfWorkspace({
             return;
         }
 
-        if (current.kind === 'box') {
+        if (isAreaTrace(current.kind)) {
             const next = {
                 ...current,
                 points: [current.points[0], { x: point.x, y: point.y }],
@@ -1452,7 +1538,11 @@ export default function PdfWorkspace({
                         }}
                     />
                     <div className="pointer-events-none absolute inset-0 z-[1] bg-black" style={{ opacity: dim }} />
-                    <svg className="pointer-events-none absolute inset-0 z-[2] h-full w-full overflow-visible">
+                    <svg
+                        className="pointer-events-none absolute inset-0 z-[2] h-full w-full overflow-visible"
+                        viewBox={sheetPixels.width > 0 && sheetPixels.height > 0 ? `0 0 ${sheetPixels.width} ${sheetPixels.height}` : undefined}
+                        preserveAspectRatio="none"
+                    >
                         <defs>
                             <marker id="takeoff-count-arrow" viewBox="0 0 10 10" markerWidth="8" markerHeight="8" refX="10" refY="5" orient="auto" markerUnits="userSpaceOnUse">
                                 <path d="M0 0 L10 5 L0 10 Z" fill="#111827" />
@@ -1525,6 +1615,54 @@ export default function PdfWorkspace({
                                 strokeDasharray={markup.kind === 'box' ? '7 5' : undefined}
                             />
                         ))}
+                        {openingsOutline ? (
+                            <g>
+                                <path
+                                    d={tracePath([openingsOutline.a, openingsOutline.b], 'box')}
+                                    fill="rgba(5,150,105,0.08)"
+                                    stroke="#059669"
+                                    strokeWidth="2"
+                                    strokeDasharray="6 4"
+                                    strokeLinejoin="round"
+                                />
+                                {openingsOutline.openingType ? (
+                                    <text
+                                        x={Math.min(openingsOutline.a.x, openingsOutline.b.x) + 6}
+                                        y={Math.min(openingsOutline.a.y, openingsOutline.b.y) + 16}
+                                        fill="#047857"
+                                        fontSize="13"
+                                        fontWeight="700"
+                                    >
+                                        {openingTypeLabel(openingsOutline.openingType)}
+                                    </text>
+                                ) : null}
+                            </g>
+                        ) : null}
+                        {savedSections.map((section) => {
+                            const chosen = section.id === focusedSection?.id;
+
+                            return (
+                            <g key={`section-${section.id}`}>
+                                <path
+                                    d={tracePath([section.a, section.b], 'box')}
+                                    fill={chosen ? 'rgba(217,119,6,0.18)' : 'rgba(5,150,105,0.08)'}
+                                    stroke={chosen ? '#b45309' : '#059669'}
+                                    strokeWidth={chosen ? 3.5 : 2}
+                                    strokeDasharray="6 4"
+                                    strokeLinejoin="round"
+                                />
+                                <text
+                                    x={Math.min(section.a.x, section.b.x) + 6}
+                                    y={Math.min(section.a.y, section.b.y) + 16}
+                                    fill={chosen ? '#92400e' : '#047857'}
+                                    fontSize="13"
+                                    fontWeight="700"
+                                >
+                                    {section.title}
+                                </text>
+                            </g>
+                            );
+                        })}
                         {trace ? (
                             <path
                                 d={tracePath(trace.pixels, trace.kind)}
@@ -1533,10 +1671,25 @@ export default function PdfWorkspace({
                                 strokeWidth="2.5"
                                 strokeLinecap="round"
                                 strokeLinejoin="round"
-                                strokeDasharray={trace.kind === 'box' ? '7 5' : undefined}
+                                strokeDasharray={isAreaTrace(trace.kind) ? '7 5' : undefined}
                             />
                         ) : null}
                     </svg>
+                    {canEdit && onDeleteSection ? savedSections.map((section) => (
+                        <button
+                            key={`section-remove-${section.id}`}
+                            type="button"
+                            className="absolute z-30 flex size-6 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-white text-sm font-semibold text-red-700 shadow ring-1 ring-red-200 hover:bg-red-50"
+                            style={{ left: Math.max(section.a.x, section.b.x), top: Math.min(section.a.y, section.b.y) }}
+                            aria-label={`Remove ${section.title}`}
+                            onClick={(event) => {
+                                event.stopPropagation();
+                                onDeleteSection(section.id);
+                            }}
+                        >
+                            ×
+                        </button>
+                    )) : null}
                     {markers.map(({ marker, opening }) => {
                         const position = positions[marker.id];
 

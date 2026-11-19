@@ -809,6 +809,9 @@ Route::middleware(['auth', 'prevent-back-history'])
         Route::post('/takeoffs/{takeoff}/documents/{document}/scan', [TakeoffWorkspaceController::class, 'scanDocument'])
             ->middleware('can:update-takeoffs')
             ->name('takeoffs.documents.scan');
+        Route::get('/takeoffs/{takeoff}/documents/{document}/scan-progress/{progress}', [TakeoffWorkspaceController::class, 'scanProgress'])
+            ->middleware('can:view-takeoffs')
+            ->name('takeoffs.documents.scan-progress');
         Route::post('/takeoffs/{takeoff}/documents/{document}/proposals/confirm', [TakeoffWorkspaceController::class, 'confirmProposal'])
             ->middleware('can:update-takeoffs')
             ->name('takeoffs.proposals.confirm');
@@ -827,6 +830,27 @@ Route::middleware(['auth', 'prevent-back-history'])
         Route::delete('/takeoffs/{takeoff}/markups/{markup}', [TakeoffWorkspaceController::class, 'destroyMarkup'])
             ->middleware('can:update-takeoffs')
             ->name('takeoffs.markups.destroy');
+        Route::post('/takeoffs/{takeoff}/sections/read', [TakeoffWorkspaceController::class, 'readSection'])
+            ->middleware('can:update-takeoffs')
+            ->name('takeoffs.sections.read');
+        Route::post('/takeoffs/{takeoff}/sections', [TakeoffWorkspaceController::class, 'storeSection'])
+            ->middleware('can:update-takeoffs')
+            ->name('takeoffs.sections.store');
+        Route::patch('/takeoffs/{takeoff}/sections/{section}', [TakeoffWorkspaceController::class, 'updateSection'])
+            ->middleware('can:update-takeoffs')
+            ->name('takeoffs.sections.update');
+        Route::delete('/takeoffs/{takeoff}/sections/{section}', [TakeoffWorkspaceController::class, 'destroySection'])
+            ->middleware('can:update-takeoffs')
+            ->name('takeoffs.sections.destroy');
+        Route::post('/takeoffs/{takeoff}/sections/{section}/openings', [TakeoffWorkspaceController::class, 'openingsFromSection'])
+            ->middleware('can:update-takeoffs')
+            ->name('takeoffs.sections.openings');
+        Route::post('/takeoffs/{takeoff}/openings/from-text', [TakeoffWorkspaceController::class, 'openingsFromText'])
+            ->middleware('can:update-takeoffs')
+            ->name('takeoffs.openings.from-text');
+        Route::post('/takeoffs/{takeoff}/openings/forget', [TakeoffWorkspaceController::class, 'forgetOpenings'])
+            ->middleware('can:update-takeoffs')
+            ->name('takeoffs.openings.forget');
         Route::delete('/takeoffs/{takeoff}/documents/{document}', [TakeoffWorkspaceController::class, 'destroyDocument'])
             ->middleware('can:update-takeoffs')
             ->name('takeoffs.documents.destroy');

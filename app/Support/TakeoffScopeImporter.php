@@ -2,6 +2,7 @@
 
 namespace App\Support;
 
+use App\Models\OpeningCategory;
 use App\Models\Takeoff;
 use App\Models\TakeoffDocument;
 use App\Models\TakeoffOpening;
@@ -35,12 +36,16 @@ class TakeoffScopeImporter
     /**
      * @return array{scope: array<string, mixed>, import: array{created: list<array<string, mixed>>, skipped: int, markers_added: int}}
      */
-    public static function scan(Takeoff $takeoff, TakeoffDocument $document): array
+    public static function scan(Takeoff $takeoff, TakeoffDocument $document, ?callable $progress = null): array
     {
         $disk = Storage::disk(config('takeoffs.disk'));
         $disk->delete(self::cachePath($document));
-        $scope = TakeoffPdfScope::read($disk->path($document->storage_path));
+        $scope = TakeoffPdfScope::read($disk->path($document->storage_path), $progress);
+        if ($progress) {
+            $progress(99, 'Saving the openings');
+        }
         self::remember($document, $scope['openings'] ?? []);
+        self::refreshSavedSpecs($takeoff, $document, $scope['openings'] ?? []);
         $document->fill([
             'page_count' => $scope['page_count'] ?? $document->page_count,
             'document_type' => $document->document_type === 'drawing' && ($scope['document_type'] ?? null) === 'schedule'
@@ -147,6 +152,80 @@ class TakeoffScopeImporter
     public static function remember(TakeoffDocument $document, array $openings): void
     {
         Storage::disk(config('takeoffs.disk'))->put(self::cachePath($document), json_encode($openings) ?: '[]');
+    }
+
+    /**
+     * Copy a fresh read onto openings already saved for this takeoff.
+     * A blank value from the drawing does not erase a specification that was already stored.
+     *
+     * @param  list<array<string, mixed>>  $openings
+     */
+    private static function refreshSavedSpecs(Takeoff $takeoff, TakeoffDocument $document, array $openings): void
+    {
+        $saved = $takeoff->openings()->get()->keyBy(
+            fn (TakeoffOpening $opening): string => strtoupper(trim((string) $opening->tag)),
+        );
+
+        foreach ($openings as $row) {
+            if (! is_array($row)) {
+                continue;
+            }
+
+            $tag = strtoupper(trim((string) ($row['tag'] ?? '')));
+            $opening = $tag === '' ? null : $saved->get($tag);
+
+            if (! $opening) {
+                continue;
+            }
+
+            $changes = [];
+
+            foreach ([
+                'location',
+                'frame_type',
+                'handing',
+                'hardware_set',
+                'glazing',
+                'finish',
+                'notes',
+                'acoustic_requirement',
+                'fire_requirement',
+                'requirement_section',
+            ] as $field) {
+                $value = trim((string) ($row[$field] ?? ''));
+
+                if ($value !== '') {
+                    $changes[$field] = $value;
+                }
+            }
+
+            foreach (['width', 'height', 'depth'] as $field) {
+                $value = TakeoffMoney::dimension($row[$field] ?? null);
+
+                if ($value !== null) {
+                    $changes[$field] = $value;
+                }
+            }
+
+            if (trim((string) ($row['quantity'] ?? '')) !== '') {
+                $changes['quantity'] = TakeoffMoney::money($row['quantity']);
+            }
+
+            $unit = $row['dimension_unit'] ?? null;
+
+            if (in_array($unit, config('takeoffs.units'), true) && isset($changes['width'], $changes['height'])) {
+                $changes['dimension_unit'] = $unit;
+            }
+
+            if (isset($row['requirement_page']) && (int) $row['requirement_page'] > 0) {
+                $changes['requirement_page'] = (int) $row['requirement_page'];
+                $changes['requirement_document_id'] = $document->id;
+            }
+
+            if ($changes !== []) {
+                $opening->update($changes);
+            }
+        }
     }
 
     /**
@@ -306,6 +385,7 @@ class TakeoffScopeImporter
         );
         $sort = (int) $takeoff->openings()->max('sort_order');
         $created = [];
+        $matched = [];
         $skipped = 0;
         $markersAdded = 0;
 
@@ -323,7 +403,7 @@ class TakeoffScopeImporter
                 $opening = $takeoff->openings()->create([
                     'tag' => $row['tag'],
                     'is_bulk' => false,
-                    'opening_type' => $row['opening_type'] === 'window' ? 'window' : 'door',
+                    'opening_type' => trim((string) ($row['opening_type'] ?? '')) !== '' ? trim((string) $row['opening_type']) : 'door',
                     'location' => $row['location'] ?? null,
                     'quantity' => TakeoffMoney::money($row['quantity'] ?? 1),
                     'width' => TakeoffMoney::dimension($row['width'] ?? null),
@@ -335,6 +415,7 @@ class TakeoffScopeImporter
                     'hardware_set' => $row['hardware_set'] ?? null,
                     'glazing' => $row['glazing'] ?? null,
                     'finish' => $row['finish'] ?? null,
+                    'product_category' => OpeningCategory::remember(isset($row['product_category']) ? (string) $row['product_category'] : null),
                     'notes' => $row['notes'] ?? null,
                     'acoustic_requirement' => $row['acoustic_requirement'] ?? null,
                     'fire_requirement' => $row['fire_requirement'] ?? null,
@@ -356,11 +437,31 @@ class TakeoffScopeImporter
                 ]);
                 $existing->put($tag, $opening);
                 $created[] = [
+                    'id' => (int) $opening->id,
+                    'tag' => (string) $opening->tag,
                     'opening_type' => $opening->opening_type,
                     'quantity' => (string) $opening->quantity,
+                    'width' => $opening->width !== null ? (string) $opening->width : null,
+                    'height' => $opening->height !== null ? (string) $opening->height : null,
+                    'location' => $opening->location,
                 ];
             } else {
+                $type = trim((string) ($row['opening_type'] ?? ''));
+
+                if ($type !== '' && $opening->opening_type !== $type) {
+                    $opening->update(['opening_type' => $type]);
+                }
+
                 $skipped++;
+                $matched[] = [
+                    'id' => (int) $opening->id,
+                    'tag' => (string) $opening->tag,
+                    'opening_type' => $opening->opening_type,
+                    'quantity' => (string) $opening->quantity,
+                    'width' => $opening->width !== null ? (string) $opening->width : null,
+                    'height' => $opening->height !== null ? (string) $opening->height : null,
+                    'location' => $opening->location,
+                ];
             }
 
             $markersAdded += self::markers($opening, $document, $row['markers'] ?? []);
@@ -368,9 +469,129 @@ class TakeoffScopeImporter
 
         return [
             'created' => $created,
+            'matched' => $matched,
             'skipped' => $skipped,
             'markers_added' => $markersAdded,
         ];
+    }
+
+    /**
+     * Create openings read from a copied section and fill blank details on marks already saved.
+     *
+     * @param  list<array<string, mixed>>  $rows
+     * @return array{created: int, doors: int, windows: int, filled: int, skipped: int, openings: list<array<string, mixed>>}
+     */
+    public static function importSection(Takeoff $takeoff, TakeoffDocument $document, array $rows): array
+    {
+        $import = self::import($takeoff, $document, ['openings' => $rows]);
+        $doors = 0;
+        $windows = 0;
+        $others = [];
+
+        foreach ($import['created'] as $created) {
+            $type = (string) ($created['opening_type'] ?? 'door');
+
+            if ($type === 'window') {
+                $windows++;
+            } elseif ($type === 'door') {
+                $doors++;
+            } else {
+                $others[$type] = ($others[$type] ?? 0) + 1;
+            }
+        }
+
+        return [
+            'created' => $doors + $windows + array_sum($others),
+            'doors' => $doors,
+            'windows' => $windows,
+            'others' => $others,
+            'filled' => self::fillBlankSpecs($takeoff, $document, $rows),
+            'skipped' => $import['skipped'],
+            'openings' => array_merge($import['created'], $import['matched'] ?? []),
+            'created_ids' => array_values(array_filter(array_map(
+                fn (array $row): int => (int) ($row['id'] ?? 0),
+                $import['created'],
+            ))),
+        ];
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $rows
+     */
+    private static function fillBlankSpecs(Takeoff $takeoff, TakeoffDocument $document, array $rows): int
+    {
+        $saved = $takeoff->openings()->get()->keyBy(
+            fn (TakeoffOpening $opening): string => strtoupper(trim((string) $opening->tag)),
+        );
+        $filled = 0;
+
+        foreach ($rows as $row) {
+            if (! is_array($row)) {
+                continue;
+            }
+
+            $tag = strtoupper(trim((string) ($row['tag'] ?? '')));
+            $opening = $tag === '' ? null : $saved->get($tag);
+
+            if (! $opening) {
+                continue;
+            }
+
+            $changes = [];
+
+            foreach ([
+                'location',
+                'frame_type',
+                'handing',
+                'hardware_set',
+                'glazing',
+                'finish',
+                'notes',
+                'acoustic_requirement',
+                'fire_requirement',
+                'requirement_section',
+            ] as $field) {
+                $value = trim((string) ($row[$field] ?? ''));
+
+                if ($value !== '' && trim((string) $opening->{$field}) === '') {
+                    $changes[$field] = $value;
+                }
+            }
+
+            $category = OpeningCategory::remember(isset($row['product_category']) ? (string) $row['product_category'] : null);
+
+            if ($category !== null && trim((string) $opening->product_category) === '') {
+                $changes['product_category'] = $category;
+            }
+
+            foreach (['width', 'height', 'depth'] as $field) {
+                $value = TakeoffMoney::dimension($row[$field] ?? null);
+
+                if ($value !== null && $opening->{$field} === null) {
+                    $changes[$field] = $value;
+                }
+            }
+
+            $unit = $row['dimension_unit'] ?? null;
+
+            if (in_array($unit, config('takeoffs.units'), true) && (isset($changes['width']) || isset($changes['height']))) {
+                $changes['dimension_unit'] = $unit;
+            }
+
+            if (($opening->requirement_page === null || (int) $opening->requirement_page < 1) && (int) ($row['requirement_page'] ?? 0) > 0) {
+                $changes['requirement_page'] = (int) $row['requirement_page'];
+                $changes['requirement_document_id'] = $document->id;
+            }
+
+            if ($changes === []) {
+                continue;
+            }
+
+            $opening->update($changes);
+            $filled++;
+        }
+
+        return $filled;
     }
 
     /**

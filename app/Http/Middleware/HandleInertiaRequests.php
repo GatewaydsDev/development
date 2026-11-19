@@ -76,6 +76,8 @@ class HandleInertiaRequests extends Middleware
                 'success' => $request->session()->get('success'),
                 'error' => $request->session()->get('error'),
                 'counted_opening_id' => $request->session()->get('counted_opening_id'),
+                'created_openings' => $request->session()->get('created_openings'),
+                'created_section_id' => $request->session()->get('created_section_id'),
                 'importedScopeText' => $request->session()->get('imported_scope_text'),
                 'importedScopeTextTemplateId' => $request->session()->get('imported_scope_text_template_id'),
                 'importedShippingText' => $request->session()->get('imported_shipping_text'),

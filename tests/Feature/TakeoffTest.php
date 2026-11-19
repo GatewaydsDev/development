@@ -15,6 +15,7 @@ use App\Support\TakeoffCsv;
 use App\Support\TakeoffPricing;
 use App\Support\TakeoffReview;
 use App\Support\TakeoffRevisionCopies;
+use App\Support\TakeoffPdfScope;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -568,9 +569,18 @@ test('duplicate opening tags stay separate', function () {
             ->where('takeoff.flags', fn ($flags) => collect($flags)->contains(fn ($flag) => $flag['code'] === 'duplicate_tag')));
 });
 
-function takeoffDrawingPdf(): string
+function takeoffDrawingPdf(array $extraLines = []): string
 {
-    $schedule = implode("\n", [
+    $extra = '';
+    $y = 500;
+
+    foreach ($extraLines as $line) {
+        $y -= 18;
+        $escaped = str_replace(['\\', '(', ')'], ['\\\\', '\\(', '\\)'], $line);
+        $extra .= "1 0 0 1 72 {$y} Tm\n({$escaped}) Tj\n";
+    }
+
+    $scheduleLines = [
         'BT',
         '/F1 12 Tf',
         '1 0 0 1 72 720 Tm',
@@ -619,8 +629,14 @@ function takeoffDrawingPdf(): string
         '(A-601) Tj',
         '1 0 0 1 500 40 Tm',
         '(REV B) Tj',
-        'ET',
-    ])."\n";
+    ];
+
+    if ($extra !== '') {
+        $scheduleLines[] = rtrim($extra);
+    }
+
+    $scheduleLines[] = 'ET';
+    $schedule = implode("\n", $scheduleLines)."\n";
     $plan = implode("\n", [
         'BT',
         '/F1 12 Tf',
@@ -719,6 +735,123 @@ test('the system names a takeoff and reads doors from an uploaded drawing', func
 
     expect($takeoff->openings()->count())->toBe(1)
         ->and($takeoff->openings()->where('tag', 'D2')->exists())->toBeFalse();
+});
+
+test('a drawing without a project creates a project from the drawing details', function () {
+    Storage::fake('local');
+    $admin = takeoffUser();
+    Project::create([
+        'name' => 'Shielded Lab',
+        'priority' => 'normal',
+        'created_by' => $admin->id,
+    ]);
+    $file = UploadedFile::fake()->createWithContent('scan.pdf', takeoffDrawingPdf([
+        'PROJECT: Shielded Lab',
+        'ADDRESS: 100 Science Drive, Newark, NJ 07102',
+        'OWNER: State University',
+    ]));
+
+    $this->actingAs($admin)->post(route('admin.takeoffs.store'), [
+        'file' => $file,
+    ])->assertRedirect();
+
+    $project = Project::query()->where('name', 'Shielded Lab (2)')->first();
+    $takeoff = Takeoff::query()->where('project_id', $project?->id)->first();
+
+    expect($project)->not->toBeNull()
+        ->and($project->created_by)->toBe($admin->id)
+        ->and($project->site_address_line_1)->toBe('100 Science Drive')
+        ->and($project->site_city)->toBe('Newark')
+        ->and($project->site_state)->toBe('NJ')
+        ->and($project->site_postal_code)->toBe('07102')
+        ->and($project->internal_notes)->toBe('Owner: State University')
+        ->and($takeoff)->not->toBeNull()
+        ->and($takeoff->title)->toBe('Shielded Lab (2)');
+
+    $plain = UploadedFile::fake()->createWithContent('North_Wing.pdf', takeoffDrawingPdf());
+
+    $this->actingAs($admin)->post(route('admin.takeoffs.store'), [
+        'file' => $plain,
+    ])->assertRedirect();
+
+    $namedFromFile = Project::query()->where('name', 'North Wing')->first();
+    expect($namedFromFile)->not->toBeNull()
+        ->and($namedFromFile->site_address_line_1)->toBeNull()
+        ->and(Takeoff::query()->where('project_id', $namedFromFile->id)->value('title'))->toBe('North Wing');
+
+    $this->actingAs($admin)->post(route('admin.takeoffs.store'), [])
+        ->assertSessionHasErrors('project_id');
+});
+
+test('reloading a drawing scans every page and records the progress', function () {
+    Storage::fake('local');
+    $admin = takeoffUser();
+    $takeoff = takeoffRecord($admin);
+    $path = 'takeoffs/'.$takeoff->id.'/level-1.pdf';
+    Storage::disk('local')->put($path, takeoffDrawingPdf());
+    $document = $takeoff->documents()->create([
+        'original_filename' => 'level-1.pdf',
+        'storage_path' => $path,
+        'mime' => 'application/pdf',
+        'size' => 128,
+        'document_type' => 'drawing',
+        'uploaded_by' => $admin->id,
+    ]);
+    $opening = $takeoff->openings()->create([
+        'tag' => 'D1',
+        'opening_type' => 'door',
+        'quantity' => '9.00',
+        'width' => '1.000',
+        'height' => '1.000',
+        'location' => 'Wrong room',
+        'handing' => null,
+        'dimension_unit' => 'in',
+        'scope' => 'both',
+    ]);
+    $progress = (string) \Illuminate\Support\Str::uuid();
+    $seen = [];
+
+    TakeoffPdfScope::read(Storage::disk('local')->path($path), function (int $percent, string $label) use (&$seen): void {
+        $seen[] = [$percent, $label];
+    });
+
+    expect($seen)->not->toBeEmpty()
+        ->and($seen[0][0])->toBeLessThan($seen[array_key_last($seen)][0])
+        ->and(collect($seen)->pluck(1)->implode(' '))->toContain('Reading page 1 of 2')
+        ->and(collect($seen)->pluck(1)->implode(' '))->toContain('Reading door and window schedules');
+
+    $this->actingAs($admin)->postJson(route('admin.takeoffs.documents.scan', [$takeoff, $document]), [
+        'progress' => $progress,
+    ])->assertOk()
+        ->assertJsonPath('percent', 100)
+        ->assertJsonFragment(['message' => 'Drawing scanned. Found 3 possible openings. Confirm each one before it is added.']);
+
+    $this->actingAs($admin)->getJson(route('admin.takeoffs.documents.scan-progress', [$takeoff, $document, $progress]))
+        ->assertOk()
+        ->assertJsonPath('percent', 100)
+        ->assertJsonPath('done', true);
+
+    $stream = $this->actingAs($admin)
+        ->withHeader('Accept', 'text/event-stream')
+        ->post(route('admin.takeoffs.documents.scan', [$takeoff, $document]), [
+            'progress' => (string) \Illuminate\Support\Str::uuid(),
+        ]);
+    $payload = $stream->streamedContent();
+    $pageAt = strpos($payload, 'Reading page 1 of 2');
+    $doneAt = strrpos($payload, '"percent":100');
+
+    expect($payload)->toContain('Opening the drawing')
+        ->and($payload)->toContain('Reading door and window schedules')
+        ->and($pageAt)->not->toBeFalse()
+        ->and($doneAt)->not->toBeFalse()
+        ->and($pageAt)->toBeLessThan($doneAt);
+
+    $opening->refresh();
+    expect((string) $opening->width)->toBe('36.000')
+        ->and((string) $opening->height)->toBe('84.000')
+        ->and($opening->location)->toBe('Lobby')
+        ->and($opening->handing)->toBe('RH')
+        ->and((string) $opening->quantity)->toBe('1.00');
 });
 
 test('a blank title is named from the project and a typed title is kept', function () {
@@ -1199,4 +1332,322 @@ test('door openings reuse a type and a category from the object inspector lists'
             ->has('openingCategories')
             ->where('takeoff.openings.0.door_type', null)
             ->where('takeoff.openings.0.product_category', 'Fixed'));
+});
+
+test('a marked area of the drawing is copied into a saved section', function () {
+    Storage::fake('local');
+    $admin = takeoffUser();
+    $takeoff = takeoffRecord($admin);
+    $path = 'takeoffs/'.$takeoff->id.'/hardware.pdf';
+    Storage::disk('local')->put($path, takeoffDrawingPdf([
+        'DOOR HARDWARE SETS',
+        'SET 1    Mortise lockset',
+        'SET 2    Exit device',
+        '4 Mortise lock and closer',
+        '1 Provide mortise locksets ROOM FINISH NOTES 2 Paint exposed walls',
+        'Door and Hardware Notes',
+    ]));
+    $document = $takeoff->documents()->create([
+        'original_filename' => 'hardware.pdf',
+        'storage_path' => $path,
+        'mime' => 'application/pdf',
+        'size' => Storage::disk('local')->size($path),
+        'document_type' => 'drawing',
+        'uploaded_by' => $admin->id,
+    ]);
+    $area = ['x' => 0.05, 'y' => 0.36, 'x2' => 0.95, 'y2' => 0.50];
+    $clip = TakeoffPdfScope::clip(Storage::disk('local')->path($path), 1, $area['x'], $area['y'], $area['x2'], $area['y2']);
+
+    expect($clip['title'])->toBe('DOOR HARDWARE SETS')
+        ->and($clip['body'])->toContain('DOOR HARDWARE SETS')
+        ->and($clip['body'])->toContain('Mortise lockset')
+        ->and($clip['body'])->toContain('Exit device')
+        ->and($clip['body'])->toContain("4\tMortise lock and closer")
+        ->and($clip['body'])->toContain("1\tProvide mortise locksets")
+        ->and($clip['body'])->toContain("ROOM FINISH NOTES\n2\tPaint exposed walls")
+        ->and($clip['body'])->toContain('Door and Hardware Notes')
+        ->and($clip['body'])->not->toContain('DOOR SCHEDULE')
+        ->and($clip['body'])->not->toContain('Lobby');
+
+    $this->actingAs($admin)->postJson(route('admin.takeoffs.sections.read', $takeoff), [
+        'document_id' => $document->id,
+        'page' => 1,
+        ...$area,
+    ])->assertOk()
+        ->assertJsonPath('title', 'DOOR HARDWARE SETS');
+
+    $stream = $this->actingAs($admin)
+        ->withHeader('Accept', 'text/event-stream')
+        ->post(route('admin.takeoffs.sections.read', $takeoff), [
+            'document_id' => $document->id,
+            'page' => 1,
+            ...$area,
+        ]);
+    $payload = $stream->streamedContent();
+    $openingAt = strpos($payload, 'Opening the marked area');
+    $pageAt = strpos($payload, 'Reading the page');
+    $readyAt = strpos($payload, 'Section ready');
+
+    expect($openingAt)->not->toBeFalse()
+        ->and($pageAt)->toBeGreaterThan($openingAt)
+        ->and($readyAt)->toBeGreaterThan($pageAt)
+        ->and($payload)->toContain('DOOR HARDWARE SETS')
+        ->and($payload)->toContain('"percent":100');
+
+    $this->actingAs($admin)->post(route('admin.takeoffs.sections.store', $takeoff), [
+        'document_id' => $document->id,
+        'page' => 1,
+        'title' => $clip['title'],
+        'body' => $clip['body'],
+        ...$area,
+    ])->assertRedirect();
+
+    $section = $takeoff->sections()->first();
+    expect($section)->not->toBeNull()
+        ->and($section->title)->toBe('DOOR HARDWARE SETS')
+        ->and($section->body)->toContain("SET 1\tMortise lockset");
+
+    $this->actingAs($admin)->get(route('admin.takeoffs.show', $takeoff))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('takeoff.sections.0.title', 'DOOR HARDWARE SETS')
+            ->where('takeoff.sections.0.body', $section->body));
+
+    $this->actingAs($admin)->patch(route('admin.takeoffs.sections.update', [$takeoff, $section]), [
+        'title' => 'Hardware sets',
+        'body' => $section->body,
+    ])->assertRedirect();
+
+    expect($section->fresh()->title)->toBe('Hardware sets');
+
+    $this->actingAs($admin)->delete(route('admin.takeoffs.sections.destroy', [$takeoff, $section]))
+        ->assertRedirect();
+
+    expect($takeoff->sections()->count())->toBe(0);
+});
+
+test('a door or window section creates the openings it lists', function () {
+    $admin = takeoffUser();
+    $takeoff = takeoffRecord($admin);
+    $document = $takeoff->documents()->create([
+        'original_filename' => 'schedule.pdf',
+        'storage_path' => 'takeoffs/'.$takeoff->id.'/schedule.pdf',
+        'mime' => 'application/pdf',
+        'size' => 10,
+        'document_type' => 'schedule',
+        'uploaded_by' => $admin->id,
+    ]);
+    $takeoff->openings()->create([
+        'tag' => 'D1',
+        'opening_type' => 'door',
+        'quantity' => '1.00',
+        'dimension_unit' => 'in',
+        'scope' => 'both',
+    ]);
+    $door = $takeoff->sections()->create([
+        'document_id' => $document->id,
+        'page' => 2,
+        'title' => 'DOOR SCHEDULE',
+        'body' => implode("\n", [
+            'DOOR SCHEDULE',
+            'MARK WIDTH HEIGHT LOCATION HAND HARDWARE FRAME',
+            'D1 3\'-0" 7\'-0" Lobby RH SET 1 HM',
+            'D2 2\'-8" x 6\'-8" Office LH HW-2 Aluminum Pair 45 MIN Tempered',
+            '101 3068 Lab 2',
+            'A Paint the frame',
+            'All notes stay here',
+        ]),
+        'x' => 0.1,
+        'y' => 0.1,
+        'x2' => 0.9,
+        'y2' => 0.4,
+        'created_by' => $admin->id,
+    ]);
+    $window = $takeoff->sections()->create([
+        'document_id' => $document->id,
+        'page' => 3,
+        'title' => 'WINDOW SCHEDULE',
+        'body' => "W1 4'-0\" 5'-0\" Conference\nWIN-2 1200mm x 1500mm Corridor STC 45",
+        'x' => 0.1,
+        'y' => 0.5,
+        'x2' => 0.9,
+        'y2' => 0.8,
+        'created_by' => $admin->id,
+    ]);
+    $hardware = $takeoff->sections()->create([
+        'document_id' => $document->id,
+        'page' => 4,
+        'title' => 'DOOR HARDWARE SETS',
+        'body' => "SET 1 Mortise lockset\n4 Mortise lock and closer",
+        'x' => 0.1,
+        'y' => 0.1,
+        'x2' => 0.5,
+        'y2' => 0.3,
+        'created_by' => $admin->id,
+    ]);
+
+    $this->actingAs($admin)->post(route('admin.takeoffs.sections.openings', [$takeoff, $door]))
+        ->assertRedirect()
+        ->assertSessionHas('success');
+
+    expect($takeoff->openings()->count())->toBe(3);
+
+    $first = $takeoff->openings()->where('tag', 'D1')->first();
+    $second = $takeoff->openings()->where('tag', 'D2')->first();
+    $third = $takeoff->openings()->where('tag', '101')->first();
+
+    expect($first->location)->toBe('Lobby')
+        ->and($first->handing)->toBe('RH')
+        ->and($first->hardware_set)->toBe('SET 1')
+        ->and($first->frame_type)->toBe('Hollow metal')
+        ->and((string) $first->width)->toBe('36.000')
+        ->and((string) $first->height)->toBe('84.000')
+        ->and($first->requirement_section)->toBe('DOOR SCHEDULE')
+        ->and($first->requirement_page)->toBe(2)
+        ->and($second->opening_type)->toBe('door')
+        ->and($second->location)->toBe('Office')
+        ->and($second->handing)->toBe('LH')
+        ->and($second->hardware_set)->toBe('HW-2')
+        ->and($second->frame_type)->toBe('Aluminum')
+        ->and($second->product_category)->toBe('Pair')
+        ->and($second->glazing)->toBe('Tempered')
+        ->and($second->fire_requirement)->toBe('45 min')
+        ->and((string) $second->width)->toBe('32.000')
+        ->and((string) $second->height)->toBe('80.000')
+        ->and($third->opening_type)->toBe('door')
+        ->and($third->location)->toBe('Lab')
+        ->and((string) $third->quantity)->toBe('2.00')
+        ->and((string) $third->width)->toBe('36.000')
+        ->and((string) $third->height)->toBe('80.000');
+
+    $this->actingAs($admin)->post(route('admin.takeoffs.sections.openings', [$takeoff, $door]))
+        ->assertRedirect()
+        ->assertSessionHas('success', 'Those openings are already on the list.');
+
+    expect($takeoff->openings()->count())->toBe(3);
+
+    $this->actingAs($admin)->post(route('admin.takeoffs.sections.openings', [$takeoff, $window]))
+        ->assertRedirect()
+        ->assertSessionHas('success', 'Added 2 windows from WINDOW SCHEDULE.');
+
+    $plain = $takeoff->openings()->where('tag', 'W1')->first();
+    $metric = $takeoff->openings()->where('tag', 'WIN-2')->first();
+
+    expect($takeoff->openings()->count())->toBe(5)
+        ->and($plain->opening_type)->toBe('window')
+        ->and($plain->location)->toBe('Conference')
+        ->and((string) $plain->width)->toBe('48.000')
+        ->and((string) $plain->height)->toBe('60.000')
+        ->and($metric->opening_type)->toBe('window')
+        ->and($metric->location)->toBe('Corridor')
+        ->and($metric->acoustic_requirement)->toBe('STC 45')
+        ->and($metric->dimension_unit)->toBe('mm')
+        ->and((string) $metric->width)->toBe('1200.000')
+        ->and((string) $metric->height)->toBe('1500.000');
+
+    $this->actingAs($admin)->post(route('admin.takeoffs.sections.openings', [$takeoff, $hardware]))
+        ->assertRedirect()
+        ->assertSessionHas('error');
+
+    expect($takeoff->openings()->count())->toBe(5);
+
+    $this->actingAs($admin)->post(route('admin.takeoffs.openings.from-text', $takeoff), [
+        'document_id' => $document->id,
+        'page' => 5,
+        'opening_type' => 'window',
+        'title' => 'DOOR SCHEDULE',
+        'body' => "D9 3'-0\" 7'-0\" Lobby RH\nA1 3'-0\" 7'-0\" Office",
+    ])->assertRedirect(route('admin.takeoffs.show', $takeoff))
+        ->assertSessionHas('success');
+
+    $namedDoor = $takeoff->openings()->where('tag', 'D9')->first();
+    $namedMark = $takeoff->openings()->where('tag', 'A1')->first();
+
+    expect($namedDoor->opening_type)->toBe('window')
+        ->and($namedMark->opening_type)->toBe('window')
+        ->and($namedMark->location)->toBe('Office')
+        ->and((string) $namedMark->width)->toBe('36.000')
+        ->and((string) $namedMark->height)->toBe('84.000');
+
+    $this->actingAs($admin)->post(route('admin.takeoffs.openings.forget', $takeoff), [
+        'ids' => [$namedDoor->id, $namedMark->id],
+    ])->assertRedirect(route('admin.takeoffs.show', $takeoff));
+
+    expect($takeoff->openings()->whereIn('tag', ['D9', 'A1'])->count())->toBe(0);
+
+    $this->actingAs($admin)->postJson(route('admin.takeoffs.openings.from-text', $takeoff), [
+        'document_id' => $document->id,
+        'page' => 5,
+        'opening_type' => 'window',
+        'title' => 'Window',
+        'body' => 'SET 1 Mortise lockset',
+    ])->assertStatus(422)
+        ->assertJsonPath('ok', false)
+        ->assertJsonPath('openings', []);
+
+    $this->actingAs($admin)->postJson(route('admin.takeoffs.openings.from-text', $takeoff), [
+        'document_id' => $document->id,
+        'page' => 5,
+        'opening_type' => 'window',
+        'title' => 'Window',
+        'body' => 'W3 4\'-0" 5\'-0" Conference',
+    ])->assertOk()
+        ->assertJsonPath('ok', true)
+        ->assertJsonPath('openings.0.tag', 'W3')
+        ->assertJsonPath('openings.0.opening_type', 'window')
+        ->assertJsonPath('openings.0.location', 'Conference');
+
+    $takeoff->openings()->create([
+        'tag' => 'TI-010D',
+        'opening_type' => 'door',
+        'quantity' => 1,
+        'scope' => 'both',
+        'disposition' => 'active',
+        'verification_status' => 'recorded',
+        'sort_order' => 50,
+    ]);
+
+    $this->actingAs($admin)->postJson(route('admin.takeoffs.openings.from-text', $takeoff), [
+        'document_id' => $document->id,
+        'page' => 1,
+        'opening_type' => 'window',
+        'title' => 'Window',
+        'body' => "TI-010D STOREFRONT WINDOW FIXED EXTERIOR ALUM W1 W1-1\n6' - 0\" 4' - 0\"\nH3 J3 S3 NA NA\nTI-010D STOREFRONT WINDOW FIXED EXTERIOR ALUM W1 W1-2\n6' - 0\" 4' - 0\"",
+    ])->assertOk()
+        ->assertJsonPath('openings.0.tag', 'W1-1')
+        ->assertJsonPath('openings.1.tag', 'W1-2');
+
+    $firstWindow = $takeoff->openings()->where('tag', 'W1-1')->first();
+    $secondWindow = $takeoff->openings()->where('tag', 'W1-2')->first();
+
+    expect($takeoff->openings()->where('tag', 'TI-010D')->first()->opening_type)->toBe('door')
+        ->and($firstWindow->opening_type)->toBe('window')
+        ->and((string) $firstWindow->width)->toBe('72.000')
+        ->and((string) $firstWindow->height)->toBe('48.000')
+        ->and($secondWindow->opening_type)->toBe('window')
+        ->and($takeoff->openings()->where('tag', 'H3')->exists())->toBeFalse();
+
+    $this->actingAs($admin)->post(route('admin.takeoffs.openings.from-text', $takeoff), [
+        'document_id' => $document->id,
+        'page' => 1,
+        'opening_type' => 'door',
+        'title' => 'Door',
+        'body' => 'W9 3\'-0" 4\'-0" Lobby',
+        'x' => 0.1,
+        'y' => 0.2,
+        'x2' => 0.6,
+        'y2' => 0.7,
+    ])->assertRedirect();
+
+    $saved = $takeoff->sections()->where('title', 'Door')->first();
+
+    expect($takeoff->openings()->where('tag', 'W9')->exists())->toBeTrue()
+        ->and($saved)->not->toBeNull();
+
+    $this->actingAs($admin)->delete(route('admin.takeoffs.sections.destroy', [$takeoff, $saved]))
+        ->assertRedirect();
+
+    expect($takeoff->openings()->where('tag', 'W9')->exists())->toBeFalse()
+        ->and($takeoff->openings()->where('tag', 'W1-1')->exists())->toBeTrue()
+        ->and($takeoff->sections()->whereKey($saved->id)->exists())->toBeFalse();
 });

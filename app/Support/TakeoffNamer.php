@@ -48,6 +48,38 @@ class TakeoffNamer
         return self::identity($project).' — Takeoff';
     }
 
+    public static function projectNameFromFilename(string $filename): string
+    {
+        $name = pathinfo($filename, PATHINFO_FILENAME);
+        $name = str_replace(['_', '+'], ' ', $name);
+        $name = trim((string) preg_replace('/\s+/u', ' ', $name));
+        $name = trim($name, " \t\n\r\0\x0B.-");
+
+        if ($name === '') {
+            $name = 'Takeoff';
+        }
+
+        return mb_substr($name, 0, 255);
+    }
+
+    public static function uniqueProjectName(string $name): string
+    {
+        $base = mb_substr(trim($name), 0, 240);
+        $candidate = $base;
+        $suffix = 2;
+
+        while (self::projectNameTaken($candidate)) {
+            $candidate = $base.' ('.$suffix.')';
+            $suffix++;
+
+            if ($suffix > 50) {
+                break;
+            }
+        }
+
+        return $candidate;
+    }
+
     public static function shouldReplace(Project $project, string $title): bool
     {
         $generic = self::generic($project);
@@ -118,6 +150,13 @@ class TakeoffNamer
         ], fn (string $part): bool => $part !== ''));
 
         return $parts === [] ? 'Takeoff' : implode(' ', $parts);
+    }
+
+    private static function projectNameTaken(string $name): bool
+    {
+        return Project::query()
+            ->whereRaw('LOWER(name) = ?', [mb_strtolower($name)])
+            ->exists();
     }
 
     private static function taken(Project $project, string $title, ?int $ignoreId): bool

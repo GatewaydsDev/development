@@ -13,6 +13,7 @@ use App\Models\Takeoff;
 use App\Models\TakeoffAssemblyTemplate;
 use App\Models\TakeoffOpening;
 use App\Models\User;
+use App\Support\ProjectAccess;
 use App\Support\ProjectControlTakeoff;
 use App\Support\TakeoffAccess;
 use App\Support\TakeoffConversion;
@@ -90,8 +91,12 @@ class TakeoffController extends Controller
         abort_unless(TakeoffAccess::canCreate($user), 403);
         TakeoffPdfScope::assertUploaded($request->file('file'));
 
+        if ($request->input('project_id') === '') {
+            $request->merge(['project_id' => null]);
+        }
+
         $data = $request->validate([
-            'project_id' => ['required', 'integer', 'exists:projects,id'],
+            'project_id' => ['nullable', 'integer', 'exists:projects,id'],
             'title' => ['nullable', 'string', 'max:255'],
             'notes' => ['nullable', 'string', 'max:5000'],
             'file' => ['nullable', 'file', 'mimes:pdf', 'max:'.config('takeoffs.max_kilobytes')],
@@ -103,11 +108,57 @@ class TakeoffController extends Controller
             TakeoffPdfScope::assertPdf($file);
         }
 
-        $project = Project::query()->findOrFail($data['project_id']);
+        $createdProject = null;
+        $projectInfo = [
+            'name' => null,
+            'address' => null,
+            'city' => null,
+            'state' => null,
+            'postal_code' => null,
+            'notes' => null,
+        ];
+
+        if ($file) {
+            $projectInfo = TakeoffPdfScope::read($file->getPathname())['project'] ?? $projectInfo;
+        }
+
+        if (filled($data['project_id'] ?? null)) {
+            $project = Project::query()->findOrFail($data['project_id']);
+        } elseif ($file && ProjectAccess::canCreate($user)) {
+            $name = trim((string) ($projectInfo['name'] ?? ''));
+
+            if ($name === '') {
+                $name = TakeoffNamer::projectNameFromFilename($file->getClientOriginalName());
+            }
+
+            $createdProject = Project::query()->create([
+                'name' => TakeoffNamer::uniqueProjectName($name),
+                'priority' => 'normal',
+                'site_address_line_1' => $projectInfo['address'] ?? null,
+                'site_city' => $projectInfo['city'] ?? null,
+                'site_state' => $projectInfo['state'] ?? null,
+                'site_postal_code' => $projectInfo['postal_code'] ?? null,
+                'site_country' => filled($projectInfo['city'] ?? null) || filled($projectInfo['state'] ?? null)
+                    ? 'United States'
+                    : null,
+                'internal_notes' => $projectInfo['notes'] ?? null,
+                'created_by' => $user->id,
+            ]);
+            $project = $createdProject;
+        } else {
+            throw ValidationException::withMessages([
+                'project_id' => $file
+                    ? 'Select a project.'
+                    : 'Select a project, or upload a drawing and a project is created from the file name.',
+            ]);
+        }
         $providedTitle = trim((string) ($data['title'] ?? ''));
+        $titleIsProjectName = $createdProject !== null && $providedTitle === '';
         $takeoff = Takeoff::query()->create([
             'project_id' => $project->id,
-            'title' => $providedTitle !== '' ? $providedTitle : TakeoffNamer::title($project),
+            'title' => $titleIsProjectName
+                ? $project->name
+                : ($providedTitle !== '' ? $providedTitle : TakeoffNamer::title($project)),
             'notes' => $data['notes'] ?? null,
             'status' => 'draft',
             'pricing_method' => 'markup',
@@ -124,6 +175,7 @@ class TakeoffController extends Controller
 
             if (! is_string($path)) {
                 $takeoff->delete();
+                $createdProject?->delete();
 
                 return back()->with('error', 'The drawing could not be stored.');
             }
@@ -144,7 +196,7 @@ class TakeoffController extends Controller
             $scope = $attached['scope'];
             $import = $attached['import'];
 
-            if ($providedTitle === '') {
+            if ($providedTitle === '' && ! $titleIsProjectName) {
                 $takeoff->forceFill([
                     'title' => TakeoffNamer::title($project, $scope, $takeoff->id),
                 ])->save();

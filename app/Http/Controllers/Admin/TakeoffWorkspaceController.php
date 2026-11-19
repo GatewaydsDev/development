@@ -14,6 +14,7 @@ use App\Models\TakeoffMarker;
 use App\Models\TakeoffMarkup;
 use App\Models\TakeoffOpening;
 use App\Models\TakeoffReference;
+use App\Models\TakeoffSection;
 use App\Models\TakeoffSupplierQuote;
 use App\Models\User;
 use App\Support\ProjectControlTakeoff;
@@ -23,17 +24,21 @@ use App\Support\TakeoffMoney;
 use App\Support\TakeoffNamer;
 use App\Support\TakeoffPdfScope;
 use App\Support\TakeoffScopeImporter;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class TakeoffWorkspaceController extends Controller
 {
@@ -78,19 +83,110 @@ class TakeoffWorkspaceController extends Controller
         return back()->with('success', TakeoffScopeImporter::uploadedMessage($attached['import'], $attached['scope']));
     }
 
-    public function scanDocument(Request $request, Takeoff $takeoff, TakeoffDocument $document): RedirectResponse
+    public function scanDocument(Request $request, Takeoff $takeoff, TakeoffDocument $document): RedirectResponse|JsonResponse|StreamedResponse
     {
         $user = $this->ensureEditable($request, $takeoff);
         $this->ownedDocument($takeoff, $document);
-        $scanned = TakeoffScopeImporter::scan($takeoff, $document);
+        $token = $request->string('progress')->toString();
+        $tracked = Str::isUuid($token);
+        $write = function (int $percent, string $label, bool $done = false) use ($document, $token, $tracked): void {
+            if (! $tracked) {
+                return;
+            }
+
+            $current = Cache::get($this->scanProgressKey($document, $token));
+            $percent = max((int) ($current['percent'] ?? 0), max(0, min(100, $percent)));
+            Cache::put($this->scanProgressKey($document, $token), [
+                'percent' => $percent,
+                'label' => $label,
+                'done' => $done,
+            ], now()->addMinutes(15));
+        };
+
+        if (str_contains((string) $request->header('Accept'), 'text/event-stream')) {
+            return response()->stream(function () use ($takeoff, $document, $user, $write): void {
+                @ini_set('zlib.output_compression', '0');
+                @ini_set('implicit_flush', '1');
+                $emit = function (int $percent, string $label, bool $done = false, ?string $message = null) use ($write): void {
+                    $write($percent, $label, $done);
+                    $this->emitScanEvent([
+                        'percent' => max(0, min(100, $percent)),
+                        'label' => $label,
+                        'done' => $done,
+                        'message' => $message,
+                    ]);
+                };
+
+                try {
+                    $emit(4, 'Opening the drawing');
+                    $scanned = TakeoffScopeImporter::scan($takeoff, $document, function (int $percent, string $label) use ($emit): void {
+                        $emit($percent, $label);
+                    });
+                    $renamed = TakeoffNamer::apply($takeoff, $scanned['scope']);
+                    $this->clearApproval($takeoff, $user);
+                    $takeoff->record($user, 'document.scanned', 'Scanned '.$document->original_filename.' for doors and windows.', [
+                        'document_id' => $document->id,
+                        'title' => $renamed ? $takeoff->title : null,
+                    ]);
+                    $message = TakeoffScopeImporter::foundMessage('Drawing scanned.', $scanned['scope']);
+                    $emit(100, $message, true, $message);
+                } catch (\Throwable $exception) {
+                    report($exception);
+                    $write(100, 'The drawing could not be read.', true);
+                    $this->emitScanEvent([
+                        'percent' => 100,
+                        'label' => 'The drawing could not be read.',
+                        'done' => true,
+                        'message' => 'The drawing could not be read.',
+                        'error' => true,
+                    ]);
+                }
+            }, 200, [
+                'Content-Type' => 'text/event-stream',
+                'Cache-Control' => 'no-cache, no-store',
+                'X-Accel-Buffering' => 'no',
+            ]);
+        }
+
+        $write(1, 'Opening the drawing');
+
+        if ($tracked) {
+            $request->session()->save();
+            session_write_close();
+        }
+
+        $scanned = TakeoffScopeImporter::scan($takeoff, $document, $write);
         $renamed = TakeoffNamer::apply($takeoff, $scanned['scope']);
         $this->clearApproval($takeoff, $user);
         $takeoff->record($user, 'document.scanned', 'Scanned '.$document->original_filename.' for doors and windows.', [
             'document_id' => $document->id,
             'title' => $renamed ? $takeoff->title : null,
         ]);
+        $message = TakeoffScopeImporter::foundMessage('Drawing scanned.', $scanned['scope']);
+        $write(100, $message, true);
 
-        return back()->with('success', TakeoffScopeImporter::foundMessage('Drawing scanned.', $scanned['scope']));
+        if ($request->expectsJson()) {
+            return response()->json([
+                'message' => $message,
+                'percent' => 100,
+            ]);
+        }
+
+        return back()->with('success', $message);
+    }
+
+    public function scanProgress(Request $request, Takeoff $takeoff, TakeoffDocument $document, string $progress): JsonResponse
+    {
+        abort_unless(TakeoffAccess::canView($this->takeoffUser($request)), 403);
+        $this->ownedDocument($takeoff, $document);
+        abort_unless(Str::isUuid($progress), 404);
+        $row = Cache::get($this->scanProgressKey($document, $progress));
+
+        return response()->json([
+            'percent' => (int) ($row['percent'] ?? 0),
+            'label' => (string) ($row['label'] ?? 'Starting'),
+            'done' => (bool) ($row['done'] ?? false),
+        ]);
     }
 
     public function confirmProposal(Request $request, Takeoff $takeoff, TakeoffDocument $document): RedirectResponse
@@ -191,6 +287,355 @@ class TakeoffWorkspaceController extends Controller
         $markup->delete();
 
         return back();
+    }
+
+    public function readSection(Request $request, Takeoff $takeoff): JsonResponse|StreamedResponse
+    {
+        $this->ensureEditable($request, $takeoff);
+        $data = $request->validate([
+            'document_id' => ['required', 'integer'],
+            'page' => ['required', 'integer', 'min:1', 'max:500'],
+            'x' => ['required', 'numeric', 'between:0,1'],
+            'y' => ['required', 'numeric', 'between:0,1'],
+            'x2' => ['required', 'numeric', 'between:0,1'],
+            'y2' => ['required', 'numeric', 'between:0,1'],
+        ]);
+        $document = $this->document($takeoff, (int) $data['document_id']);
+        $path = Storage::disk(config('takeoffs.disk'))->path($document->storage_path);
+        $read = function (?callable $progress = null) use ($path, $data): array {
+            return is_file($path)
+                ? TakeoffPdfScope::clip($path, (int) $data['page'], (float) $data['x'], (float) $data['y'], (float) $data['x2'], (float) $data['y2'], $progress)
+                : ['title' => '', 'body' => ''];
+        };
+
+        if (str_contains((string) $request->header('Accept'), 'text/event-stream')) {
+            return response()->stream(function () use ($read): void {
+                @ini_set('zlib.output_compression', '0');
+                @ini_set('implicit_flush', '1');
+                $emit = function (int $percent, string $label, bool $done = false, ?string $title = null, ?string $body = null, bool $error = false): void {
+                    $this->emitScanEvent([
+                        'percent' => max(0, min(100, $percent)),
+                        'label' => $label,
+                        'done' => $done,
+                        'message' => $error ? $label : null,
+                        'title' => $title,
+                        'body' => $body,
+                        'error' => $error,
+                    ]);
+                };
+
+                try {
+                    $clip = $read(function (int $percent, string $label) use ($emit): void {
+                        $emit($percent, $label);
+                    });
+
+                    if ($clip['body'] === '') {
+                        $emit(100, 'No text was found in that area. Scanned drawings need a text layer.', true, '', '', true);
+
+                        return;
+                    }
+
+                    $emit(100, 'Section ready', true, $clip['title'], $clip['body']);
+                } catch (\Throwable $exception) {
+                    report($exception);
+                    $emit(100, 'That part of the drawing could not be read.', true, '', '', true);
+                }
+            }, 200, [
+                'Content-Type' => 'text/event-stream',
+                'Cache-Control' => 'no-cache, no-store',
+                'X-Accel-Buffering' => 'no',
+            ]);
+        }
+
+        return response()->json($read());
+    }
+
+    public function storeSection(Request $request, Takeoff $takeoff): RedirectResponse
+    {
+        $user = $this->ensureEditable($request, $takeoff);
+        $data = $this->sectionData($request);
+        $this->document($takeoff, (int) $data['document_id']);
+        $takeoff->sections()->create([
+            ...$data,
+            'created_by' => $user->id,
+        ]);
+        $takeoff->record($user, 'section.saved', 'Saved section '.$data['title'].'.');
+
+        return back()->with('success', 'Section saved.');
+    }
+
+    public function updateSection(Request $request, Takeoff $takeoff, TakeoffSection $section): RedirectResponse
+    {
+        $user = $this->ensureEditable($request, $takeoff);
+        abort_unless($section->takeoff_id === $takeoff->id, 404);
+        $data = $request->validate([
+            'title' => ['required', 'string', 'max:255'],
+            'body' => ['required', 'string', 'max:20000'],
+        ]);
+        $title = trim($data['title']);
+        $body = trim($data['body']);
+        abort_if($title === '' || $body === '', 422);
+        $section->update([
+            'title' => $title,
+            'body' => $body,
+        ]);
+        $takeoff->record($user, 'section.updated', 'Updated section '.$section->title.'.');
+
+        return back()->with('success', 'Section saved.');
+    }
+
+    public function destroySection(Request $request, Takeoff $takeoff, TakeoffSection $section): RedirectResponse
+    {
+        $user = $this->ensureEditable($request, $takeoff);
+        abort_unless($section->takeoff_id === $takeoff->id, 404);
+        $title = $section->title;
+        $removed = $this->removeSectionOpenings($takeoff, $section);
+        $section->delete();
+        $takeoff->resequenceCounts();
+        $this->clearApproval($takeoff, $user);
+        $takeoff->record($user, 'section.deleted', 'Removed section '.$title.'.');
+
+        return back()->with('success', $removed === 0
+            ? 'Section removed.'
+            : ($removed === 1 ? 'Section removed, along with 1 opening.' : 'Section removed, along with '.$removed.' openings.'));
+    }
+
+    public function openingsFromSection(Request $request, Takeoff $takeoff, TakeoffSection $section): RedirectResponse
+    {
+        $user = $this->ensureEditable($request, $takeoff);
+        abort_unless($section->takeoff_id === $takeoff->id, 404);
+        $document = $this->document($takeoff, (int) $section->document_id);
+        $rows = TakeoffPdfScope::openingsFromSection($section->title, (string) $section->body, (int) $section->page);
+
+        if ($rows === []) {
+            return back()->with('error', 'No openings were found in '.$section->title.'. Use a door or window schedule, with a mark on each line such as D1 or W1.');
+        }
+
+        $result = TakeoffScopeImporter::importSection($takeoff, $document, $rows);
+        $this->clearApproval($takeoff, $user);
+        app(ProjectControlTakeoff::class)->connectTakeoff($takeoff->fresh() ?? $takeoff);
+        $takeoff->resequenceCounts();
+        $takeoff->record($user, 'section.openings', $this->sectionOpeningSummary($section->title, $result));
+
+        return back()->with('success', $this->sectionOpeningSummary($section->title, $result));
+    }
+
+    public function openingsFromText(Request $request, Takeoff $takeoff): JsonResponse|RedirectResponse
+    {
+        $user = $this->ensureEditable($request, $takeoff);
+        $data = $request->validate([
+            'document_id' => ['required', 'integer'],
+            'page' => ['required', 'integer', 'min:1', 'max:500'],
+            'opening_type' => ['required', 'string', 'max:80'],
+            'title' => ['nullable', 'string', 'max:255'],
+            'body' => ['required', 'string', 'max:20000'],
+            'x' => ['nullable', 'numeric', 'between:0,1'],
+            'y' => ['nullable', 'numeric', 'between:0,1'],
+            'x2' => ['nullable', 'numeric', 'between:0,1'],
+            'y2' => ['nullable', 'numeric', 'between:0,1'],
+        ]);
+        $document = $this->document($takeoff, (int) $data['document_id']);
+        $rawType = trim($data['opening_type']);
+        $lowerType = strtolower($rawType);
+        $lowerType = $lowerType === 'windows' ? 'window' : ($lowerType === 'doors' ? 'door' : $lowerType);
+        $type = $lowerType === 'window' || $lowerType === 'door' ? $lowerType : $rawType;
+        $title = trim((string) ($data['title'] ?? ''));
+
+        if ($title === '') {
+            $title = $type === 'window' ? 'Window' : ($type === 'door' ? 'Door' : $type);
+        }
+
+        $rows = TakeoffPdfScope::openingsFromSection($title, trim($data['body']), (int) $data['page'], $type);
+        $named = $type === 'window' ? 'window' : ($type === 'door' ? 'door' : $type);
+        if ($rows === []) {
+            $message = 'This '.$named.' selection cannot be created. No marks were found inside the box.';
+
+            return $request->expectsJson()
+                ? response()->json(['ok' => false, 'message' => $message, 'openings' => []], 422)
+                : redirect()->route('admin.takeoffs.show', $takeoff)->with('error', $message);
+        }
+
+        $result = TakeoffScopeImporter::importSection($takeoff, $document, $rows);
+        $this->clearApproval($takeoff, $user);
+        app(ProjectControlTakeoff::class)->connectTakeoff($takeoff->fresh() ?? $takeoff);
+        $takeoff->resequenceCounts();
+        $summary = $this->sectionOpeningSummary($title, $result);
+        $label = $type === 'window' ? 'Window' : ($type === 'door' ? 'Door' : $type);
+        $section = null;
+
+        if (isset($data['x'], $data['y'], $data['x2'], $data['y2'])) {
+            $section = $takeoff->sections()->create([
+                'document_id' => $document->id,
+                'page' => (int) $data['page'],
+                'title' => $label,
+                'body' => trim($data['body']),
+                'opening_ids' => array_values(array_filter(array_map(
+                    fn (array $row): int => (int) ($row['id'] ?? 0),
+                    $result['openings'] ?? [],
+                ))),
+                'x' => round((float) $data['x'], 6),
+                'y' => round((float) $data['y'], 6),
+                'x2' => round((float) $data['x2'], 6),
+                'y2' => round((float) $data['y2'], 6),
+                'created_by' => $user->id,
+            ]);
+            $takeoff->record($user, 'section.saved', 'Saved section '.$label.'.');
+        }
+
+        $takeoff->record($user, 'section.openings', $summary);
+        $openings = array_map(fn (array $row): array => [
+            'id' => (int) ($row['id'] ?? 0),
+            'tag' => (string) ($row['tag'] ?? ''),
+            'opening_type' => $type,
+            'quantity' => (string) ($row['quantity'] ?? '1.00'),
+            'width' => $row['width'] ?? null,
+            'height' => $row['height'] ?? null,
+            'location' => $row['location'] ?? null,
+        ], $result['openings'] ?? []);
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'ok' => true,
+                'message' => $summary,
+                'openings' => $openings,
+            ]);
+        }
+
+        return redirect()
+            ->route('admin.takeoffs.show', $takeoff)
+            ->with('success', $summary)
+            ->with('created_openings', $openings)
+            ->with('created_section_id', $section?->id);
+    }
+
+    public function forgetOpenings(Request $request, Takeoff $takeoff): RedirectResponse
+    {
+        $user = $this->ensureEditable($request, $takeoff);
+        $data = $request->validate([
+            'ids' => ['required', 'array', 'min:1', 'max:200'],
+            'ids.*' => ['integer'],
+            'section_id' => ['nullable', 'integer'],
+        ]);
+        $openings = $takeoff->openings()->whereIn('id', $data['ids'])->get();
+        $section = isset($data['section_id'])
+            ? $takeoff->sections()->whereKey((int) $data['section_id'])->first()
+            : null;
+
+        foreach ($openings as $opening) {
+            $opening->delete();
+        }
+
+        $section?->delete();
+
+        $takeoff->resequenceCounts();
+        $this->clearApproval($takeoff, $user);
+        $count = $openings->count();
+        $takeoff->record($user, 'section.openings.removed', $count === 1 ? 'Removed 1 opening from a cancelled selection.' : 'Removed '.$count.' openings from a cancelled selection.');
+
+        return redirect()
+            ->route('admin.takeoffs.show', $takeoff)
+            ->with('success', $count === 1 ? 'Removed 1 opening from the selection.' : 'Removed '.$count.' openings from the selection.');
+    }
+
+    private function removeSectionOpenings(Takeoff $takeoff, TakeoffSection $section): int
+    {
+        $ids = array_values(array_filter(array_map('intval', $section->opening_ids ?? [])));
+
+        if ($ids === []) {
+            $type = strtolower(trim($section->title));
+            $asType = match ($type) {
+                'door', 'doors' => 'door',
+                'window', 'windows' => 'window',
+                default => $section->title,
+            };
+            $rows = TakeoffPdfScope::openingsFromSection($section->title, (string) $section->body, (int) $section->page, $asType);
+            $tags = array_map(fn (array $row): string => strtoupper((string) ($row['tag'] ?? '')), $rows);
+            $ids = $takeoff->openings()->get()
+                ->filter(fn ($opening): bool => in_array(strtoupper((string) $opening->tag), $tags, true))
+                ->pluck('id')
+                ->map(fn ($id): int => (int) $id)
+                ->all();
+        }
+
+        $openings = $takeoff->openings()->whereIn('id', $ids)->get();
+
+        foreach ($openings as $opening) {
+            $opening->delete();
+        }
+
+        return $openings->count();
+    }
+
+    /**
+     * @param  array{created: int, doors: int, windows: int, filled: int, skipped: int, openings?: list<array<string, mixed>>}  $result
+     */
+    private function sectionOpeningSummary(string $title, array $result): string
+    {
+        $parts = [];
+
+        if ($result['created'] > 0) {
+            $kinds = [];
+
+            if ($result['doors'] > 0) {
+                $kinds[] = $result['doors'] === 1 ? '1 door' : $result['doors'].' doors';
+            }
+
+            if ($result['windows'] > 0) {
+                $kinds[] = $result['windows'] === 1 ? '1 window' : $result['windows'].' windows';
+            }
+
+            foreach ($result['others'] ?? [] as $name => $count) {
+                $kinds[] = ((int) $count === 1 ? '1 ' : $count.' ').$name;
+            }
+
+            if ($kinds !== []) {
+                $parts[] = 'Added '.implode(' and ', $kinds).' from '.$title.'.';
+            }
+        }
+
+        if ($result['filled'] > 0) {
+            $parts[] = $result['filled'] === 1
+                ? 'Filled missing details on 1 opening already on the list.'
+                : 'Filled missing details on '.$result['filled'].' openings already on the list.';
+        }
+
+        if ($parts === []) {
+            return 'Those openings are already on the list.';
+        }
+
+        return implode(' ', $parts);
+    }
+
+    /**
+     * @return array{document_id: int, page: int, title: string, body: string, x: float, y: float, x2: float, y2: float}
+     */
+    private function sectionData(Request $request): array
+    {
+        $data = $request->validate([
+            'document_id' => ['required', 'integer'],
+            'page' => ['required', 'integer', 'min:1', 'max:500'],
+            'title' => ['required', 'string', 'max:255'],
+            'body' => ['required', 'string', 'max:20000'],
+            'x' => ['required', 'numeric', 'between:0,1'],
+            'y' => ['required', 'numeric', 'between:0,1'],
+            'x2' => ['required', 'numeric', 'between:0,1'],
+            'y2' => ['required', 'numeric', 'between:0,1'],
+        ]);
+
+        $title = trim($data['title']);
+        $body = trim($data['body']);
+        abort_if($title === '' || $body === '', 422);
+
+        return [
+            'document_id' => (int) $data['document_id'],
+            'page' => (int) $data['page'],
+            'title' => $title,
+            'body' => $body,
+            'x' => round((float) $data['x'], 6),
+            'y' => round((float) $data['y'], 6),
+            'x2' => round((float) $data['x2'], 6),
+            'y2' => round((float) $data['y2'], 6),
+        ];
     }
 
     public function destroyDocument(Request $request, Takeoff $takeoff, TakeoffDocument $document): RedirectResponse
@@ -1245,6 +1690,26 @@ class TakeoffWorkspaceController extends Controller
         }
 
         return $path;
+    }
+
+    private function scanProgressKey(TakeoffDocument $document, string $progress): string
+    {
+        return 'takeoff-scan.'.$document->id.'.'.$progress;
+    }
+
+    /**
+     * @param  array{percent: int, label: string, done: bool, message: ?string}  $payload
+     */
+    private function emitScanEvent(array $payload): void
+    {
+        echo 'data: '.json_encode($payload, JSON_UNESCAPED_UNICODE)."\n";
+        echo ': '.str_repeat(' ', 2048)."\n\n";
+
+        if (ob_get_level() > 0) {
+            @ob_flush();
+        }
+
+        flush();
     }
 
     private function ownedDocument(Takeoff $takeoff, TakeoffDocument $document): void

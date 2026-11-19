@@ -188,6 +188,18 @@ export type OpeningProposal = {
     markers: { page: number; x: number; y: number }[];
 };
 
+export type TakeoffSheetSection = {
+    id: number;
+    document_id: number;
+    page: number;
+    title: string;
+    body: string;
+    x: number;
+    y: number;
+    x2: number;
+    y2: number;
+};
+
 export type TakeoffDetail = {
     id: number;
     uuid: string;
@@ -205,6 +217,7 @@ export type TakeoffDetail = {
     documents: TakeoffDocument[];
     proposals: OpeningProposal[];
     markups: SheetMarkup[];
+    sections: TakeoffSheetSection[];
     openings: TakeoffOpening[];
     groups: TakeoffGroup[];
     supplier_quotes: SupplierQuote[];

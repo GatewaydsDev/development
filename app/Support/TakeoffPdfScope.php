@@ -20,9 +20,20 @@ class TakeoffPdfScope
      *     notes: list<string>
      * }
      */
-    public static function read(string $path): array
+    public static function read(string $path, ?callable $progress = null): array
     {
         self::raiseMemoryLimit();
+        $last = 0;
+        $report = function (int $percent, string $label) use ($progress, &$last): void {
+            $percent = max($last, min(99, $percent));
+            $last = $percent;
+
+            if ($progress) {
+                $progress($percent, $label);
+            }
+        };
+
+        $report(4, 'Opening the drawing');
 
         try {
             $parsed = (new Parser)->parseFile($path);
@@ -33,6 +44,8 @@ class TakeoffPdfScope
 
         $pages = [];
         $count = count($pdfPages);
+        $limit = min($count, 30);
+        $report(8, $limit > 0 ? 'Reading page 1 of '.$limit : 'Reading the drawing');
 
         foreach ($pdfPages as $index => $page) {
             if ($index >= 30) {
@@ -65,16 +78,702 @@ class TakeoffPdfScope
                 'origin_y' => $box['origin_y'],
                 'items' => $items,
             ];
+            $done = $index + 1;
+            $report(8 + (int) floor($done / max(1, $limit) * 62), 'Reading page '.$done.' of '.$limit);
         }
 
-        $result = self::fromPages($pages);
+        $result = self::fromPages($pages, $report);
         $result['page_count'] = $count > 0 ? $count : null;
 
         if ($count > 30) {
             $result['notes'][] = 'Only the first 30 pages were read.';
         }
 
+        $report(97, 'Finishing the read');
+
         return $result;
+    }
+
+    /**
+     * Read the text that falls inside a marked area of one page.
+     * Coordinates are fractions of the page, with y measured from the top.
+     *
+     * @return array{title: string, body: string}
+     */
+    public static function clip(string $path, int $pageNumber, float $left, float $top, float $right, float $bottom, ?callable $progress = null): array
+    {
+        $blank = ['title' => '', 'body' => ''];
+        $last = 0;
+        $report = function (int $percent, string $label) use ($progress, &$last): void {
+            $percent = max($last, min(99, $percent));
+            $last = $percent;
+
+            if ($progress) {
+                $progress($percent, $label);
+            }
+        };
+
+        $report(12, 'Opening the marked area');
+
+        try {
+            $parsed = (new Parser)->parseFile($path);
+            $pdfPages = array_values($parsed->getPages());
+        } catch (Throwable) {
+            return $blank;
+        }
+
+        $page = $pdfPages[$pageNumber - 1] ?? null;
+
+        if ($page === null) {
+            return $blank;
+        }
+
+        $report(40, 'Reading the page');
+        $box = self::mediaBox($page->getDetails());
+        $minX = max(0.0, min($left, $right) - (8 / $box['width']));
+        $maxX = min(1.0, max($left, $right) + (8 / $box['width']));
+        $minY = max(0.0, min($top, $bottom) - (8 / $box['height']));
+        $maxY = min(1.0, max($top, $bottom) + (8 / $box['height']));
+
+        if (($maxX - $minX) < 0.01 || ($maxY - $minY) < 0.01) {
+            return $blank;
+        }
+
+        $report(62, 'Collecting the text');
+        $items = [];
+
+        foreach ($page->getDataTm() as $entry) {
+            $matrix = $entry[0] ?? null;
+            $text = trim((string) ($entry[1] ?? ''));
+
+            if (! is_array($matrix) || $text === '') {
+                continue;
+            }
+
+            $x = ((float) ($matrix[4] ?? 0) - $box['origin_x']) / $box['width'];
+            $y = 1 - (((float) ($matrix[5] ?? 0) - $box['origin_y']) / $box['height']);
+
+            if ($x < $minX || $x > $maxX || $y < $minY || $y > $maxY) {
+                continue;
+            }
+
+            $items[] = [
+                'x' => (float) ($matrix[4] ?? 0),
+                'y' => (float) ($matrix[5] ?? 0),
+                'text' => $text,
+            ];
+        }
+
+        if ($items === []) {
+            return $blank;
+        }
+
+        $report(84, 'Preparing the section');
+        $lines = [];
+
+        foreach (self::rows($items) as $row) {
+            $cells = [];
+
+            foreach ($row['cells'] as $cell) {
+                $value = trim((string) ($cell['text'] ?? ''));
+
+                if ($value !== '') {
+                    $cells[] = $value;
+                }
+            }
+
+            $paired = self::sectionLines($cells);
+
+            foreach ($paired as $line) {
+                $lines[] = $line;
+            }
+
+            if (count($lines) >= 400) {
+                break;
+            }
+        }
+
+        $body = implode("\n", $lines);
+
+        if (mb_strlen($body) > 20000) {
+            $body = mb_substr($body, 0, 20000);
+        }
+
+        return [
+            'title' => self::sectionTitle($lines),
+            'body' => $body,
+        ];
+    }
+
+    /**
+     * @param  list<string>  $cells
+     * @return list<string>
+     */
+    private static function sectionLines(array $cells): array
+    {
+        $text = trim((string) preg_replace('/\s+/', ' ', implode(' ', $cells)));
+
+        if ($text === '') {
+            return [];
+        }
+
+        $pattern = '/((?:[A-Z][A-Z0-9&\'\/-]{1,})(?:\s+[A-Z][A-Z0-9&\'\/-]{1,}){1,7})/';
+        $parts = preg_split($pattern, $text, -1, PREG_SPLIT_DELIM_CAPTURE) ?: [$text];
+        $lines = [];
+
+        foreach ($parts as $part) {
+            $part = trim($part);
+
+            if ($part === '') {
+                continue;
+            }
+
+            if (self::isGroupTitle($part)) {
+                $lines[] = $part;
+
+                continue;
+            }
+
+            $paired = self::sectionPair([$part]);
+
+            if ($paired !== []) {
+                $lines[] = implode("\t", $paired);
+            }
+        }
+
+        return $lines;
+    }
+
+    private static function isGroupTitle(string $text): bool
+    {
+        $text = trim((string) preg_replace('/\s+/', ' ', $text));
+
+        if (preg_match('/^(?:[A-Z][A-Z0-9&\'\/-]{1,})(?:\s+[A-Z][A-Z0-9&\'\/-]{1,}){1,7}$/', $text) === 1) {
+            return true;
+        }
+
+        return preg_match('/\d/', $text) !== 1
+            && preg_match('/^[A-Z][A-Za-z]+(?:\s+(?:and|of|the|&|[A-Z][A-Za-z]+)){1,7}$/', $text) === 1
+            && preg_match('/\b(Notes?|Schedule|Specifications?|Requirements?|Finishes|Hardware|Legend)\b/', $text) === 1;
+    }
+
+    /**
+     * Keep a copied line to a number and its description.
+     *
+     * @param  list<string>  $cells
+     * @return list<string>
+     */
+    private static function sectionPair(array $cells): array
+    {
+        $text = trim((string) preg_replace('/\s+/', ' ', implode(' ', $cells)));
+
+        if ($text === '') {
+            return [];
+        }
+
+        if (preg_match('/^(SET\s*\d+[A-Za-z]?|HW-?\d+[A-Za-z]?|[A-Za-z]{1,3}-?\d+[A-Za-z]?|\d{1,4}[A-Za-z]?)\s+(.+)$/i', $text, $match) === 1) {
+            return [trim((string) preg_replace('/\s+/', ' ', $match[1])), trim($match[2])];
+        }
+
+        return [$text];
+    }
+
+    /**
+     * @param  list<string>  $lines
+     */
+    private static function sectionTitle(array $lines): string
+    {
+        foreach ($lines as $line) {
+            $text = trim((string) preg_replace('/\s+/', ' ', str_replace("\t", ' ', $line)));
+            $letters = preg_replace('/[^A-Za-z]/', '', $text) ?? '';
+
+            if ($text === '' || mb_strlen($text) < 4 || mb_strlen($text) > 80 || strlen($letters) < 4) {
+                continue;
+            }
+
+            $upper = preg_match_all('/[A-Z]/', $letters);
+
+            if ($upper / strlen($letters) >= 0.7) {
+                return $text;
+            }
+        }
+
+        $first = trim((string) preg_replace('/\s+/', ' ', str_replace("\t", ' ', $lines[0] ?? '')));
+
+        return $first !== '' ? mb_substr($first, 0, 80) : 'Copied section';
+    }
+
+    /**
+     * Read door and window marks out of a copied section.
+     *
+     * @return list<array<string, mixed>>
+     */
+    public static function openingsFromSection(string $title, string $body, int $page, ?string $asType = null): array
+    {
+        $named = strtolower(trim((string) $asType));
+        $named = $named === 'windows' ? 'window' : ($named === 'doors' ? 'door' : $named);
+        $forced = null;
+
+        if ($named === 'window' || $named === 'door') {
+            $kind = $named;
+            $forced = $named;
+        } elseif (trim((string) $asType) !== '') {
+            $kind = 'mixed';
+            $forced = trim((string) $asType);
+        } else {
+            $kind = self::sectionKind($title);
+        }
+        $defaultFrame = self::frameFromTitle($title);
+        $openings = [];
+        $titleKey = strtolower(trim((string) preg_replace('/\s+/', ' ', $title)));
+
+        $prepared = [];
+
+        foreach (preg_split('/\r?\n/', $body) ?: [] as $raw) {
+            $line = trim((string) preg_replace('/\s+/', ' ', str_replace("\t", ' ', (string) $raw)));
+
+            if ($line === '' || strtolower($line) === $titleKey || self::isScheduleHeader($line)) {
+                continue;
+            }
+
+            if ($prepared !== [] && self::isSizeContinuation($line)) {
+                $prepared[array_key_last($prepared)] .= ' '.$line;
+
+                continue;
+            }
+
+            $prepared[] = $line;
+        }
+
+        foreach ($prepared as $line) {
+            if (self::isDetailRow($line)) {
+                continue;
+            }
+
+            $opening = self::openingFromSectionLine($line, $kind, $page, $defaultFrame);
+
+            if ($opening !== null) {
+                self::put($openings, $opening);
+            }
+        }
+
+        $section = mb_substr(trim($title) !== '' ? trim($title) : 'Section', 0, 255);
+        $finished = [];
+
+        foreach ($openings as $opening) {
+            $opening['quantity'] = number_format((float) ($opening['quantity'] ?? 1), 2, '.', '');
+            $opening['markers'] = [];
+            $opening['opening_type'] = $forced ?? $opening['opening_type'];
+            $opening['requirement_page'] = $page;
+            $opening['requirement_section'] = $section;
+            unset($opening['plan_markers'], $opening['fallback']);
+            $finished[] = $opening;
+        }
+
+        usort($finished, fn (array $a, array $b): int => strnatcasecmp((string) $a['tag'], (string) $b['tag']));
+
+        return array_slice($finished, 0, 200);
+    }
+
+    private static function preferredMark(string $line, string $kind): ?string
+    {
+        $upper = strtoupper($line);
+
+        if (preg_match('/\b(W\d{1,4}-\d{1,4}[A-Z]?)\b/', $upper, $match) === 1) {
+            return $match[1];
+        }
+
+        if ($kind === 'window' && preg_match('/\b((?:WIN|W)[-.]?\d{1,4}[A-Z]?)\b/', $upper, $match) === 1) {
+            return $match[1];
+        }
+
+        if (($kind === 'door' || $kind === 'mixed') && preg_match('/\b(\d{2,4})\b(?=\s+\d+\s*[\'′"])/u', $upper, $match) === 1) {
+            return $match[1];
+        }
+
+        if ($kind === 'mixed' && preg_match('/\b([A-Z]{1,3}\d{1,4}-\d{1,4}[A-Z]?)\b/', $upper, $match) === 1 && preg_match('/^(?:SET|HW|HDW|HDWR|HD|STC|QTY)/', $match[1]) !== 1) {
+            return $match[1];
+        }
+
+        return null;
+    }
+
+    private static function isSizeContinuation(string $line): bool
+    {
+        if (preg_match('/\b(?:W\d|D\d|WIN|\d{3})\b/i', $line) === 1) {
+            return false;
+        }
+
+        $lengths = self::lengthTokens($line);
+
+        if (count($lengths) < 2) {
+            return false;
+        }
+
+        $rest = $line;
+
+        foreach (array_slice($lengths, 0, 2) as $length) {
+            $rest = self::cut($rest, $length['raw']);
+        }
+
+        return trim($rest) === '';
+    }
+
+    private static function isDetailRow(string $line): bool
+    {
+        $tokens = preg_split('/\s+/', strtoupper(trim($line))) ?: [];
+
+        if ($tokens === []) {
+            return false;
+        }
+
+        foreach ($tokens as $token) {
+            if (preg_match('/^(?:H\d+|J\d+|S\d+|NA|SIM|NO)$/', $token) !== 1) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static function sectionKind(string $title): string
+    {
+        $text = strtolower($title);
+        $window = preg_match('/\bwindows?\b/', $text) === 1;
+        $door = preg_match('/\bdoors?\b/', $text) === 1;
+        $schedule = preg_match('/\b(schedules?|types?|openings?)\b/', $text) === 1;
+        $notes = preg_match('/\b(hardware|notes?|finishes|legend|specifications?|requirements?)\b/', $text) === 1;
+
+        if ($notes && ! $schedule) {
+            return 'mark';
+        }
+
+        if ($window && ! $door) {
+            return 'window';
+        }
+
+        if ($door && ! $window) {
+            return 'door';
+        }
+
+        if ($window && $door) {
+            return 'mixed';
+        }
+
+        return $schedule ? 'mixed' : 'mark';
+    }
+
+    private static function frameFromTitle(string $title): ?string
+    {
+        $text = strtolower($title);
+
+        return match (true) {
+            str_contains($text, 'hollow metal') || preg_match('/\bhm\b/', $text) === 1 => 'Hollow metal',
+            str_contains($text, 'aluminum') || str_contains($text, 'aluminium') => 'Aluminum',
+            preg_match('/\bwood\b/', $text) === 1 => 'Wood',
+            preg_match('/\bsteel\b/', $text) === 1 => 'Steel',
+            preg_match('/\bfrp\b/', $text) === 1 => 'FRP',
+            default => null,
+        };
+    }
+
+    private static function isScheduleHeader(string $line): bool
+    {
+        $words = preg_split('/\s+/', strtolower($line)) ?: [];
+
+        if (count($words) < 2) {
+            return false;
+        }
+
+        $known = [
+            'mark', 'marks', 'tag', 'tags', 'door', 'doors', 'window', 'windows', 'no', 'number',
+            'width', 'height', 'ht', 'size', 'qty', 'quantity', 'count', 'location', 'room', 'loc',
+            'hand', 'handing', 'swing', 'hardware', 'hdwr', 'hw', 'frame', 'type', 'fire', 'rating',
+            'glazing', 'finish', 'remarks', 'comments', 'notes', 'description', 'thick', 'thickness',
+            'material', 'head', 'jamb', 'sill', 'elevation',
+        ];
+        $hits = 0;
+
+        foreach ($words as $word) {
+            if (in_array(trim($word, '.:#'), $known, true)) {
+                $hits++;
+            }
+        }
+
+        return $hits >= 2 && ($hits / count($words)) >= 0.6;
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    private static function openingFromSectionLine(string $line, string $kind, int $page, ?string $defaultFrame): ?array
+    {
+        $allowNumeric = $kind !== 'mark';
+        $line = trim((string) preg_replace('/^(?:marks?|tags?|door|window|no\.?|number)\s+/i', '', $line));
+        $quantity = null;
+        $numeric = false;
+        $tag = null;
+        $rest = '';
+        $preferred = self::preferredMark($line, $kind);
+
+        if ($preferred !== null) {
+            $tag = $preferred;
+            $rest = trim((string) preg_replace('/\b'.preg_quote($preferred, '/').'\b/i', ' ', $line, 1));
+        } elseif (preg_match('/^(\d+(?:\.\d+)?)\s+(\S+)\s*(.*)$/', $line, $leading) === 1 && (float) $leading[1] > 0 && (float) $leading[1] <= 500) {
+            $candidate = self::tag($leading[2], false) ?? ($allowNumeric ? self::tag($leading[2], true) : null);
+
+            if ($candidate !== null && self::tag($leading[2], false) !== null) {
+                $quantity = (float) $leading[1];
+                $tag = $candidate;
+                $rest = trim($leading[3]);
+            }
+        }
+
+        if ($tag === null && preg_match('/^(\S+)\s*(.*)$/', $line, $parts) === 1) {
+            $tag = self::tag($parts[1], false);
+            $numeric = false;
+
+            if ($tag === null && $allowNumeric) {
+                $tag = self::tag($parts[1], true);
+                $numeric = $tag !== null;
+            }
+
+            if ($tag === null && $allowNumeric && preg_match('/^[A-Za-z]{1,2}-?\d{1,4}[A-Za-z]?$/', $parts[1]) === 1) {
+                $token = strtoupper((string) preg_replace('/\s+/', '', $parts[1]));
+
+                if (preg_match('/^(?:SET|HW|HDW|HDWR|HD|STC|QTY)/', $token) !== 1) {
+                    $tag = $token;
+                    $numeric = false;
+                }
+            }
+
+            $rest = trim($parts[2]);
+        }
+
+        if ($tag === null) {
+            return null;
+        }
+
+        $size = self::pullSectionSize($rest);
+        $handing = null;
+
+        if (preg_match('/\b(LHRA|RHRA|LHR|RHR|LH|RH|RR|LR)\b/i', $rest, $handMatch) === 1) {
+            $handing = strtoupper($handMatch[1]);
+            $rest = self::cut($rest, $handMatch[0]);
+        }
+
+        $hardware = null;
+
+        if (preg_match('/\b((?:SET|HW|HDW|HDWR)\s*-?\s*\d+[A-Z]?)\b/i', $rest, $hardwareMatch) === 1) {
+            $hardware = strtoupper((string) preg_replace('/\s+/', ' ', $hardwareMatch[1]));
+            $rest = self::cut($rest, $hardwareMatch[0]);
+        }
+
+        $frame = null;
+
+        if (preg_match('/\b(hollow\s+metal|aluminum|aluminium|wood|steel|frp|HM|ALUM|AL|WD|STL)\b/i', $rest, $frameMatch) === 1) {
+            $frame = self::frame($frameMatch[1]);
+            $rest = self::cut($rest, $frameMatch[0]);
+        }
+
+        $fire = null;
+
+        if (preg_match('/\b(\d+(?:\.\d+)?)\s*-?\s*(min(?:ute)?s?|hours?|hrs?)\b/i', $rest, $fireMatch) === 1) {
+            $fire = $fireMatch[1].' '.(str_starts_with(strtolower($fireMatch[2]), 'h') ? 'hour' : 'min');
+            $rest = self::cut($rest, $fireMatch[0]);
+        }
+
+        $acoustic = null;
+
+        if (preg_match('/\bSTC\s*-?\s*(\d+)\b/i', $rest, $acousticMatch) === 1) {
+            $acoustic = 'STC '.$acousticMatch[1];
+            $rest = self::cut($rest, $acousticMatch[0]);
+        }
+
+        $glazing = null;
+
+        if (preg_match('/\b(tempered|laminated|insulated|obscure|frosted|wire\s+glass|spandrel|igu)\b/i', $rest, $glazingMatch) === 1) {
+            $glazing = ucwords(strtolower($glazingMatch[1]));
+            $rest = self::cut($rest, $glazingMatch[0]);
+        }
+
+        $finish = null;
+
+        if (preg_match('/\b(painted|paint|stained|stain|anodized|primed|galvanized)\b/i', $rest, $finishMatch) === 1) {
+            $finish = ucfirst(strtolower($finishMatch[1]));
+            $rest = self::cut($rest, $finishMatch[0]);
+        }
+
+        $category = null;
+
+        if (preg_match('/\b(single|pair|double|sliding|slider|pocket|bi-?fold|overhead|storefront|fixed|casement|awning)\b/i', $rest, $categoryMatch) === 1) {
+            $category = strcasecmp($categoryMatch[1], 'slider') === 0 ? 'Sliding' : ucwords(strtolower(str_replace('-', '-', $categoryMatch[1])));
+
+            if (preg_match('/bi-?fold/i', $categoryMatch[1]) === 1) {
+                $category = 'Bi-fold';
+            }
+
+            $rest = self::cut($rest, $categoryMatch[0]);
+        }
+
+        if ($quantity === null && preg_match('/\b(?:qty|quantity|count)\s*:?\s*(\d+(?:\.\d+)?)\b/i', $rest, $quantityMatch) === 1) {
+            $quantity = self::quantity($quantityMatch[1]);
+            $rest = self::cut($rest, $quantityMatch[0]);
+        }
+
+        if ($quantity === null && $size !== null && preg_match('/\b(\d+(?:\.\d+)?)\s*$/', $rest, $tail) === 1 && (float) $tail[1] > 0 && (float) $tail[1] <= 50) {
+            $quantity = self::quantity($tail[1]);
+            $rest = self::cut($rest, $tail[0]);
+        }
+
+        $identified = $size !== null || $handing !== null || $hardware !== null || $frame !== null;
+
+        if ($kind === 'mark' && ! $identified) {
+            return null;
+        }
+
+        if ($numeric && ! $identified) {
+            return null;
+        }
+
+        $rest = trim((string) preg_replace('/\s+/', ' ', trim($rest, " \t,;:-x×")));
+        $location = null;
+        $notes = null;
+        $words = $rest === '' ? [] : preg_split('/\s+/', $rest);
+
+        if ($rest !== '' && count($words) <= 6 && mb_strlen($rest) <= 80) {
+            $location = $rest;
+        } elseif ($rest !== '') {
+            $notes = $rest;
+        }
+
+        $pageKind = $kind === 'window' ? 'window' : 'door';
+        $opening = self::shell($tag, $pageKind, $page);
+        $opening['location'] = self::location($location);
+        $opening['quantity'] = $quantity;
+        $opening['width'] = $size['width'] ?? null;
+        $opening['height'] = $size['height'] ?? null;
+        $opening['depth'] = $size['depth'] ?? null;
+        $opening['dimension_unit'] = $size['unit'] ?? 'in';
+        $opening['frame_type'] = $frame ?? $defaultFrame;
+        $opening['handing'] = $handing;
+        $opening['hardware_set'] = $hardware;
+        $opening['glazing'] = $glazing;
+        $opening['finish'] = $finish;
+        $opening['fire_requirement'] = $fire;
+        $opening['acoustic_requirement'] = $acoustic;
+        $opening['product_category'] = $category;
+        $opening['notes'] = $notes;
+        $opening['requirement_page'] = $page;
+
+        return $opening;
+    }
+
+    /**
+     * @return array{width: string, height: string, depth: ?string, unit: string}|null
+     */
+    private static function pullSectionSize(string &$text): ?array
+    {
+        $patterns = [
+            '/(\d+\s*[\'′]\s*-?\s*\d{0,2}\s*(?:["″]|in\.?)?\s*[x×]\s*\d+\s*[\'′]\s*-?\s*\d{0,2}\s*(?:["″]|in\.?)?)/iu',
+            '/(\d+(?:\.\d+)?\s*(?:mm|cm|in|["″])?\s*[x×]\s*\d+(?:\.\d+)?\s*(?:mm|cm|in|["″])?)/iu',
+            '/\b([2-8][0-9][6-9][0-9])\b/',
+        ];
+
+        foreach ($patterns as $pattern) {
+            if (preg_match($pattern, $text, $match) !== 1) {
+                continue;
+            }
+
+            $size = self::parseSize($match[1]);
+
+            if ($size === null) {
+                continue;
+            }
+
+            $text = self::cut($text, $match[0]);
+            $depth = self::pullDepth($text);
+
+            return [
+                'width' => $size['width'],
+                'height' => $size['height'],
+                'depth' => $depth,
+                'unit' => $size['unit'],
+            ];
+        }
+
+        $lengths = self::lengthTokens($text);
+
+        if (count($lengths) < 2) {
+            return null;
+        }
+
+        $text = self::cut($text, $lengths[0]['raw']);
+        $text = self::cut($text, $lengths[1]['raw']);
+        $depth = null;
+
+        if (isset($lengths[2]) && $lengths[2]['unit'] === 'in' && (float) $lengths[2]['value'] > 0 && (float) $lengths[2]['value'] <= 12) {
+            $depth = $lengths[2]['value'];
+            $text = self::cut($text, $lengths[2]['raw']);
+        }
+
+        return [
+            'width' => $lengths[0]['value'],
+            'height' => $lengths[1]['value'],
+            'depth' => $depth,
+            'unit' => self::unit($lengths[0], $lengths[1]),
+        ];
+    }
+
+    private static function pullDepth(string &$text): ?string
+    {
+        if (preg_match('/^\s*[x×]\s*(\S+)/', $text, $match) !== 1) {
+            return null;
+        }
+
+        $parsed = self::parseLength($match[1]);
+
+        if ($parsed === null || $parsed['unit'] !== 'in' || (float) $parsed['value'] <= 0 || (float) $parsed['value'] > 12) {
+            return null;
+        }
+
+        $text = self::cut($text, $match[0]);
+
+        return $parsed['value'];
+    }
+
+    /**
+     * @return list<array{raw: string, value: string, unit: string}>
+     */
+    private static function lengthTokens(string $text): array
+    {
+        $pattern = '/\d+\s*[-\s]\s*\d+\s*\/\s*\d+\s*(?:["″]|in\.?)?|\d+\s*[\'′]\s*-?\s*(?:\d{1,2}(?:\s+\d+\s*\/\s*\d+)?)?\s*(?:["″]|in\.?)?|\d+(?:\.\d+)?\s*(?:mm|cm|in|["″])/iu';
+        $found = [];
+
+        if (preg_match_all($pattern, $text, $matches) !== false) {
+            foreach ($matches[0] as $raw) {
+                $parsed = self::parseLength(trim($raw));
+
+                if ($parsed === null) {
+                    continue;
+                }
+
+                $found[] = [
+                    'raw' => $raw,
+                    'value' => $parsed['value'],
+                    'unit' => $parsed['unit'],
+                ];
+            }
+        }
+
+        return $found;
+    }
+
+    private static function cut(string $text, string $piece): string
+    {
+        $replaced = preg_replace('/'.preg_quote($piece, '/').'/', ' ', $text, 1);
+
+        return trim((string) preg_replace('/\s+/', ' ', (string) $replaced));
     }
 
     /**
@@ -89,8 +788,13 @@ class TakeoffPdfScope
      *     notes: list<string>
      * }
      */
-    public static function fromPages(array $pages): array
+    public static function fromPages(array $pages, ?callable $progress = null): array
     {
+        $report = function (int $percent, string $label) use ($progress): void {
+            if ($progress) {
+                $progress($percent, $label);
+            }
+        };
         $hasText = false;
 
         foreach ($pages as $page) {
@@ -109,6 +813,8 @@ class TakeoffPdfScope
         $sawSchedule = false;
         $meta = [];
 
+        $report(74, 'Checking the sheet titles');
+
         foreach ($pages as $page) {
             $rows = self::rows($page['items']);
             $meta[] = ['page' => $page] + self::metadata($page, $rows);
@@ -117,9 +823,13 @@ class TakeoffPdfScope
             $scheduleRows += $schedule['rows'];
         }
 
+        $report(82, 'Reading door and window schedules');
         self::readLines($pages, $scheduleRows, $openings);
+        $report(88, 'Reading marks on the plan');
         self::readMarkers($pages, $scheduleRows, $openings);
+        $report(92, 'Checking the drawing');
         $sawSchedule = self::readArchitectural($pages, $openings) || $sawSchedule;
+        $report(96, 'Preparing the openings');
         $openings = self::finalize($openings);
         $sheet = self::chooseSheet($meta);
         $notes = [];
@@ -141,6 +851,7 @@ class TakeoffPdfScope
             'page_count' => count($pages),
             'openings' => $openings,
             'notes' => $notes,
+            'project' => self::projectDetails($pages),
         ];
     }
 
@@ -874,7 +1585,7 @@ class TakeoffPdfScope
             return;
         }
 
-        foreach (['location', 'width', 'height', 'depth', 'frame_type', 'handing', 'hardware_set', 'glazing', 'finish', 'acoustic_requirement', 'notes', 'quantity', 'requirement_section', 'fallback'] as $field) {
+        foreach (['location', 'width', 'height', 'depth', 'frame_type', 'handing', 'hardware_set', 'glazing', 'finish', 'acoustic_requirement', 'fire_requirement', 'product_category', 'notes', 'quantity', 'requirement_section', 'fallback'] as $field) {
             if (($openings[$tag][$field] ?? null) === null && ($opening[$field] ?? null) !== null) {
                 $openings[$tag][$field] = $opening[$field];
             }
@@ -1017,6 +1728,10 @@ class TakeoffPdfScope
             return ['value' => $feetInches, 'unit' => 'in'];
         }
 
+        if (preg_match('/^(\d+)\s*[-\s]\s*(\d+)\s*\/\s*(\d+)\s*(?:["″]|in\.?)?$/u', $text, $match) === 1 && (int) $match[3] > 0) {
+            return ['value' => self::number(((int) $match[1]) + ((int) $match[2] / (int) $match[3])), 'unit' => 'in'];
+        }
+
         if (preg_match('/^(\d+(?:\.\d+)?)\s*(mm|cm|in|["″])?$/iu', $text, $match) !== 1) {
             return null;
         }
@@ -1113,6 +1828,179 @@ class TakeoffPdfScope
         }
 
         return $text;
+    }
+
+    /**
+     * @param  list<array{page: int, width: float, height: float, origin_x: float, origin_y: float, items: list<array{x: float, y: float, text: string}>}>  $pages
+     * @return array{name: ?string, address: ?string, city: ?string, state: ?string, postal_code: ?string, notes: ?string}
+     */
+    private static function projectDetails(array $pages): array
+    {
+        $lines = [];
+
+        foreach ($pages as $page) {
+            foreach (self::rows($page['items']) as $row) {
+                $line = trim(implode(' ', array_column($row['cells'], 'text')));
+
+                if ($line !== '') {
+                    $lines[] = $line;
+                }
+            }
+        }
+
+        $found = self::blankProject();
+        $count = count($lines);
+
+        for ($index = 0; $index < $count; $index++) {
+            $parsed = self::labeledProjectValue($lines[$index]);
+
+            if ($parsed === null) {
+                continue;
+            }
+
+            [$key, $value] = $parsed;
+
+            if ($value === '' && isset($lines[$index + 1]) && self::labeledProjectValue($lines[$index + 1]) === null) {
+                $value = trim($lines[$index + 1]);
+            }
+
+            if ($value === '' || $found[$key] !== null) {
+                continue;
+            }
+
+            if ($key === 'owner') {
+                $label = strtok(strtolower($lines[$index]), " \t:.#-");
+                $value = ucfirst((string) $label).': '.$value;
+            }
+
+            if ($key === 'name' && self::ignoredProjectName($value)) {
+                continue;
+            }
+
+            if ($key === 'state') {
+                $value = strtoupper(substr((string) preg_replace('/[^A-Za-z]/', '', $value), 0, 2));
+
+                if (strlen($value) !== 2) {
+                    continue;
+                }
+            }
+
+            if ($key === 'postal_code') {
+                if (preg_match('/\b(\d{5}(?:-\d{4})?)\b/', $value, $zip) !== 1) {
+                    continue;
+                }
+
+                $value = $zip[1];
+            }
+
+            if ($key === 'address') {
+                $split = self::splitAddress($value);
+                $found['address'] = $split['address'];
+                $found['city'] ??= $split['city'];
+                $found['state'] ??= $split['state'];
+                $found['postal_code'] ??= $split['postal_code'];
+
+                continue;
+            }
+
+            $found[$key] = mb_substr($value, 0, 255);
+        }
+
+        if ($found['city'] === null || $found['state'] === null || $found['postal_code'] === null) {
+            foreach ($lines as $line) {
+                if (preg_match('/^([A-Za-z][A-Za-z .\'-]{1,40}),\s*([A-Z]{2})\s+(\d{5}(?:-\d{4})?)$/', $line, $match) !== 1) {
+                    continue;
+                }
+
+                $found['city'] ??= trim($match[1]);
+                $found['state'] ??= $match[2];
+                $found['postal_code'] ??= $match[3];
+                break;
+            }
+        }
+
+        $notes = [];
+
+        if ($found['owner'] !== null) {
+            $notes[] = $found['owner'];
+        }
+
+        unset($found['owner']);
+        $found['notes'] = $notes === [] ? null : implode("\n", $notes);
+
+        return $found;
+    }
+
+    /**
+     * @return array{name: null, address: null, city: null, state: null, postal_code: null, notes: null, owner: null}
+     */
+    private static function blankProject(): array
+    {
+        return [
+            'name' => null,
+            'address' => null,
+            'city' => null,
+            'state' => null,
+            'postal_code' => null,
+            'notes' => null,
+            'owner' => null,
+        ];
+    }
+
+    /**
+     * @return array{0: string, 1: string}|null
+     */
+    private static function labeledProjectValue(string $line): ?array
+    {
+        if (preg_match('/^(project address|job address|site address|address|project name|project title|job name|job title|project|city|state|zip code|zip|postal code|postal|owner|client|customer)\s*[:.#-]?\s*(.*)$/i', $line, $match) !== 1) {
+            return null;
+        }
+
+        $label = strtolower($match[1]);
+        $key = match (true) {
+            in_array($label, ['project name', 'project title', 'job name', 'job title', 'project'], true) => 'name',
+            in_array($label, ['project address', 'job address', 'site address', 'address'], true) => 'address',
+            $label === 'city' => 'city',
+            $label === 'state' => 'state',
+            in_array($label, ['zip code', 'zip', 'postal code', 'postal'], true) => 'postal_code',
+            default => 'owner',
+        };
+
+        $value = trim($match[2]);
+
+        return [$key, $value];
+    }
+
+    private static function ignoredProjectName(string $value): bool
+    {
+        $value = strtolower(trim($value));
+
+        return $value === ''
+            || mb_strlen($value) < 2
+            || in_array($value, ['door schedule', 'window schedule', 'opening schedule', 'floor plan', 'drawing', 'schedule', 'mark', 'location'], true)
+            || preg_match('/^[a-z]{1,3}-\d{2,4}$/', $value) === 1;
+    }
+
+    /**
+     * @return array{address: string, city: ?string, state: ?string, postal_code: ?string}
+     */
+    private static function splitAddress(string $value): array
+    {
+        if (preg_match('/^(.*?),\s*([A-Za-z][A-Za-z .\'-]{1,40}),\s*([A-Z]{2})\s+(\d{5}(?:-\d{4})?)$/', $value, $match) === 1) {
+            return [
+                'address' => mb_substr(trim($match[1]), 0, 255),
+                'city' => trim($match[2]),
+                'state' => $match[3],
+                'postal_code' => $match[4],
+            ];
+        }
+
+        return [
+            'address' => mb_substr($value, 0, 255),
+            'city' => null,
+            'state' => null,
+            'postal_code' => null,
+        ];
     }
 
     /**
@@ -1339,6 +2227,7 @@ class TakeoffPdfScope
             'page_count' => $pageCount,
             'openings' => [],
             'notes' => [$note],
+            'project' => self::blankProject(),
         ];
     }
 }
