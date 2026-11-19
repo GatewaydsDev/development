@@ -1,14 +1,14 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
+import ListSearchInput, { listSearchButtonClassName } from '@/Components/ListSearchInput';
 import { Link, router } from '@inertiajs/react';
 import { useState, type FormEvent } from 'react';
 import { Badge } from '@/Components/ui/badge';
 import { Button } from '@/Components/ui/button';
 import SimpleSelect from '@/Components/ContactDirectory/SimpleSelect';
-import TextInput from '@/Components/TextInput';
-import type { PageProps } from '@/types';
 import { BuildingIcon, MailIcon, MapPinIcon, PhoneIcon, PlusIcon, SearchIcon } from 'lucide-react';
 import RecordActionLink from '@/Components/ContactDirectory/RecordActionLink';
 import { formatPhoneDisplay } from '@/lib/phoneFormatting';
+import type { PageProps } from '@/types';
 
 type Company = {
     id: number;
@@ -55,18 +55,13 @@ export default function CompaniesIndex({ filters, companies, auth }: Props) {
         </div>}>
             <div className="space-y-6 px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
                 <form onSubmit={submitSearch} className="flex flex-wrap items-end gap-3 rounded-lg border border-sky-200 bg-sky-50/70 p-4 dark:border-sky-900 dark:bg-sky-950/30">
-                    <div className="min-w-0 flex-1 basis-64">
-                        <label className="mb-1 block text-sm font-medium text-sky-700 dark:text-sky-300">
-                            Search
-                        </label>
-                        <TextInput
-                            value={search}
-                            onChange={(event) => setSearch(event.target.value)}
-                            placeholder="Search companies, phone numbers or emails"
-                            aria-label="Search companies"
-                            className="h-11 w-full"
-                        />
-                    </div>
+                    <ListSearchInput
+                        value={search}
+                        onChange={setSearch}
+                        onClear={() => applyFilters({ search: '' })}
+                        placeholder="Search companies, phone numbers or emails"
+                        ariaLabel="Search companies"
+                    />
                     <SimpleSelect
                         label="Active status"
                         value={filters.is_active ?? ''}
@@ -78,7 +73,7 @@ export default function CompaniesIndex({ filters, companies, auth }: Props) {
                         onChange={(value) => applyFilters({ is_active: value })}
                         className="w-[170px]"
                     />
-                    <Button type="submit" className="min-h-11 bg-emerald-600 text-white hover:bg-emerald-700"><SearchIcon className="size-4" aria-hidden="true" />Search</Button>
+                    <Button type="submit" className={`${listSearchButtonClassName} bg-emerald-600 text-white hover:bg-emerald-700`}><SearchIcon className="size-4" aria-hidden="true" />Search</Button>
                 </form>
 
                 <div className="overflow-hidden rounded-lg border border-emerald-200 bg-card dark:border-emerald-900">

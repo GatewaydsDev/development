@@ -1,6 +1,6 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
+import ListSearchInput, { listSearchButtonClassName } from '@/Components/ListSearchInput';
 import PaginationNav, { type Paginator } from '@/Components/PaginationNav';
-import TextInput from '@/Components/TextInput';
 import { Badge } from '@/Components/ui/badge';
 import { Button } from '@/Components/ui/button';
 import { Head, Link, router } from '@inertiajs/react';
@@ -53,19 +53,30 @@ export default function Index({ filters, takeoffs, projects, can }: Props) {
                         Internal door and window counts for estimating. Approval means the takeoff was reviewed internally. It does not certify product compliance.
                     </p>
                 </div>
-                <form onSubmit={submit} className="mb-4 flex flex-wrap items-center gap-2 rounded-xl border p-3 border-sky-200 bg-sky-50/70 dark:border-sky-900 dark:bg-sky-950/30">
-                    <TextInput className="h-8 w-full sm:w-64" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search title or project" />
-                    <select className="h-12 rounded-md border border-border bg-background px-2 py-2 text-sm leading-6 text-foreground shadow-sm" value={status} onChange={(event) => setStatus(event.target.value)}>
+                <form onSubmit={submit} className="mb-4 flex flex-wrap items-center gap-2 rounded-xl border border-sky-200 bg-sky-50/70 p-3 dark:border-sky-900 dark:bg-sky-950/30">
+                    <ListSearchInput
+                        value={search}
+                        onChange={setSearch}
+                        onClear={() =>
+                            router.get(
+                                route('admin.takeoffs.index'),
+                                { status, project_id: projectId },
+                                { preserveState: true },
+                            )
+                        }
+                        placeholder="Search title or project"
+                    />
+                    <select className="h-11 w-full rounded-md border border-border bg-background px-3 text-sm text-foreground sm:w-44" value={status} onChange={(event) => setStatus(event.target.value)}>
                         <option value="">All statuses</option>
                         {Object.entries(statusLabel).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
                     </select>
-                    <select className="h-12 max-w-full rounded-md border border-border bg-background px-2 py-2 text-sm leading-6 text-foreground shadow-sm" value={projectId} onChange={(event) => setProjectId(event.target.value)}>
+                    <select className="h-11 w-full max-w-full rounded-md border border-border bg-background px-3 text-sm text-foreground sm:w-64" value={projectId} onChange={(event) => setProjectId(event.target.value)}>
                         <option value="">All projects</option>
                         {projects.map((project) => <option key={project.id} value={project.id}>{project.project_number ? `${project.project_number} — ` : ''}{project.name}</option>)}
                     </select>
-                    <Button type="submit" size="sm" className="bg-emerald-600 text-white hover:bg-emerald-700">
+                    <Button type="submit" className={`${listSearchButtonClassName} bg-emerald-600 text-white hover:bg-emerald-700`}>
                         <FilterIcon data-icon="inline-start" />
-                        Filter
+                        Search
                     </Button>
                 </form>
                 <div className="overflow-x-auto rounded-lg border border-emerald-200 dark:border-emerald-900">

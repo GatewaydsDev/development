@@ -6,6 +6,7 @@ import { Badge } from '@/Components/ui/badge';
 import { Button } from '@/Components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/Components/ui/card';
 import SimpleSelect from '@/Components/ContactDirectory/SimpleSelect';
+import ListSearchInput, { listSearchButtonClassName } from '@/Components/ListSearchInput';
 import TextInput from '@/Components/TextInput';
 import RichTextEditor from '@/Components/RichTextEditor';
 import {
@@ -187,17 +188,13 @@ export default function EmailTemplatesIndex({
                 )}
 
                 <form onSubmit={submitSearch} className="flex flex-wrap items-end gap-3">
-                    <div className="min-w-0 flex-1">
-                        <label className="mb-1 block text-sm font-medium text-foreground">
-                            Search
-                        </label>
-                        <TextInput
-                            value={search}
-                            onChange={(event) => setSearch(event.target.value)}
-                            placeholder="Search templates by name or subject"
-                            aria-label="Search email templates"
-                        />
-                    </div>
+                    <ListSearchInput
+                        value={search}
+                        onChange={setSearch}
+                        onClear={() => applyFilters({ search: '' })}
+                        placeholder="Search templates by name or subject"
+                        ariaLabel="Search email templates"
+                    />
                     <SimpleSelect
                         label="Category"
                         value={filters.category ?? ''}
@@ -220,7 +217,7 @@ export default function EmailTemplatesIndex({
                         onChange={(value) => applyFilters({ visibility: value })}
                         className="w-[160px]"
                     />
-                    <Button type="submit">Search</Button>
+                    <Button type="submit" className={listSearchButtonClassName}>Search</Button>
                 </form>
 
                 <div className="space-y-4">

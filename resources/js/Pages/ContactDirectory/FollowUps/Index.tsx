@@ -9,6 +9,7 @@ import { Button } from '@/Components/ui/button';
 import { Card, CardContent } from '@/Components/ui/card';
 import { BanIcon, BellIcon, CalendarIcon, CheckIcon, ClockIcon, FileTextIcon, PencilIcon, UserIcon } from 'lucide-react';
 import SimpleSelect from '@/Components/ContactDirectory/SimpleSelect';
+import ListSearchInput, { listSearchButtonClassName } from '@/Components/ListSearchInput';
 import SplitDateTimeInput from '@/Components/SplitDateTimeInput';
 import TextInput from '@/Components/TextInput';
 import { toIsoInstant } from '@/lib/followUpTime';
@@ -187,15 +188,13 @@ export default function FollowUpsIndex({
                     onSubmit={submitSearch}
                     className="flex flex-wrap items-end gap-3 rounded-xl border border-sky-200 bg-sky-50/70 p-4 dark:border-sky-900 dark:bg-sky-950/30"
                 >
-                    <div className="min-w-[14rem] flex-1">
-                        <label className="mb-1 block text-sm font-medium text-sky-700 dark:text-sky-300">Search</label>
-                        <TextInput
-                            value={search}
-                            onChange={(event) => setSearch(event.target.value)}
-                            placeholder="Search follow-ups by title or contact"
-                            aria-label="Search follow-ups"
-                        />
-                    </div>
+                    <ListSearchInput
+                        value={search}
+                        onChange={setSearch}
+                        onClear={() => applyFilters({ search: '' })}
+                        placeholder="Search follow-ups by title or contact"
+                        ariaLabel="Search follow-ups"
+                    />
                     <SimpleSelect
                         label="Assigned user"
                         value={filters.assigned_user_id ?? ''}
@@ -229,7 +228,7 @@ export default function FollowUpsIndex({
                             type="date"
                             value={filters.due_from ?? ''}
                             onChange={(event) => applyFilters({ due_from: event.target.value })}
-                            className="w-[150px]"
+                            className="h-11 w-[150px]"
                         />
                     </div>
                     <div>
@@ -238,10 +237,10 @@ export default function FollowUpsIndex({
                             type="date"
                             value={filters.due_to ?? ''}
                             onChange={(event) => applyFilters({ due_to: event.target.value })}
-                            className="w-[150px]"
+                            className="h-11 w-[150px]"
                         />
                     </div>
-                    <Button type="submit" className="bg-emerald-600 text-white hover:bg-emerald-700">
+                    <Button type="submit" className={`${listSearchButtonClassName} bg-emerald-600 text-white hover:bg-emerald-700`}>
                         Search
                     </Button>
                 </form>

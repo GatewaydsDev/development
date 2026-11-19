@@ -1,4 +1,5 @@
 import ActionHint from '@/Components/ActionHint';
+import ListSearchInput, { listSearchButtonClassName } from '@/Components/ListSearchInput';
 import {
     AlertDialog,
     AlertDialogAction,
@@ -208,15 +209,18 @@ export default function Index({
                                 <CardDescription>Purchases are listed under a group, such as Course in Maryland.</CardDescription>
                             </div>
                             <form onSubmit={submit} className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
-                                <div className="relative">
-                                    <SearchIcon className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
-                                    <input
-                                        value={search}
-                                        onChange={(event) => setSearch(event.target.value)}
-                                        placeholder="Search expenses"
-                                        className="h-11 w-full rounded-md border border-border bg-background pr-3 pl-9 text-sm text-foreground sm:w-64"
-                                    />
-                                </div>
+                                <ListSearchInput
+                                    value={search}
+                                    onChange={setSearch}
+                                    onClear={() =>
+                                        router.get(
+                                            route('admin.expenses.index'),
+                                            { category, group },
+                                            { preserveState: true, replace: true },
+                                        )
+                                    }
+                                    placeholder="Search expenses"
+                                />
                                 <select
                                     value={group}
                                     onChange={(event) => setGroup(event.target.value)}
@@ -239,7 +243,7 @@ export default function Index({
                                         <option key={value} value={value}>{label}</option>
                                     ))}
                                 </select>
-                                <Button type="submit" variant="outline" size="sm" className="self-center">
+                                <Button type="submit" variant="outline" className={listSearchButtonClassName}>
                                     <SearchIcon data-icon="inline-start" />
                                     Search
                                 </Button>

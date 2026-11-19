@@ -1,3 +1,4 @@
+import ListSearchInput, { listSearchButtonClassName } from '@/Components/ListSearchInput';
 import PaginationNav from '@/Components/PaginationNav';
 import {
     AlertDialog,
@@ -434,18 +435,26 @@ export default function Index({ filters, weeks }: IndexProps) {
                                     >
                                         Employee
                                     </FilterLabel>
-                                    <div className="relative">
-                                        <SearchIcon className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-                                        <input
-                                            id="attendance-search"
-                                            value={search}
-                                            onChange={(event) =>
-                                                setSearch(event.target.value)
+                                    <ListSearchInput
+                                        id="attendance-search"
+                                        value={search}
+                                        onChange={setSearch}
+                                        onClear={() => {
+                                            const query: Record<string, string> = {};
+
+                                            if (from !== '') {
+                                                query.from = from;
                                             }
-                                            placeholder="Name or email"
-                                            className="h-11 w-full rounded-md border border-border bg-background pl-9 pr-3 text-sm text-foreground"
-                                        />
-                                    </div>
+
+                                            if (to !== '') {
+                                                query.to = to;
+                                            }
+
+                                            visit(query);
+                                        }}
+                                        placeholder="Name or email"
+                                        ariaLabel="Employee"
+                                    />
                                 </div>
                                 <div className="flex flex-col gap-1.5">
                                     <FilterLabel
@@ -482,7 +491,7 @@ export default function Index({ filters, weeks }: IndexProps) {
                                     />
                                 </div>
                                 <div className="flex gap-2 sm:col-span-2 lg:col-span-1">
-                                    <Button type="submit" variant="outline" size="sm" className="self-end">
+                                    <Button type="submit" variant="outline" className={listSearchButtonClassName}>
                                         <SearchIcon data-icon="inline-start" />
                                         Search
                                     </Button>
@@ -490,8 +499,7 @@ export default function Index({ filters, weeks }: IndexProps) {
                                         <Button
                                             type="button"
                                             variant="outline"
-                                            size="sm"
-                                            className="self-end"
+                                            className={listSearchButtonClassName}
                                             onClick={clearFilters}
                                         >
                                             Clear

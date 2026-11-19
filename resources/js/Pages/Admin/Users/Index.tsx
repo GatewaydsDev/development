@@ -1,5 +1,6 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import ActionHint from '@/Components/ActionHint';
+import ListSearchInput, { listSearchButtonClassName } from '@/Components/ListSearchInput';
 import DirectoryFieldLabel from '@/Components/DirectoryFieldLabel';
 import {
     Dialog,
@@ -1014,18 +1015,19 @@ export default function Index({
                                 onSubmit={submit}
                                 className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row"
                             >
-                                <div className="relative">
-                                    <SearchIcon className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-                                    <input
-                                        value={search}
-                                        onChange={(event) =>
-                                            setSearch(event.target.value)
-                                        }
-                                        placeholder="Search users"
-                                        className="h-11 w-full rounded-md border border-border bg-background pl-9 pr-3 text-sm text-foreground sm:w-64"
-                                    />
-                                </div>
-                                <Button type="submit" variant="outline" size="sm" className="self-center">
+                                <ListSearchInput
+                                    value={search}
+                                    onChange={setSearch}
+                                    onClear={() =>
+                                        router.get(
+                                            route('admin.users.index'),
+                                            filters.archived ? { archived: 1 } : {},
+                                            { preserveState: true, replace: true },
+                                        )
+                                    }
+                                    placeholder="Search users"
+                                />
+                                <Button type="submit" variant="outline" className={listSearchButtonClassName}>
                                     <SearchIcon data-icon="inline-start" />
                                     Search
                                 </Button>

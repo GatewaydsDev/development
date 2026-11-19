@@ -1,6 +1,7 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import PaginationNav from '@/Components/PaginationNav';
 import DirectoryFieldLabel from '@/Components/DirectoryFieldLabel';
+import ListSearchInput, { listSearchButtonClassName } from '@/Components/ListSearchInput';
 import { Badge } from '@/Components/ui/badge';
 import { Button } from '@/Components/ui/button';
 import {
@@ -277,22 +278,16 @@ export default function Index({
                                         View archive ({archiveCount})
                                     </Button>
                                 ) : null}
-                                <div className="relative w-full sm:w-auto">
-                                    <SearchIcon className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-                                    <input
-                                        value={search}
-                                        onChange={(event) =>
-                                            setSearch(event.target.value)
-                                        }
-                                        placeholder="Search activity"
-                                        className="h-11 w-full rounded-md border border-border bg-background pl-9 pr-3 text-sm text-foreground sm:w-64"
-                                    />
-                                </div>
+                                <ListSearchInput
+                                    value={search}
+                                    onChange={setSearch}
+                                    onClear={() => visit(viewingArchive, '')}
+                                    placeholder="Search activity"
+                                />
                                 <Button
                                     type="submit"
                                     variant="outline"
-                                    size="sm"
-                                    className="w-full sm:w-auto"
+                                    className={listSearchButtonClassName}
                                 >
                                     <SearchIcon data-icon="inline-start" />
                                     Search

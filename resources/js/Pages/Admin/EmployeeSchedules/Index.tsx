@@ -1,4 +1,5 @@
 import CertificationBadge from '@/Components/CertificationBadge';
+import ListSearchInput, { listSearchButtonClassName } from '@/Components/ListSearchInput';
 import PaginationNav from '@/Components/PaginationNav';
 import {
     AlertDialog,
@@ -324,6 +325,8 @@ function RoleField({
 export default function Index({ filters, statuses, schedules, can, roleOptions }: IndexProps) {
     const [pendingRole, setPendingRole] = useState<PendingRole | null>(null);
     const dateRef = useRef<HTMLInputElement>(null);
+    const searchFormRef = useRef<HTMLFormElement>(null);
+    const [searchText, setSearchText] = useState(filters.search);
     const [ratesUuid, setRatesUuid] = useState<string | null>(null);
     const [rates, setRates] = useState<RatesData | null>(null);
     const [ratesFailed, setRatesFailed] = useState(false);
@@ -430,23 +433,24 @@ export default function Index({ filters, statuses, schedules, can, roleOptions }
                     <Card className="shadow-sm">
                         <CardContent className="pt-6">
                             <form
+                                ref={searchFormRef}
                                 onSubmit={search}
-                                className="grid gap-3 lg:grid-cols-[11rem_14rem_minmax(0,1fr)_auto]"
+                                className="flex flex-wrap items-center gap-2"
                             >
-                                <div className="flex h-9 overflow-hidden rounded-md border border-border bg-background">
+                                <div className="flex h-11 w-full overflow-hidden rounded-md border border-border bg-background sm:w-44">
                                     <input
                                         ref={dateRef}
                                         name="date"
                                         type="date"
                                         defaultValue={filters.date}
                                         aria-label="Date within the schedule"
-                                        className="h-9 min-w-0 flex-1 bg-transparent px-2 text-sm text-foreground focus:outline-none dark:[color-scheme:dark] [&::-webkit-calendar-picker-indicator]:hidden"
+                                        className="h-11 min-w-0 flex-1 bg-transparent px-2 text-sm text-foreground focus:outline-none dark:[color-scheme:dark] [&::-webkit-calendar-picker-indicator]:hidden"
                                     />
                                     <button
                                         type="button"
                                         onClick={openDatePicker}
                                         aria-label="Choose date"
-                                        className="flex w-9 items-center justify-center border-l border-border text-muted-foreground hover:bg-muted/60"
+                                        className="flex w-11 items-center justify-center border-l border-border text-muted-foreground hover:bg-muted/60"
                                     >
                                         <CalendarDaysIcon className="size-4" />
                                     </button>
@@ -455,7 +459,7 @@ export default function Index({ filters, statuses, schedules, can, roleOptions }
                                     name="status"
                                     defaultValue={filters.status}
                                     aria-label="Status"
-                                    className="h-9 rounded-md border border-border bg-background px-2 text-sm text-foreground shadow-sm focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring"
+                                    className="h-11 w-full rounded-md border border-border bg-background px-3 text-sm text-foreground focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring sm:w-56"
                                 >
                                     <option value="">All statuses</option>
                                     {statuses.map((status) => (
@@ -464,13 +468,28 @@ export default function Index({ filters, statuses, schedules, can, roleOptions }
                                         </option>
                                     ))}
                                 </select>
-                                <input
+                                <ListSearchInput
                                     name="search"
-                                    defaultValue={filters.search}
+                                    value={searchText}
+                                    onChange={setSearchText}
+                                        onClear={() => {
+                                        const form = searchFormRef.current;
+                                        const data = form ? new FormData(form) : new FormData();
+
+                                        setSearchText('');
+                                        router.get(
+                                            route('admin.employee-schedules.index'),
+                                            {
+                                                date: String(data.get('date') ?? ''),
+                                                status: String(data.get('status') ?? ''),
+                                                search: '',
+                                            },
+                                            { preserveState: false },
+                                        );
+                                    }}
                                     placeholder="Search job, foreman, or employee"
-                                    className="h-9 flex-1 rounded-md border border-border bg-background px-2 text-sm text-foreground shadow-sm focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring"
                                 />
-                                <Button type="submit" variant="outline" size="sm" className="self-center">
+                                <Button type="submit" variant="outline" className={listSearchButtonClassName}>
                                     <SearchIcon data-icon="inline-start" />
                                     Search
                                 </Button>

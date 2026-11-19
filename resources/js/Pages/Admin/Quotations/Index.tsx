@@ -1,6 +1,7 @@
 import { useProjectListRefresh } from '@/hooks/useProjectListRefresh';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import ActionHint from '@/Components/ActionHint';
+import ListSearchInput, { listSearchButtonClassName } from '@/Components/ListSearchInput';
 import DirectoryFieldLabel from '@/Components/DirectoryFieldLabel';
 import PaginationNav from '@/Components/PaginationNav';
 import {
@@ -217,18 +218,19 @@ export default function Index({
                                 onSubmit={submit}
                                 className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row"
                             >
-                                <div className="relative">
-                                    <SearchIcon className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-                                    <input
-                                        value={search}
-                                        onChange={(event) =>
-                                            setSearch(event.target.value)
-                                        }
-                                        placeholder="Search quotations"
-                                        className="h-11 w-full rounded-md border border-border bg-background pl-9 pr-3 text-sm text-foreground sm:w-64"
-                                    />
-                                </div>
-                                <Button type="submit" size="sm" className="self-center bg-emerald-600 text-white hover:bg-emerald-700">
+                                <ListSearchInput
+                                    value={search}
+                                    onChange={setSearch}
+                                    onClear={() =>
+                                        router.get(
+                                            route('admin.quotations.index'),
+                                            {},
+                                            { preserveState: true, replace: true },
+                                        )
+                                    }
+                                    placeholder="Search quotations"
+                                />
+                                <Button type="submit" className={`${listSearchButtonClassName} bg-emerald-600 text-white hover:bg-emerald-700`}>
                                     <SearchIcon data-icon="inline-start" />
                                     Search
                                 </Button>

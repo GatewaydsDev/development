@@ -3,12 +3,12 @@ import CreateContactButton from '@/Components/ContactDirectory/CreateContactButt
 import RecordActionLink from '@/Components/ContactDirectory/RecordActionLink';
 import { formatPhoneDisplay } from '@/lib/phoneFormatting';
 import { BuildingIcon, MailIcon, PhoneIcon, SearchIcon, UserRoundIcon } from 'lucide-react';
+import ListSearchInput, { listSearchButtonClassName } from '@/Components/ListSearchInput';
 import { Link, router } from '@inertiajs/react';
 import type { FormEvent } from 'react';
 import { useState } from 'react';
 import { Badge } from '@/Components/ui/badge';
 import { Button } from '@/Components/ui/button';
-import TextInput from '@/Components/TextInput';
 import SimpleSelect from '@/Components/ContactDirectory/SimpleSelect';
 import {
     Table,
@@ -118,18 +118,16 @@ export default function ContactsIndex({ filters, contacts, users, auth }: IndexP
         >
             <div className="space-y-6 px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
                 <form onSubmit={submitSearch} className="flex flex-wrap items-end gap-3 rounded-lg border border-sky-200 bg-sky-50/70 p-4 dark:border-sky-900 dark:bg-sky-950/30">
-                    <div className="min-w-0 flex-1">
-                        <label className="mb-1 block text-sm font-medium text-foreground">
-                            Search
-                        </label>
-                        <TextInput
-                            value={search}
-                            onChange={(event: React.ChangeEvent<HTMLInputElement>) => setSearch(event.target.value)}
-                            placeholder="Search by name, company, email or phone"
-                            aria-label="Search contacts"
-                            className="h-11 w-full"
-                        />
-                    </div>
+                    <ListSearchInput
+                        value={search}
+                        onChange={setSearch}
+                        onClear={() => {
+                            const next = { ...filters, search: '' };
+                            router.get(route('contact-directory.contacts.index'), next, { preserveState: true, replace: true });
+                        }}
+                        placeholder="Search by name, company, email or phone"
+                        ariaLabel="Search contacts"
+                    />
                     <SimpleSelect
                         label="Contact type"
                         value={filters.contact_type ?? ''}
@@ -163,7 +161,7 @@ export default function ContactsIndex({ filters, contacts, users, auth }: IndexP
                         onChange={(value) => applyFilter('is_active', value)}
                         className="w-[150px]"
                     />
-                    <Button type="submit" className="min-h-11 bg-emerald-600 text-white hover:bg-emerald-700"><SearchIcon className="size-4" aria-hidden="true" />Search</Button>
+                    <Button type="submit" className={`${listSearchButtonClassName} bg-emerald-600 text-white hover:bg-emerald-700`}><SearchIcon className="size-4" aria-hidden="true" />Search</Button>
                     <Button
                         type="button"
                         variant="outline"

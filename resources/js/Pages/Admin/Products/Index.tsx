@@ -1,5 +1,6 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import ActionHint from '@/Components/ActionHint';
+import ListSearchInput, { listSearchButtonClassName } from '@/Components/ListSearchInput';
 import DirectoryFieldLabel from '@/Components/DirectoryFieldLabel';
 import PaginationNav from '@/Components/PaginationNav';
 import { Badge } from '@/Components/ui/badge';
@@ -170,17 +171,18 @@ export default function Index({ filters, options, products }: IndexProps) {
                                     onSubmit={submit}
                                     className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row"
                                 >
-                                    <div className="relative">
-                                        <SearchIcon className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-                                        <input
-                                            value={search}
-                                            onChange={(event) =>
-                                                setSearch(event.target.value)
-                                            }
-                                            placeholder="Search products"
-                                            className="h-11 w-full rounded-md border border-border bg-background pl-9 pr-3 text-sm text-foreground sm:w-64"
-                                        />
-                                    </div>
+                                    <ListSearchInput
+                                        value={search}
+                                        onChange={setSearch}
+                                        onClear={() =>
+                                            router.get(
+                                                route('admin.products.index'),
+                                                { type },
+                                                { preserveState: true, replace: true },
+                                            )
+                                        }
+                                        placeholder="Search products"
+                                    />
                                     <select
                                         value={type}
                                         onChange={(event) =>
@@ -198,7 +200,7 @@ export default function Index({ filters, options, products }: IndexProps) {
                                             </option>
                                         ))}
                                     </select>
-                                    <Button type="submit" size="sm" className="self-center bg-emerald-600 text-white hover:bg-emerald-700">
+                                    <Button type="submit" className={`${listSearchButtonClassName} bg-emerald-600 text-white hover:bg-emerald-700`}>
                                         <SearchIcon data-icon="inline-start" />
                                         Search
                                     </Button>

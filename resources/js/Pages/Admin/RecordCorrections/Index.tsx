@@ -2,6 +2,7 @@ import InputError from '@/Components/InputError';
 import InputLabel from '@/Components/InputLabel';
 import PaginationNav, { type Paginator } from '@/Components/PaginationNav';
 import TextInput from '@/Components/TextInput';
+import ListSearchInput, { listSearchButtonClassName } from '@/Components/ListSearchInput';
 import { Button } from '@/Components/ui/button';
 import {
     Card,
@@ -129,16 +130,21 @@ export default function Index({
                                 </select>
                             </div>
 
-                            <form className="flex gap-2" onSubmit={submitSearch}>
-                                <TextInput
-                                    className="h-11 min-w-0 flex-1"
+                            <form className="flex flex-col gap-2 sm:flex-row sm:items-center" onSubmit={submitSearch}>
+                                <ListSearchInput
                                     value={searchForm.data.search}
+                                    onChange={(value) => searchForm.setData('search', value)}
+                                    onClear={() => {
+                                        searchForm.setData('search', '');
+                                        router.get(
+                                            route('admin.record-corrections.index'),
+                                            { table },
+                                            { preserveScroll: true, preserveState: true },
+                                        );
+                                    }}
                                     placeholder={`Search ${tableLabel.toLowerCase()}`}
-                                    onChange={(event) =>
-                                        searchForm.setData('search', event.target.value)
-                                    }
                                 />
-                                <Button className="h-11 shrink-0 bg-emerald-600 text-white hover:bg-emerald-700" type="submit">
+                                <Button className={`${listSearchButtonClassName} bg-emerald-600 text-white hover:bg-emerald-700`} type="submit">
                                     Search
                                 </Button>
                             </form>

@@ -19,6 +19,7 @@ import {
     DialogTitle,
 } from '@/Components/ui/dialog';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
+import ListSearchInput from '@/Components/ListSearchInput';
 import { Head, router, useForm } from '@inertiajs/react';
 import {
     CheckIcon,
@@ -27,7 +28,6 @@ import {
     GitCommitHorizontalIcon,
     LockIcon,
     PlusIcon,
-    SearchIcon,
     ShareIcon,
     SparklesIcon,
     Trash2Icon,
@@ -347,15 +347,11 @@ export default function Index({
                     </div>
 
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-                        <div className="relative flex-1">
-                            <SearchIcon className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-                            <input
-                                value={search}
-                                onChange={(e) => setSearch(e.target.value)}
-                                placeholder="Search updates"
-                                className={`${inputClass} pl-9`}
-                            />
-                        </div>
+                        <ListSearchInput
+                            value={search}
+                            onChange={setSearch}
+                            placeholder="Search updates"
+                        />
                         {canManage && (
                             <Button
                                 type="button"

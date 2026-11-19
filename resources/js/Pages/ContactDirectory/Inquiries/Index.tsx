@@ -10,7 +10,7 @@ import {
     CardTitle,
 } from '@/Components/ui/card';
 import SimpleSelect from '@/Components/ContactDirectory/SimpleSelect';
-import TextInput from '@/Components/TextInput';
+import ListSearchInput, { listSearchButtonClassName } from '@/Components/ListSearchInput';
 import { cn } from '@/lib/utils';
 import type { PageProps } from '@/types';
 
@@ -152,17 +152,13 @@ export default function InquiriesIndex({
                 )}
 
                 <form onSubmit={submitSearch} className="flex flex-wrap items-end gap-3">
-                    <div className="min-w-0 flex-1">
-                        <label className="mb-1 block text-sm font-medium text-foreground">
-                            Search
-                        </label>
-                        <TextInput
-                            value={search}
-                            onChange={(event) => setSearch(event.target.value)}
-                            placeholder="Search by title, contact or supplier reference"
-                            aria-label="Search inquiries"
-                        />
-                    </div>
+                    <ListSearchInput
+                        value={search}
+                        onChange={setSearch}
+                        onClear={() => applyFilters({ search: '' })}
+                        placeholder="Search by title, contact or supplier reference"
+                        ariaLabel="Search inquiries"
+                    />
                     <SimpleSelect
                         label="Status"
                         value={filters.status ?? ''}
@@ -218,7 +214,7 @@ export default function InquiriesIndex({
                         onChange={(value) => applyFilters({ project_id: value })}
                         className="w-[180px]"
                     />
-                    <Button type="submit">Search</Button>
+                    <Button type="submit" className={listSearchButtonClassName}>Search</Button>
                     <Button
                         type="button"
                         variant="outline"

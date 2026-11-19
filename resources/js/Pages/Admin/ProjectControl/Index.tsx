@@ -14,6 +14,7 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { cn } from '@/lib/utils';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import { BellIcon, DownloadIcon, FolderPlusIcon, EditIcon, ExpandIcon, EyeIcon, PlusIcon, SearchIcon, UploadIcon } from 'lucide-react';
+import ListSearchInput, { listSearchButtonClassName } from '@/Components/ListSearchInput';
 import { FormEvent, useState } from 'react';
 import { displayReminderWhen, reminderHow, reminderLabel, ReminderStatus, type ScheduledReminder } from './Partials/ReminderCards';
 import ReminderDialog, { type ReminderJob, type ReminderPerson } from './Partials/ReminderDialog';
@@ -207,6 +208,19 @@ export default function Index({
         router.get(route('admin.project-control.index'), { report }, { preserveState: true, replace: true });
     };
 
+    const clearSearchText = () => {
+        setSearch('');
+        router.get(
+            route('admin.project-control.index'),
+            {
+                report,
+                start: start || undefined,
+                end: end || undefined,
+            },
+            { preserveState: true, replace: true },
+        );
+    };
+
     const openReminder = (uuid: string) => {
         setReminderJob(uuid);
         setReminderOpen(true);
@@ -273,13 +287,14 @@ export default function Index({
 
             <div className="space-y-4 px-3 py-3 sm:space-y-6 sm:px-6 sm:py-8 lg:px-8">
                 <form onSubmit={applySearch} className="flex flex-col gap-3 rounded-lg border border-sky-200 bg-sky-50/70 p-4 dark:border-sky-900 dark:bg-sky-950/30 sm:flex-row sm:flex-wrap sm:items-end">
-                    <label className="block w-full min-w-0 flex-1 text-sm font-medium text-foreground sm:min-w-48">
+                    <label className="block w-full text-sm font-medium text-foreground sm:w-64">
                         Search
-                        <input
+                        <ListSearchInput
                             value={search}
-                            onChange={(event) => setSearch(event.target.value)}
+                            onChange={setSearch}
+                            onClear={clearSearchText}
                             placeholder="Job, customer, or project"
-                            className="mt-1 h-11 w-full rounded-md border border-border bg-background px-3 text-base font-normal text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring sm:text-sm"
+                            className="mt-1 sm:w-full"
                         />
                     </label>
                     <label className="block w-full text-sm font-medium text-foreground sm:w-auto">
@@ -300,12 +315,12 @@ export default function Index({
                             className="mt-1 h-11 w-full rounded-md border border-border bg-background px-3 text-base font-normal text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring sm:w-auto sm:text-sm dark:[color-scheme:dark]"
                         />
                     </label>
-                    <Button type="submit" className="min-h-11 w-full bg-emerald-600 text-white hover:bg-emerald-700 sm:w-auto">
+                    <Button type="submit" className={`${listSearchButtonClassName} bg-emerald-600 text-white hover:bg-emerald-700`}>
                         <SearchIcon className="h-4 w-4" />
                         Search
                     </Button>
                     {filters.search || filters.start || filters.end ? (
-                        <Button type="button" variant="outline" className="min-h-11 w-full sm:w-auto" onClick={clearSearch}>
+                        <Button type="button" variant="outline" className={listSearchButtonClassName} onClick={clearSearch}>
                             Clear
                         </Button>
                     ) : null}

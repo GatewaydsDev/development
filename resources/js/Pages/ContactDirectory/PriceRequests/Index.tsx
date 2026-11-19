@@ -5,7 +5,7 @@ import { Badge } from '@/Components/ui/badge';
 import { Button } from '@/Components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/Components/ui/card';
 import SimpleSelect from '@/Components/ContactDirectory/SimpleSelect';
-import TextInput from '@/Components/TextInput';
+import ListSearchInput, { listSearchButtonClassName } from '@/Components/ListSearchInput';
 import { cn } from '@/lib/utils';
 import type { PageProps } from '@/types';
 
@@ -93,17 +93,13 @@ export default function PriceRequestsIndex({
                 )}
 
                 <form onSubmit={submitSearch} className="flex flex-wrap items-end gap-3">
-                    <div className="min-w-0 flex-1">
-                        <label className="mb-1 block text-sm font-medium text-foreground">
-                            Search
-                        </label>
-                        <TextInput
-                            value={search}
-                            onChange={(event) => setSearch(event.target.value)}
-                            placeholder="Search price requests by title"
-                            aria-label="Search price requests"
-                        />
-                    </div>
+                    <ListSearchInput
+                        value={search}
+                        onChange={setSearch}
+                        onClear={() => applyFilters({ search: '' })}
+                        placeholder="Search price requests by title"
+                        ariaLabel="Search price requests"
+                    />
                     <SimpleSelect
                         label="Status"
                         value={filters.status ?? ''}
@@ -137,7 +133,7 @@ export default function PriceRequestsIndex({
                         onChange={(value) => applyFilters({ owner_id: value })}
                         className="w-[170px]"
                     />
-                    <Button type="submit">Search</Button>
+                    <Button type="submit" className={listSearchButtonClassName}>Search</Button>
                 </form>
 
                 <div className="space-y-4">

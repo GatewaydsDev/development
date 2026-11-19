@@ -1,6 +1,7 @@
 import { useProjectListRefresh } from '@/hooks/useProjectListRefresh';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import ActionHint from '@/Components/ActionHint';
+import ListSearchInput, { listSearchButtonClassName } from '@/Components/ListSearchInput';
 import DirectoryFieldLabel from '@/Components/DirectoryFieldLabel';
 import PaginationNav from '@/Components/PaginationNav';
 import { Badge } from '@/Components/ui/badge';
@@ -225,17 +226,18 @@ export default function Index({
                                     onSubmit={submit}
                                     className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row"
                                 >
-                                    <div className="relative w-full">
-                                        <SearchIcon className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-                                        <input
-                                            value={search}
-                                            onChange={(event) =>
-                                                setSearch(event.target.value)
-                                            }
-                                            placeholder="Search projects"
-                                            className="h-11 w-full rounded-md border border-border bg-background pl-9 pr-3 text-sm text-foreground sm:w-64"
-                                        />
-                                    </div>
+                                    <ListSearchInput
+                                        value={search}
+                                        onChange={setSearch}
+                                        onClear={() =>
+                                            router.get(
+                                                route('admin.projects.index'),
+                                                { status },
+                                                { preserveState: true, replace: true },
+                                            )
+                                        }
+                                        placeholder="Search projects"
+                                    />
                                     <select
                                         value={status}
                                         onChange={(event) =>
@@ -253,7 +255,7 @@ export default function Index({
                                             </option>
                                         ))}
                                     </select>
-                                    <Button type="submit" variant="outline" className="min-h-11 w-full sm:w-auto">
+                                    <Button type="submit" variant="outline" className={listSearchButtonClassName}>
                                         <SearchIcon data-icon="inline-start" />
                                         Search
                                     </Button>
