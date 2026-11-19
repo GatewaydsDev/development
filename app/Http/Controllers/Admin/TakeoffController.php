@@ -12,6 +12,7 @@ use App\Models\Quotation;
 use App\Models\Takeoff;
 use App\Models\TakeoffAssemblyTemplate;
 use App\Models\TakeoffOpening;
+use App\Models\TakeoffOpeningType;
 use App\Models\User;
 use App\Support\ProjectAccess;
 use App\Support\ProjectControlTakeoff;
@@ -260,6 +261,7 @@ class TakeoffController extends Controller
                 ->values()
                 ->all(),
             'openingCategories' => OpeningCategory::choices(),
+            'openingTypes' => TakeoffOpeningType::choices(),
         ]);
     }
 
@@ -506,6 +508,19 @@ class TakeoffController extends Controller
         ])['name']);
 
         OpeningCategory::remember($name);
+
+        return back();
+    }
+
+    public function storeOpeningType(Request $request): RedirectResponse
+    {
+        abort_unless(TakeoffAccess::canUpdate($this->takeoffUser($request)), 403);
+
+        $name = trim($request->validate([
+            'name' => ['required', 'string', 'max:80'],
+        ])['name']);
+
+        TakeoffOpeningType::remember($name);
 
         return back();
     }

@@ -776,6 +776,9 @@ Route::middleware(['auth', 'prevent-back-history'])
         Route::post('/takeoffs/opening-categories', [TakeoffController::class, 'storeOpeningCategory'])
             ->middleware('can:update-takeoffs')
             ->name('takeoffs.opening-categories.store');
+        Route::post('/takeoffs/opening-types', [TakeoffController::class, 'storeOpeningType'])
+            ->middleware('can:update-takeoffs')
+            ->name('takeoffs.opening-types.store');
         Route::get('/takeoffs/import-template', [TakeoffController::class, 'importTemplate'])
             ->middleware('can:update-takeoffs')
             ->name('takeoffs.import-template');

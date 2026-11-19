@@ -34,6 +34,7 @@ import {
     ClockIcon,
     FlagIcon,
     HighlighterIcon,
+    ImageIcon,
     ListIndentDecreaseIcon,
     ListIndentIncreaseIcon,
     ItalicIcon,
@@ -57,7 +58,7 @@ import {
     UserPlusIcon,
     XIcon,
 } from 'lucide-react';
-import { FormEvent, KeyboardEvent, ReactNode, useEffect, useRef, useState } from 'react';
+import { DragEvent as ReactDragEvent, FormEvent, KeyboardEvent, ReactNode, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 export type SavedRecipient = {
@@ -101,6 +102,38 @@ const splitAddresses = (value: string) =>
         .filter((part) => part !== '');
 
 const joinAddresses = (addresses: string[]) => addresses.join(', ');
+
+const attachmentKey = (file: File) => file.name.trim().toLowerCase();
+
+const uniqueAttachments = (files: File[]) => {
+    const seen = new Set<string>();
+    const next: File[] = [];
+
+    for (const file of files) {
+        const key = attachmentKey(file);
+
+        if (key === '' || seen.has(key)) {
+            continue;
+        }
+
+        seen.add(key);
+        next.push(file);
+
+        if (next.length === 5) {
+            break;
+        }
+    }
+
+    return next;
+};
+
+const isImageFile = (file: File) =>
+    file.type.startsWith('image/') || /\.(avif|bmp|gif|heic|heif|jpe?g|png|svg|webp)$/i.test(file.name);
+
+const droppedFiles = (transfer: DataTransfer | null) => Array.from(transfer?.files ?? []);
+
+const carriesFiles = (transfer: DataTransfer | null) =>
+    droppedFiles(transfer).length > 0 || Array.from(transfer?.types ?? []).includes('Files');
 
 const formatFileSize = (bytes: number) => {
     if (bytes < 1024) {
@@ -597,6 +630,7 @@ export default function ComposeMail({
     const [linkOpen, setLinkOpen] = useState(false);
     const [linkUrl, setLinkUrl] = useState('');
     const [attachedFiles, setAttachedFiles] = useState<File[]>([]);
+    const addDroppedFilesRef = useRef<(files: File[]) => void>(() => {});
     const form = useForm({
         to: draft?.to ?? '',
         cc: draft?.cc ?? '',
@@ -627,6 +661,30 @@ export default function ComposeMail({
         editorProps: {
             attributes: {
                 class: 'min-h-52 px-3 py-3 font-[Calibri,Arial,sans-serif] text-base text-foreground outline-none md:min-h-72 md:text-sm [&_h1]:my-3 [&_h1]:text-2xl [&_h1]:font-bold [&_h2]:my-2 [&_h2]:text-xl [&_h2]:font-semibold [&_h3]:my-2 [&_h3]:text-lg [&_h3]:font-semibold [&_h4]:my-2 [&_h4]:text-base [&_h4]:font-semibold [&_blockquote]:mt-4 [&_blockquote]:border-l-4 [&_blockquote]:border-slate-400 [&_blockquote]:pl-3 [&_blockquote]:text-muted-foreground dark:[&_blockquote]:border-slate-300 [&_code]:rounded [&_code]:bg-muted [&_code]:px-1 [&_pre]:my-3 [&_pre]:overflow-x-auto [&_pre]:rounded-md [&_pre]:bg-slate-900 [&_pre]:p-3 [&_pre]:text-slate-100 [&_hr]:my-8 [&_hr]:h-1 [&_hr]:border-0 [&_hr]:bg-slate-700 dark:[&_hr]:bg-slate-200',
+            },
+            handleDOMEvents: {
+                dragover: (_view, event) => {
+                    if (!carriesFiles(event.dataTransfer)) {
+                        return false;
+                    }
+
+                    event.preventDefault();
+
+                    return true;
+                },
+                drop: (_view, event) => {
+                    const files = droppedFiles(event.dataTransfer);
+
+                    if (files.length === 0) {
+                        return false;
+                    }
+
+                    event.preventDefault();
+                    event.stopPropagation();
+                    addDroppedFilesRef.current(files);
+
+                    return true;
+                },
             },
         },
         onUpdate: ({ editor: current }) => {
@@ -772,9 +830,32 @@ export default function ComposeMail({
     };
 
     const updateAttachments = (next: File[]) => {
-        const files = next.slice(0, 5);
+        const files = uniqueAttachments(next);
         setAttachedFiles(files);
         form.setData('attachments', files);
+    };
+
+    addDroppedFilesRef.current = (files) => {
+        updateAttachments([...attachedFiles, ...files]);
+    };
+
+    const acceptDroppedFiles = (event: ReactDragEvent) => {
+        if (!carriesFiles(event.dataTransfer)) {
+            return;
+        }
+
+        event.preventDefault();
+    };
+
+    const attachDroppedFiles = (event: ReactDragEvent) => {
+        const files = droppedFiles(event.dataTransfer);
+
+        if (files.length === 0 || event.defaultPrevented) {
+            return;
+        }
+
+        event.preventDefault();
+        addDroppedFilesRef.current(files);
     };
 
     const cycleImportance = () => {
@@ -897,6 +978,8 @@ export default function ComposeMail({
     return (
         <form
             onSubmit={submit}
+            onDragOver={acceptDroppedFiles}
+            onDrop={attachDroppedFiles}
             className="min-w-0 max-sm:fixed max-sm:inset-x-0 max-sm:bottom-0 max-sm:top-[var(--app-sticky-top,4.75rem)] max-sm:z-30 max-sm:overflow-y-auto max-sm:bg-background max-sm:pb-[env(safe-area-inset-bottom)]"
         >
             <div className="sticky top-0 z-30 flex min-h-14 items-center justify-between gap-2 border-b border-border bg-background/95 px-2 backdrop-blur sm:hidden">
@@ -938,7 +1021,38 @@ export default function ComposeMail({
                         {t('attachments')}
                     </p>
                     <ul className="flex flex-wrap gap-2" aria-label={t('attachments')}>
-                        {attachedFiles.map((file, index) => (
+                        {attachedFiles.map((file, index) => {
+                            const remove = () =>
+                                updateAttachments(attachedFiles.filter((_, itemIndex) => itemIndex !== index));
+
+                            if (isImageFile(file)) {
+                                return (
+                                    <li
+                                        key={`${file.name}-${file.size}-${file.lastModified}-${index}`}
+                                        className="relative w-16 shrink-0"
+                                    >
+                                        <div
+                                            className="flex size-16 items-center justify-center rounded-md border border-border bg-background shadow-sm"
+                                            title={`${file.name} · ${formatFileSize(file.size)}`}
+                                        >
+                                            <ImageIcon className="size-7 text-emerald-700 dark:text-emerald-300" aria-hidden="true" />
+                                        </div>
+                                        <span className="mt-1 block truncate text-center text-[10px] leading-tight text-foreground">
+                                            {file.name}
+                                        </span>
+                                        <button
+                                            type="button"
+                                            className="absolute -right-1.5 -top-1.5 inline-flex size-6 items-center justify-center rounded-full border border-border bg-background text-muted-foreground shadow-sm touch-manipulation hover:bg-muted hover:text-foreground"
+                                            aria-label={`${t('removeAttachment')} ${file.name}`}
+                                            onClick={remove}
+                                        >
+                                            <XIcon className="size-3" />
+                                        </button>
+                                    </li>
+                                );
+                            }
+
+                            return (
                             <li
                                 key={`${file.name}-${file.size}-${file.lastModified}-${index}`}
                                 className="flex w-60 max-w-full items-center gap-2 rounded-md border border-border bg-background px-2 py-1.5 shadow-sm"
@@ -956,16 +1070,13 @@ export default function ComposeMail({
                                     type="button"
                                     className="inline-flex size-9 shrink-0 items-center justify-center rounded-md text-muted-foreground touch-manipulation hover:bg-muted hover:text-foreground"
                                     aria-label={`${t('removeAttachment')} ${file.name}`}
-                                    onClick={() =>
-                                        updateAttachments(
-                                            attachedFiles.filter((_, itemIndex) => itemIndex !== index),
-                                        )
-                                    }
+                                    onClick={remove}
                                 >
                                     <XIcon className="size-3.5" />
                                 </button>
                             </li>
-                        ))}
+                            );
+                        })}
                     </ul>
                 </div>
             ) : null}

@@ -8,6 +8,7 @@ use App\Models\Quotation;
 use App\Models\Takeoff;
 use App\Models\TakeoffAssemblyTemplate;
 use App\Models\TakeoffOpening;
+use App\Models\TakeoffOpeningType;
 use App\Models\TakeoffQuotationLine;
 use App\Models\User;
 use App\Models\UserLevel;
@@ -1258,6 +1259,22 @@ test('the dashboard charts takeoffs by status', function () {
             ])
             ->where('charts.takeoffs.1.value', 0)
             ->where('charts.takeoffs.3.value', 0));
+});
+
+test('an opening type can be saved and searched again', function () {
+    $admin = takeoffUser();
+
+    $this->actingAs($admin)->post(route('admin.takeoffs.opening-types.store'), [
+        'name' => 'Louver',
+    ])->assertRedirect();
+
+    $this->actingAs($admin)->post(route('admin.takeoffs.opening-types.store'), [
+        'name' => 'louver',
+    ])->assertRedirect();
+
+    expect(TakeoffOpeningType::query()->whereRaw('LOWER(name) = ?', ['louver'])->count())->toBe(1)
+        ->and(TakeoffOpeningType::query()->where('name', 'Door')->exists())->toBeTrue()
+        ->and(TakeoffOpeningType::query()->where('name', 'Window')->exists())->toBeTrue();
 });
 
 test('door openings reuse a type and a category from the object inspector lists', function () {

@@ -14,6 +14,7 @@ use App\Models\TakeoffMarker;
 use App\Models\TakeoffMarkup;
 use App\Models\TakeoffOpening;
 use App\Models\TakeoffReference;
+use App\Models\TakeoffOpeningType;
 use App\Models\TakeoffSection;
 use App\Models\TakeoffSupplierQuote;
 use App\Models\User;
@@ -461,6 +462,7 @@ class TakeoffWorkspaceController extends Controller
         $takeoff->resequenceCounts();
         $summary = $this->sectionOpeningSummary($title, $result);
         $label = $type === 'window' ? 'Window' : ($type === 'door' ? 'Door' : $type);
+        TakeoffOpeningType::remember($label);
         $section = null;
 
         if (isset($data['x'], $data['y'], $data['x2'], $data['y2'])) {

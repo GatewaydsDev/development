@@ -1,4 +1,5 @@
 import AiDraftButton from '@/Components/AiDraftButton';
+import CreatableSelect from '@/Components/CreatableSelect';
 import RichTextEditor from '@/Components/RichTextEditor';
 import { notesToHtml } from '@/lib/notesHtml';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
@@ -34,6 +35,7 @@ type Props = {
     templates: AssemblyTemplate[];
     quotations: { id: number; number: string; title: string; status: string }[];
     can: TakeoffAbilities;
+    openingTypes: { id: number; name: string }[];
 };
 
 function copiedLines(body: string): string[] {
@@ -143,7 +145,7 @@ function openingSpecs(opening: TakeoffDetail['openings'][number]): string {
     ].filter(Boolean).join(' · ') || '—';
 }
 
-export default function Show({ takeoff, templates, quotations, can }: Props) {
+export default function Show({ takeoff, templates, quotations, can, openingTypes = [] }: Props) {
     const countedOpeningId = usePage<PageProps>().props.flash?.counted_opening_id;
     const [section, setSection] = useState<(typeof sections)[number]['id']>('workspace');
     const [scanOpen, setScanOpen] = useState(false);
@@ -172,6 +174,7 @@ export default function Show({ takeoff, templates, quotations, can }: Props) {
     const [openingsBox, setOpeningsBox] = useState<{ documentId: number; page: number; x: number; y: number; x2: number; y2: number; openingType: string } | null>(null);
     const [openingsNaming, setOpeningsNaming] = useState(false);
     const [openingTypeName, setOpeningTypeName] = useState('');
+    const [openingTypeId, setOpeningTypeId] = useState('');
     const [openingsFound, setOpeningsFound] = useState<{ id?: number; tag: string; opening_type: string; quantity: string; width: string | null; height: string | null; location: string | null }[]>([]);
     const [selectedOpeningIds, setSelectedOpeningIds] = useState<number[]>([]);
     const [savedSectionId, setSavedSectionId] = useState<number | null>(null);
@@ -724,12 +727,6 @@ export default function Show({ takeoff, templates, quotations, can }: Props) {
         }
     };
 
-    const openingTypeChoices = Array.from(new Set([
-        'Door',
-        'Window',
-        ...takeoff.openings.map((opening) => opening.opening_type === 'window' ? 'Window' : opening.opening_type === 'door' ? 'Door' : opening.opening_type).filter((type) => type !== ''),
-    ]));
-
     const normalizeOpeningType = (value: string) => {
         const trimmed = value.trim();
         const lower = trimmed.toLowerCase();
@@ -749,6 +746,7 @@ export default function Show({ takeoff, templates, quotations, can }: Props) {
         copyAbort.current?.abort();
         setOpeningsBox({ ...region, openingType: '' });
         setOpeningTypeName('');
+        setOpeningTypeId('');
         setOpeningsFound([]);
         setSelectedOpeningIds([]);
         setOpeningsDragError(null);
@@ -940,6 +938,7 @@ export default function Show({ takeoff, templates, quotations, can }: Props) {
         setSavedSectionId(null);
         setOpeningsNaming(false);
         setOpeningTypeName('');
+        setOpeningTypeId('');
         setOpeningsDragOpen(false);
         setOpeningsDragError(null);
     };
@@ -1320,21 +1319,22 @@ export default function Show({ takeoff, templates, quotations, can }: Props) {
                         </div>
                         {openingsNaming ? (
                             <form className="mt-3 grid gap-3" onSubmit={(event) => { event.preventDefault(); confirmOpeningType(); }}>
-                                <label className="grid gap-1 text-sm font-medium" htmlFor="opening-type-name">
-                                    These openings are
-                                    <input
-                                        id="opening-type-name"
-                                        list="opening-type-choices"
-                                        className="h-11 rounded-md border border-neutral-300 bg-white px-3 text-sm font-normal text-neutral-950 dark:border-neutral-600 dark:bg-neutral-800 dark:text-white"
-                                        value={openingTypeName}
-                                        placeholder="Door, Window, or type a name"
-                                        autoFocus
-                                        onChange={(event) => setOpeningTypeName(event.target.value)}
-                                    />
-                                </label>
-                                <datalist id="opening-type-choices">
-                                    {openingTypeChoices.map((choice) => <option key={choice} value={choice} />)}
-                                </datalist>
+                                <CreatableSelect
+                                    id="opening-type-name"
+                                    label="These openings are"
+                                    value={openingTypeId}
+                                    options={openingTypes}
+                                    createRoute={route('admin.takeoffs.opening-types.store')}
+                                    optionsProp="openingTypes"
+                                    entityLabel="opening type"
+                                    placeholder="Search or add a type"
+                                    compact
+                                    autoFocus
+                                    onChange={(id, option) => {
+                                        setOpeningTypeId(id);
+                                        setOpeningTypeName(option?.name ?? '');
+                                    }}
+                                />
                                 <div className="flex justify-end gap-2">
                                     <Button type="button" variant="outline" size="sm" className="rounded-full" onClick={clearOpeningSelection}>Cancel</Button>
                                     <Button type="submit" variant="create" size="sm" className="rounded-full" disabled={normalizeOpeningType(openingTypeName) === ''}>Add openings</Button>
