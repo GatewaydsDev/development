@@ -285,7 +285,7 @@ class ProjectListDocument
             'name' => $project->name,
             'project_number' => $project->project_number ?: 'No project number',
             'bid_date' => $project->bidDates->first()?->bid_date
-                ? 'Bid date '.$project->bidDates->first()->bid_date->format('M j, Y')
+                ? 'Bid date '.$project->bidDates->first()->bid_date->format('m/d/Y')
                 : 'No bid date',
             'addendums' => $project->addendums->count() === 0
                 ? ''

@@ -1,3 +1,4 @@
+import { isoToMaskedDate } from '@/Components/DateMaskInput';
 import { isEmptyHtml } from '@/Pages/Admin/Bids/bidText';
 import ActionHint from '@/Components/ActionHint';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
@@ -269,7 +270,12 @@ export default function Show({ project, options, clientCompany = null, clientCom
                                 )}
                                 <DetailItem
                                     label="Bid date"
-                                    value={project.bid_date}
+                                    value={
+                                        project.bid_date
+                                            ? isoToMaskedDate(project.bid_date) ||
+                                              project.bid_date
+                                            : null
+                                    }
                                 />
                                 <DetailItem
                                     label="Estimated start"
@@ -398,7 +404,8 @@ export default function Show({ project, options, clientCompany = null, clientCom
                                                     {index === 0 ? 'Current bid date' : 'Earlier bid date'}
                                                 </p>
                                                 <p className="mt-1 font-medium text-foreground">
-                                                    {bidDate.bid_date || 'Not set'}
+                                                    {isoToMaskedDate(bidDate.bid_date ?? '') ||
+                                                        'Not set'}
                                                 </p>
                                             </div>
                                             <div>

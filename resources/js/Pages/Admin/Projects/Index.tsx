@@ -1,3 +1,4 @@
+import { isoToMaskedDate } from '@/Components/DateMaskInput';
 import { useProjectListRefresh } from '@/hooks/useProjectListRefresh';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import ActionHint from '@/Components/ActionHint';
@@ -453,7 +454,8 @@ export default function Index({
                                                             <li key={bidDate.id ?? bidDate.bid_date ?? index}>
                                                                 <p className="font-medium text-foreground">
                                                                     {index === 0 ? 'Current · ' : ''}
-                                                                    {bidDate.bid_date || 'Not set'}
+                                                                    {isoToMaskedDate(bidDate.bid_date ?? '') ||
+                                                                        'Not set'}
                                                                 </p>
                                                                 <p className="break-words text-muted-foreground">
                                                                     {bidDate.notes || 'No change noted.'}

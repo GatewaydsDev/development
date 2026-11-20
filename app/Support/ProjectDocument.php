@@ -85,7 +85,7 @@ class ProjectDocument
             'status' => $this->project->status?->name,
             'priority' => $this->priorityLabel(),
             'assignee' => $this->project->assignee?->name,
-            'bidDate' => $this->dateLabel($this->project->bidDates->first()?->bid_date),
+            'bidDate' => $this->bidDateLabel($this->project->bidDates->first()?->bid_date),
             'estimatedStart' => $this->dateLabel($this->project->estimated_start_date),
             'estimatedEnd' => $this->dateLabel($this->project->estimated_end_date),
             'showBudget' => $this->showSensitiveFields,
@@ -243,7 +243,7 @@ class ProjectDocument
             ['Status', $this->project->status?->name ?: '—'],
             ['Priority', $this->priorityLabel()],
             ['Assigned to', $this->project->assignee?->name ?: '—'],
-            ['Bid date', $this->dateLabel($this->project->bidDates->first()?->bid_date) ?: '—'],
+            ['Bid date', $this->bidDateLabel($this->project->bidDates->first()?->bid_date) ?: '—'],
             ['Estimated start', $this->dateLabel($this->project->estimated_start_date) ?: '—'],
             ['Estimated end', $this->dateLabel($this->project->estimated_end_date) ?: '—'],
         ];
@@ -479,7 +479,7 @@ class ProjectDocument
     {
         return $this->project->bidDates
             ->map(fn ($bidDate): array => [
-                'date' => $this->dateLabel($bidDate->bid_date) ?: 'Not set',
+                'date' => $this->bidDateLabel($bidDate->bid_date) ?: 'Not set',
                 'notes' => filled($bidDate->notes) ? (string) $bidDate->notes : 'No notes added.',
                 'user' => $bidDate->user?->name ?: 'Not set',
             ])
@@ -574,6 +574,17 @@ class ProjectDocument
 
         return $date instanceof \DateTimeInterface
             ? $date->format('F j, Y')
+            : (string) $date;
+    }
+
+    private function bidDateLabel(mixed $date): ?string
+    {
+        if ($date === null || $date === '') {
+            return null;
+        }
+
+        return $date instanceof \DateTimeInterface
+            ? $date->format('m/d/Y')
             : (string) $date;
     }
 

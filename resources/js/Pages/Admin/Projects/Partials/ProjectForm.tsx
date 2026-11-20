@@ -1,3 +1,4 @@
+import DateMaskInput from '@/Components/DateMaskInput';
 import InputError from '@/Components/InputError';
 import InputLabel from '@/Components/InputLabel';
 import ContractorSelect from '@/Components/ContractorSelect';
@@ -1080,16 +1081,15 @@ export default function ProjectForm({
                                                             value={isCurrent ? 'Bid date · Current' : 'Bid date'}
                                                             className={labelClassName}
                                                         />
-                                                        <TextInput
+                                                        <DateMaskInput
                                                             id={`project-bid-date-${index}`}
-                                                            type="date"
                                                             value={bidDate?.bid_date ?? ''}
                                                             className={inputClassName}
-                                                            onChange={(event) =>
+                                                            onValueChange={(value) =>
                                                                 setBidDateData(
                                                                     index,
                                                                     'bid_date',
-                                                                    event.target.value,
+                                                                    value,
                                                                 )
                                                             }
                                                         />
