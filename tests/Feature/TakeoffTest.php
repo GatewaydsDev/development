@@ -1656,15 +1656,79 @@ test('a door or window section creates the openings it lists', function () {
         'y2' => 0.7,
     ])->assertRedirect();
 
-    $saved = $takeoff->sections()->where('title', 'Door')->first();
+    $linkedId = (int) $takeoff->openings()->where('tag', 'W9')->value('id');
+    $mark = $takeoff->markups()->where('kind', 'openings')->first();
 
-    expect($takeoff->openings()->where('tag', 'W9')->exists())->toBeTrue()
-        ->and($saved)->not->toBeNull();
+    expect($linkedId)->toBeGreaterThan(0)
+        ->and($takeoff->openings()->where('tag', 'W9')->count())->toBe(1)
+        ->and($takeoff->sections()->where('title', 'Door')->exists())->toBeFalse()
+        ->and($takeoff->sections()->count())->toBe(3)
+        ->and($mark)->not->toBeNull()
+        ->and($mark->label)->toBe('Door')
+        ->and($mark->opening_ids)->toBe([$linkedId])
+        ->and($mark->points)->toHaveCount(2);
 
-    $this->actingAs($admin)->delete(route('admin.takeoffs.sections.destroy', [$takeoff, $saved]))
-        ->assertRedirect();
+    $this->actingAs($admin)->post(route('admin.takeoffs.openings.from-text', $takeoff), [
+        'document_id' => $document->id,
+        'page' => 1,
+        'opening_type' => 'door',
+        'title' => 'Door',
+        'body' => 'W9 3\'-0" 4\'-0" Lobby',
+        'x' => 0.12,
+        'y' => 0.22,
+        'x2' => 0.62,
+        'y2' => 0.72,
+    ])->assertRedirect(route('admin.takeoffs.show', $takeoff))
+        ->assertSessionHas('success', 'Those openings are already on the list.');
+
+    $repeat = $takeoff->markups()->where('kind', 'openings')->reorder()->orderByDesc('id')->first();
+
+    expect($takeoff->openings()->where('tag', 'W9')->count())->toBe(1)
+        ->and($repeat->id)->not->toBe($mark->id)
+        ->and($repeat->opening_ids)->toBe([$linkedId]);
+
+    $this->actingAs($admin)->delete(route('admin.takeoffs.markups.destroy', [$takeoff, $repeat]), [
+        'opening_ids' => [$linkedId],
+    ])->assertRedirect(route('admin.takeoffs.show', $takeoff))
+        ->assertSessionHas('success', 'Removed the selection and 1 opening.');
 
     expect($takeoff->openings()->where('tag', 'W9')->exists())->toBeFalse()
         ->and($takeoff->openings()->where('tag', 'W1-1')->exists())->toBeTrue()
-        ->and($takeoff->sections()->whereKey($saved->id)->exists())->toBeFalse();
+        ->and($takeoff->markups()->whereKey($repeat->id)->exists())->toBeFalse();
+
+    $this->actingAs($admin)->post(route('admin.takeoffs.openings.from-text', $takeoff), [
+        'document_id' => $document->id,
+        'page' => 1,
+        'opening_type' => 'door',
+        'title' => 'Door',
+        'body' => 'W9 3\'-0" 4\'-0" Lobby',
+        'x' => 0.15,
+        'y' => 0.25,
+        'x2' => 0.55,
+        'y2' => 0.65,
+    ])->assertRedirect(route('admin.takeoffs.show', $takeoff));
+
+    expect(session('success'))->not->toBe('Those openings are already on the list.')
+        ->and($takeoff->openings()->where('tag', 'W9')->exists())->toBeTrue();
+
+    $windowId = (int) $takeoff->openings()->where('tag', 'W1-1')->value('id');
+    $copied = $takeoff->sections()->create([
+        'document_id' => $document->id,
+        'page' => 1,
+        'title' => 'Copied schedule',
+        'body' => 'W1-1 6\'-0" 4\'-0"',
+        'opening_ids' => [$windowId],
+        'x' => 0.1,
+        'y' => 0.2,
+        'x2' => 0.6,
+        'y2' => 0.7,
+        'created_by' => $admin->id,
+    ]);
+
+    $this->actingAs($admin)->delete(route('admin.takeoffs.sections.destroy', [$takeoff, $copied]))
+        ->assertRedirect();
+
+    expect($takeoff->openings()->where('tag', 'W1-1')->exists())->toBeFalse()
+        ->and($takeoff->openings()->where('tag', 'W1-2')->exists())->toBeTrue()
+        ->and($takeoff->sections()->whereKey($copied->id)->exists())->toBeFalse();
 });

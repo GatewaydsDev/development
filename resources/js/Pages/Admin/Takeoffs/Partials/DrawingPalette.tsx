@@ -224,7 +224,7 @@ export default function DrawingPalette(props: Props) {
                 : props.tool === 'copy'
                     ? 'Drag around the part to copy, such as door hardware sets. The text in that area is saved as a section.'
                     : props.tool === 'openings'
-                        ? 'Drag around the schedule. When you let go, name the openings as a door, a window, or any other type.'
+                        ? 'Drag around the schedule. When you let go, name the openings as a door, a window, or any other type. The box stays on the drawing.'
                     : props.tool === 'hand'
                     ? 'Drag the sheet. Hold Space for the hand from any tool.'
                     : props.tool === 'remove'

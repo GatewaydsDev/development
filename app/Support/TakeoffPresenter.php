@@ -118,6 +118,8 @@ class TakeoffPresenter
                 'page' => $markup->page,
                 'kind' => $markup->kind,
                 'color' => $markup->color,
+                'label' => $markup->label,
+                'opening_ids' => array_values(array_map('intval', $markup->opening_ids ?? [])),
                 'points' => $markup->points,
             ])->values()->all(),
             'sections' => $takeoff->sections->map(fn (TakeoffSection $section): array => [

@@ -283,11 +283,41 @@ class TakeoffWorkspaceController extends Controller
 
     public function destroyMarkup(Request $request, Takeoff $takeoff, TakeoffMarkup $markup): RedirectResponse
     {
-        $this->ensureEditable($request, $takeoff);
+        $user = $this->ensureEditable($request, $takeoff);
         abort_unless($markup->takeoff_id === $takeoff->id, 404);
+        $removed = 0;
+
+        if ($markup->kind === 'openings') {
+            $posted = $request->input('opening_ids', []);
+            $posted = is_array($posted) ? $posted : [];
+            $openings = $takeoff->openings()->whereIn('id', $this->openingIdsForMark($takeoff, $markup, $posted))->get();
+
+            foreach ($openings as $opening) {
+                $opening->delete();
+            }
+
+            $removed = $openings->count();
+
+            if ($removed > 0) {
+                $takeoff->resequenceCounts();
+                $this->clearApproval($takeoff, $user);
+                $takeoff->record($user, 'section.openings.removed', $removed === 1
+                    ? 'Removed 1 opening with its selection.'
+                    : 'Removed '.$removed.' openings with their selection.');
+            }
+        }
+
         $markup->delete();
 
-        return back();
+        $message = $removed === 0
+            ? 'Selection removed.'
+            : ($removed === 1
+                ? 'Removed the selection and 1 opening.'
+                : 'Removed the selection and '.$removed.' openings.');
+
+        return redirect()
+            ->route('admin.takeoffs.show', $takeoff)
+            ->with('success', $message);
     }
 
     public function readSection(Request $request, Takeoff $takeoff): JsonResponse|StreamedResponse
@@ -446,7 +476,8 @@ class TakeoffWorkspaceController extends Controller
             $title = $type === 'window' ? 'Window' : ($type === 'door' ? 'Door' : $type);
         }
 
-        $rows = TakeoffPdfScope::openingsFromSection($title, trim($data['body']), (int) $data['page'], $type);
+        $body = trim($data['body']);
+        $rows = TakeoffPdfScope::openingsFromSection($title, $body, (int) $data['page'], $type);
         $named = $type === 'window' ? 'window' : ($type === 'door' ? 'door' : $type);
         if ($rows === []) {
             $message = 'This '.$named.' selection cannot be created. No marks were found inside the box.';
@@ -456,36 +487,65 @@ class TakeoffWorkspaceController extends Controller
                 : redirect()->route('admin.takeoffs.show', $takeoff)->with('error', $message);
         }
 
+        $parsed = $rows;
+        $takeoff->unsetRelation('openings');
+        $known = [];
+
+        foreach ($takeoff->openings()->pluck('tag') as $savedTag) {
+            $savedTag = strtoupper(trim((string) $savedTag));
+
+            if ($savedTag !== '') {
+                $known[$savedTag] = true;
+            }
+        }
+
+        $fresh = [];
+        $already = 0;
+
+        foreach ($rows as $row) {
+            $tag = strtoupper(trim((string) ($row['tag'] ?? '')));
+
+            if ($tag !== '' && isset($known[$tag])) {
+                $already++;
+
+                continue;
+            }
+
+            $fresh[] = $row;
+        }
+
+        $label = $type === 'window' ? 'Window' : ($type === 'door' ? 'Door' : $type);
+        TakeoffOpeningType::remember($label);
+
+        if ($fresh === []) {
+            $message = 'Those openings are already on the list.';
+            $markup = $this->rememberOpeningMark($takeoff, $document, $data, $label, (int) $user->id, $this->idsForTags($takeoff, $rows), $body);
+            $takeoff->record($user, 'section.openings', $message);
+
+            return $request->expectsJson()
+                ? response()->json(['ok' => true, 'message' => $message, 'openings' => [], 'markup_id' => $markup?->id])
+                : redirect()->route('admin.takeoffs.show', $takeoff)
+                    ->with('success', $message)
+                    ->with('created_openings', [])
+                    ->with('created_markup_id', $markup?->id);
+        }
+
+        $rows = $fresh;
         $result = TakeoffScopeImporter::importSection($takeoff, $document, $rows);
         $this->clearApproval($takeoff, $user);
         app(ProjectControlTakeoff::class)->connectTakeoff($takeoff->fresh() ?? $takeoff);
         $takeoff->resequenceCounts();
         $summary = $this->sectionOpeningSummary($title, $result);
-        $label = $type === 'window' ? 'Window' : ($type === 'door' ? 'Door' : $type);
-        TakeoffOpeningType::remember($label);
-        $section = null;
 
-        if (isset($data['x'], $data['y'], $data['x2'], $data['y2'])) {
-            $section = $takeoff->sections()->create([
-                'document_id' => $document->id,
-                'page' => (int) $data['page'],
-                'title' => $label,
-                'body' => trim($data['body']),
-                'opening_ids' => array_values(array_filter(array_map(
-                    fn (array $row): int => (int) ($row['id'] ?? 0),
-                    $result['openings'] ?? [],
-                ))),
-                'x' => round((float) $data['x'], 6),
-                'y' => round((float) $data['y'], 6),
-                'x2' => round((float) $data['x2'], 6),
-                'y2' => round((float) $data['y2'], 6),
-                'created_by' => $user->id,
-            ]);
-            $takeoff->record($user, 'section.saved', 'Saved section '.$label.'.');
+        if ($already > 0) {
+            $summary .= $already === 1
+                ? ' 1 opening was already on the list and was not added.'
+                : ' '.$already.' openings were already on the list and were not added.';
         }
 
         $takeoff->record($user, 'section.openings', $summary);
-        $openings = array_map(fn (array $row): array => [
+        $createdIds = array_flip($result['created_ids'] ?? []);
+        $openings = array_values(array_filter(array_map(fn (array $row): array => [
             'id' => (int) ($row['id'] ?? 0),
             'tag' => (string) ($row['tag'] ?? ''),
             'opening_type' => $type,
@@ -493,13 +553,19 @@ class TakeoffWorkspaceController extends Controller
             'width' => $row['width'] ?? null,
             'height' => $row['height'] ?? null,
             'location' => $row['location'] ?? null,
-        ], $result['openings'] ?? []);
+        ], $result['openings'] ?? []), fn (array $row): bool => isset($createdIds[$row['id']])));
+        $linkedIds = array_values(array_unique(array_merge(
+            $this->idsForTags($takeoff, $parsed),
+            array_map('intval', $result['created_ids'] ?? []),
+        )));
+        $markup = $this->rememberOpeningMark($takeoff, $document, $data, $label, (int) $user->id, $linkedIds, $body);
 
         if ($request->expectsJson()) {
             return response()->json([
                 'ok' => true,
                 'message' => $summary,
                 'openings' => $openings,
+                'markup_id' => $markup?->id,
             ]);
         }
 
@@ -507,7 +573,7 @@ class TakeoffWorkspaceController extends Controller
             ->route('admin.takeoffs.show', $takeoff)
             ->with('success', $summary)
             ->with('created_openings', $openings)
-            ->with('created_section_id', $section?->id);
+            ->with('created_markup_id', $markup?->id);
     }
 
     public function forgetOpenings(Request $request, Takeoff $takeoff): RedirectResponse
@@ -537,6 +603,104 @@ class TakeoffWorkspaceController extends Controller
         return redirect()
             ->route('admin.takeoffs.show', $takeoff)
             ->with('success', $count === 1 ? 'Removed 1 opening from the selection.' : 'Removed '.$count.' openings from the selection.');
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     * @param  list<int>  $openingIds
+     */
+    private function rememberOpeningMark(Takeoff $takeoff, TakeoffDocument $document, array $data, string $label, int $userId, array $openingIds, string $body): ?TakeoffMarkup
+    {
+        if (! isset($data['x'], $data['y'], $data['x2'], $data['y2'])) {
+            return null;
+        }
+
+        return $takeoff->markups()->create([
+            'document_id' => $document->id,
+            'page' => (int) $data['page'],
+            'kind' => 'openings',
+            'color' => '#4F46E5',
+            'label' => $label,
+            'opening_ids' => array_values(array_unique(array_filter(array_map('intval', $openingIds)))),
+            'body' => mb_substr($body, 0, 20000),
+            'points' => [
+                ['x' => round((float) $data['x'], 5), 'y' => round((float) $data['y'], 5)],
+                ['x' => round((float) $data['x2'], 5), 'y' => round((float) $data['y2'], 5)],
+            ],
+            'created_by' => $userId,
+        ]);
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $rows
+     * @return list<int>
+     */
+    private function idsForTags(Takeoff $takeoff, array $rows): array
+    {
+        $tags = [];
+
+        foreach ($rows as $row) {
+            $tag = strtoupper(trim((string) ($row['tag'] ?? '')));
+
+            if ($tag !== '') {
+                $tags[$tag] = true;
+            }
+        }
+
+        if ($tags === []) {
+            return [];
+        }
+
+        return $takeoff->openings()->get()
+            ->filter(fn (TakeoffOpening $opening): bool => isset($tags[strtoupper(trim((string) $opening->tag))]))
+            ->pluck('id')
+            ->map(fn (mixed $id): int => (int) $id)
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @param  list<mixed>  $posted
+     * @return list<int>
+     */
+    private function openingIdsForMark(Takeoff $takeoff, TakeoffMarkup $markup, array $posted): array
+    {
+        $ids = [];
+
+        foreach ([...($markup->opening_ids ?? []), ...$posted] as $id) {
+            $id = (int) $id;
+
+            if ($id > 0) {
+                $ids[$id] = $id;
+            }
+        }
+
+        $body = trim((string) $markup->body);
+
+        if ($body !== '') {
+            $label = trim((string) ($markup->label ?: 'Door'));
+            $rows = TakeoffPdfScope::openingsFromSection($label, $body, (int) $markup->page, $label);
+
+            foreach ($this->idsForTags($takeoff, $rows) as $id) {
+                $ids[$id] = $id;
+            }
+        }
+
+        if ($ids !== []) {
+            return array_values($ids);
+        }
+
+        if ($markup->created_at === null) {
+            return [];
+        }
+
+        return $takeoff->openings()
+            ->where('requirement_document_id', $markup->document_id)
+            ->where('requirement_page', $markup->page)
+            ->whereBetween('created_at', [$markup->created_at->copy()->subMinutes(10), $markup->created_at->copy()->addSeconds(10)])
+            ->pluck('id')
+            ->map(fn (mixed $id): int => (int) $id)
+            ->all();
     }
 
     private function removeSectionOpenings(Takeoff $takeoff, TakeoffSection $section): int

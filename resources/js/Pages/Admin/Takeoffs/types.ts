@@ -37,8 +37,10 @@ export type SheetMarkup = {
     id: number;
     document_id: number;
     page: number;
-    kind: 'pen' | 'box';
+    kind: 'pen' | 'box' | 'openings';
     color: string;
+    label?: string | null;
+    opening_ids?: number[];
     points: { x: number; y: number }[];
 };
 

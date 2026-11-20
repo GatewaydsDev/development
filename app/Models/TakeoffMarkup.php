@@ -13,6 +13,9 @@ class TakeoffMarkup extends Model
         'page',
         'kind',
         'color',
+        'label',
+        'opening_ids',
+        'body',
         'points',
         'created_by',
     ];
@@ -21,6 +24,7 @@ class TakeoffMarkup extends Model
     {
         return [
             'page' => 'integer',
+            'opening_ids' => 'array',
             'points' => 'array',
         ];
     }

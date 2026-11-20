@@ -178,6 +178,8 @@ export default function Show({ takeoff, templates, quotations, can, openingTypes
     const [openingsFound, setOpeningsFound] = useState<{ id?: number; tag: string; opening_type: string; quantity: string; width: string | null; height: string | null; location: string | null }[]>([]);
     const [selectedOpeningIds, setSelectedOpeningIds] = useState<number[]>([]);
     const [savedSectionId, setSavedSectionId] = useState<number | null>(null);
+    const [savedMarkupId, setSavedMarkupId] = useState<number | null>(null);
+    const [selectionRemoval, setSelectionRemoval] = useState<{ markupId: number | null; openingIds: number[] } | null>(null);
     const [selectedOpeningId, setSelectedOpeningId] = useState<number | null>(null);
     const [selectedDocumentId, setSelectedDocumentId] = useState<number | null>(() => {
         try {
@@ -894,10 +896,12 @@ export default function Show({ takeoff, templates, quotations, can, openingTypes
                         error?: string | null;
                         created_section_id?: number | null;
                         created_openings?: { id?: number; tag: string; opening_type: string; quantity: string; width: string | null; height: string | null; location: string | null }[];
+                        created_markup_id?: number | null;
                     };
                     const created = flash.created_openings ?? [];
                     setOpeningsDragReading(false);
                     setSavedSectionId(typeof flash.created_section_id === 'number' ? flash.created_section_id : null);
+                    setSavedMarkupId(typeof flash.created_markup_id === 'number' ? flash.created_markup_id : null);
                     setOpeningsBox(null);
 
                     if (flash.error) {
@@ -936,6 +940,8 @@ export default function Show({ takeoff, templates, quotations, can, openingTypes
         setOpeningsFound([]);
         setSelectedOpeningIds([]);
         setSavedSectionId(null);
+        setSavedMarkupId(null);
+        setSelectionRemoval(null);
         setOpeningsNaming(false);
         setOpeningTypeName('');
         setOpeningTypeId('');
@@ -953,17 +959,47 @@ export default function Show({ takeoff, templates, quotations, can, openingTypes
         void readOpenings(openingsBox, type);
     };
 
-    const cancelOpeningSelection = () => {
-        if (selectedOpeningIds.length === 0) {
+    const askToRemoveSelection = () => {
+        if (selectedOpeningIds.length === 0 && savedMarkupId === null) {
             clearOpeningSelection();
 
             return;
         }
 
-        const ids = selectedOpeningIds;
-        router.post(route('admin.takeoffs.openings.forget', takeoff.uuid), { ids, section_id: savedSectionId }, {
+        setSelectionRemoval({
+            markupId: savedMarkupId,
+            openingIds: selectedOpeningIds,
+        });
+    };
+
+    const removeSelection = () => {
+        const request = selectionRemoval;
+
+        if (!request) {
+            return;
+        }
+
+        setSelectionRemoval(null);
+
+        if (request.markupId) {
+            router.delete(route('admin.takeoffs.markups.destroy', [takeoff.uuid, request.markupId]), {
+                data: { opening_ids: request.openingIds },
+                preserveScroll: true,
+                preserveState: false,
+                onSuccess: () => clearOpeningSelection(),
+            });
+
+            return;
+        }
+
+        if (request.openingIds.length === 0) {
+            clearOpeningSelection();
+
+            return;
+        }
+
+        router.post(route('admin.takeoffs.openings.forget', takeoff.uuid), { ids: request.openingIds, section_id: savedSectionId }, {
             preserveScroll: true,
-            preserveState: true,
             onSuccess: () => clearOpeningSelection(),
         });
     };
@@ -1303,7 +1339,7 @@ export default function Show({ takeoff, templates, quotations, can, openingTypes
                     <div className="pointer-events-auto w-[min(24rem,calc(100vw-2rem))] rounded-xl border border-[#b7ebc9] bg-[#e7f8ee] p-4 text-neutral-950 shadow-xl">
                         <div className="flex items-start justify-between gap-3">
                             <div>
-                                <p className="text-base font-semibold">{openingsNaming ? 'Name this selection' : openingsDragError ? 'This selection cannot be created' : openingsDragReading ? 'Reading the selection' : openingsFound.length > 0 && openingsDragLabel.toLowerCase().includes('already') ? 'Already on the list' : openingsFound.length > 0 ? 'Openings added' : 'Selection checked'}</p>
+                                <p className="text-base font-semibold">{openingsNaming ? 'Name this selection' : openingsDragError ? 'This selection cannot be created' : openingsDragReading ? 'Reading the selection' : openingsDragLabel.toLowerCase().includes('already') && openingsFound.length === 0 ? 'Already on the list' : openingsFound.length > 0 ? 'Openings added' : 'Selection checked'}</p>
                                 <p className="mt-1 text-sm text-neutral-700">{openingsDragError ?? openingsDragLabel}</p>
                             </div>
                             {openingsDragReading ? null : (
@@ -1352,7 +1388,7 @@ export default function Show({ takeoff, templates, quotations, can, openingTypes
                         {openingsDragReading || openingsNaming ? null : (
                             <div className="mt-3 flex items-center justify-end gap-3">
                                 {selectedOpeningIds.length > 0 ? <p className="mr-auto text-xs text-neutral-500">Removes these openings from the list.</p> : null}
-                                <Button type="button" variant="outline" size="sm" className="rounded-full" onClick={cancelOpeningSelection}>
+                                <Button type="button" variant="outline" size="sm" className="rounded-full" onClick={askToRemoveSelection}>
                                     Cancel selection
                                 </Button>
                             </div>
@@ -1369,6 +1405,18 @@ export default function Show({ takeoff, templates, quotations, can, openingTypes
                             </ul>
                         ) : null}
                     </div>
+                    </div>
+                ) : null}
+                {selectionRemoval ? (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+                        <div className="w-[min(24rem,calc(100vw-2rem))] rounded-xl border border-[#b7ebc9] bg-[#e7f8ee] p-4 text-neutral-950 shadow-xl">
+                            <p className="text-base font-semibold">Remove this selection?</p>
+                            <p className="mt-1 text-sm text-neutral-700">The openings from this box will be removed from the Openings list.</p>
+                            <div className="mt-4 flex justify-end gap-2">
+                                <Button type="button" variant="outline" size="sm" className="rounded-full" onClick={() => setSelectionRemoval(null)}>Keep selection</Button>
+                                <Button type="button" size="sm" className="rounded-full bg-red-700 text-white hover:bg-red-800" onClick={removeSelection}>Remove selection</Button>
+                            </div>
+                        </div>
                     </div>
                 ) : null}
                 <Dialog open={scanOpen} onOpenChange={(next) => {
@@ -1552,6 +1600,14 @@ export default function Show({ takeoff, templates, quotations, can, openingTypes
                                         router.delete(route('admin.takeoffs.markups.destroy', [takeoff.uuid, markupId]), {
                                             preserveScroll: true,
                                             preserveState: true,
+                                        });
+                                    } : undefined}
+                                    onRemoveOpeningMark={editable ? (markupId) => {
+                                        const markup = (takeoff.markups ?? []).find((item) => item.id === markupId);
+
+                                        setSelectionRemoval({
+                                            markupId,
+                                            openingIds: markup?.opening_ids ?? [],
                                         });
                                     } : undefined}
                                     selectedDocumentId={selectedDocumentId}

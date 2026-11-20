@@ -193,6 +193,7 @@ type Props = {
     review?: { tag: string; page: number; x: number; y: number } | null;
     onMarkup?: (markup: { documentId: number; page: number; kind: 'pen' | 'box'; color: string; points: { x: number; y: number }[] }) => void;
     onDeleteMarkup?: (markupId: number) => void;
+    onRemoveOpeningMark?: (markupId: number) => void;
     sections?: TakeoffSheetSection[];
     focusedSection?: { id: number; page: number; documentId: number } | null;
     onCopyRegion?: (region: { documentId: number; page: number; x: number; y: number; x2: number; y2: number }) => void;
@@ -232,6 +233,7 @@ export default function PdfWorkspace({
     review = null,
     onMarkup,
     onDeleteMarkup,
+    onRemoveOpeningMark,
     sections = [],
     focusedSection = null,
     onCopyRegion,
@@ -343,7 +345,7 @@ export default function PdfWorkspace({
             return;
         }
 
-        const visible = [...markups, ...localMarkups].filter((markup) => markup.document_id === document.id && markup.page === page);
+        const visible = [...markups, ...localMarkups].filter((markup) => markup.kind !== 'openings' && markup.document_id === document.id && markup.page === page);
         setMarkupPaths(visible.map((markup) => ({
             id: markup.id,
             kind: markup.kind,
@@ -1226,6 +1228,22 @@ export default function PdfWorkspace({
 
         return [{ ...section, a, b }];
     });
+    const savedOpeningMarks = markups.flatMap((markup) => {
+        if (markup.kind !== 'openings' || !document || markup.document_id !== document.id || markup.page !== page || markup.points.length < 2) {
+            return [];
+        }
+
+        const start = markup.points[0];
+        const end = markup.points[markup.points.length - 1];
+        const a = sheetPoint(start.x, start.y);
+        const b = sheetPoint(end.x, end.y);
+
+        if (!a || !b) {
+            return [];
+        }
+
+        return [{ ...markup, a, b }];
+    });
     const openingsOutline = (() => {
         if (!openingsBox || !document || openingsBox.documentId !== document.id || openingsBox.page !== page) {
             return null;
@@ -1638,6 +1656,27 @@ export default function PdfWorkspace({
                                 ) : null}
                             </g>
                         ) : null}
+                        {savedOpeningMarks.map((markup) => (
+                            <g key={`opening-mark-${markup.id}`}>
+                                <path
+                                    d={tracePath([markup.a, markup.b], 'box')}
+                                    fill="rgba(79,70,229,0.12)"
+                                    stroke="#4f46e5"
+                                    strokeWidth="2.5"
+                                    strokeDasharray="6 4"
+                                    strokeLinejoin="round"
+                                />
+                                <text
+                                    x={Math.min(markup.a.x, markup.b.x) + 6}
+                                    y={Math.min(markup.a.y, markup.b.y) + 16}
+                                    fill="#3730a3"
+                                    fontSize="13"
+                                    fontWeight="700"
+                                >
+                                    {markup.label || 'Selection'}
+                                </text>
+                            </g>
+                        ))}
                         {savedSections.map((section) => {
                             const chosen = section.id === focusedSection?.id;
 
@@ -1675,6 +1714,21 @@ export default function PdfWorkspace({
                             />
                         ) : null}
                     </svg>
+                    {canEdit && (onRemoveOpeningMark || onDeleteMarkup) ? savedOpeningMarks.map((markup) => (
+                        <button
+                            key={`opening-mark-remove-${markup.id}`}
+                            type="button"
+                            className="absolute z-30 flex size-6 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-white text-sm font-semibold text-red-700 shadow ring-1 ring-red-200 hover:bg-red-50"
+                            style={{ left: Math.max(markup.a.x, markup.b.x), top: Math.min(markup.a.y, markup.b.y) }}
+                            aria-label={`Remove ${markup.label || 'selection'} mark`}
+                            onClick={(event) => {
+                                event.stopPropagation();
+                                (onRemoveOpeningMark ?? onDeleteMarkup)?.(markup.id);
+                            }}
+                        >
+                            ×
+                        </button>
+                    )) : null}
                     {canEdit && onDeleteSection ? savedSections.map((section) => (
                         <button
                             key={`section-remove-${section.id}`}

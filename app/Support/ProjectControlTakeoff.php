@@ -273,11 +273,31 @@ class ProjectControlTakeoff
     private function push(ProjectControl $control, Takeoff $takeoff): void
     {
         $control->load('openings');
+        $takeoff->unsetRelation('openings');
         $takeoffIds = $takeoff->openings()->pluck('id')->map(fn ($id) => (int) $id)->all();
+        $existingByTag = [];
+
+        foreach ($takeoff->openings()->get() as $takeoffOpening) {
+            $tag = strtoupper(trim((string) $takeoffOpening->tag));
+
+            if ($tag !== '') {
+                $existingByTag[$tag] = $takeoffOpening;
+            }
+        }
+
         $sort = (int) $takeoff->openings()->max('sort_order');
 
         foreach ($control->openings as $opening) {
             if (in_array((int) $opening->takeoff_opening_id, $takeoffIds, true)) {
+                continue;
+            }
+
+            $mark = strtoupper(trim((string) $opening->mark));
+
+            if ($mark !== '' && isset($existingByTag[$mark])) {
+                $opening->forceFill(['takeoff_opening_id' => $existingByTag[$mark]->id])->save();
+                $takeoffIds[] = (int) $existingByTag[$mark]->id;
+
                 continue;
             }
 

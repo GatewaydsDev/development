@@ -87,6 +87,10 @@ class TakeoffOpening extends Model
         static::creating(function (TakeoffOpening $opening): void {
             $opening->uuid ??= (string) Str::uuid();
         });
+
+        static::deleting(function (TakeoffOpening $opening): void {
+            ProjectControlOpening::query()->where('takeoff_opening_id', $opening->id)->delete();
+        });
     }
 
     public function takeoff(): BelongsTo
