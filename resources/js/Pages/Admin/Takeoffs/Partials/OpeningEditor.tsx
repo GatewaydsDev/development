@@ -1,3 +1,4 @@
+import CreatableSelect, { type CreatableOption } from '@/Components/CreatableSelect';
 import InspectorSelect from '@/Components/InspectorSelect';
 import InputError from '@/Components/InputError';
 import { Button } from '@/Components/ui/button';
@@ -325,13 +326,25 @@ function PropertyGroup({
 
 type CatalogChoice = { value: string; label: string };
 
+function storedOpeningType(name: string): string {
+    const lower = name.trim().toLowerCase();
+
+    if (lower === 'door' || lower === 'doors') {
+        return 'door';
+    }
+
+    if (lower === 'window' || lower === 'windows') {
+        return 'window';
+    }
+
+    return name.trim();
+}
+
 function CatalogField({
     label,
     value,
     options,
     disabled,
-    emptyLabel,
-    addLabel,
     createRoute,
     catalogKey,
     error,
@@ -341,114 +354,56 @@ function CatalogField({
     value: string;
     options: CatalogChoice[];
     disabled?: boolean;
-    emptyLabel: string;
-    addLabel: string;
     createRoute: string;
-    catalogKey: 'doorTypes' | 'openingCategories';
+    catalogKey: 'doorTypes' | 'openingCategories' | 'openingTypes';
     error?: string;
     onChange: (value: string) => void;
 }) {
-    const [adding, setAdding] = useState(false);
-    const [draft, setDraft] = useState('');
-    const [catalogError, setCatalogError] = useState('');
-    const [savingCatalog, setSavingCatalog] = useState(false);
     const listed = options.some((option) => option.value === value)
         ? options
         : value
             ? [{ value, label: value }, ...options]
             : options;
+    const seen = new Set<string>();
+    const creatableOptions: CreatableOption[] = [];
 
-    const create = () => {
-        const name = draft.trim();
-
-        if (name === '' || savingCatalog) {
+    listed.forEach((option) => {
+        if (option.value === '' || seen.has(option.value)) {
             return;
         }
 
-        const existing = options.find((option) => option.label.toLowerCase() === name.toLowerCase());
-
-        if (existing) {
-            onChange(existing.value);
-            setAdding(false);
-            setDraft('');
-            setCatalogError('');
-
-            return;
-        }
-
-        setSavingCatalog(true);
-        setCatalogError('');
-        router.post(route(createRoute), { name }, {
-            preserveScroll: true,
-            preserveState: true,
-            onSuccess: (page) => {
-                const catalog = (page.props[catalogKey] ?? []) as { id?: number | null; name: string }[];
-                const created = catalog.find((item) => item.name.toLowerCase() === name.toLowerCase());
-                onChange(created
-                    ? catalogKey === 'doorTypes'
-                        ? String(created.id ?? '')
-                        : created.name
-                    : name);
-                setAdding(false);
-                setDraft('');
-            },
-            onError: (formErrors) => setCatalogError(formErrors.name ?? 'Enter a name.'),
-            onFinish: () => setSavingCatalog(false),
-        });
-    };
+        seen.add(option.value);
+        creatableOptions.push({ id: option.value, name: option.label });
+    });
 
     return (
-        <>
-            <InspectorSelect
-                aria-label={label}
-                className={inspectorSelect}
-                value={value}
-                disabled={disabled}
-                onChange={(event) => {
-                    if (event.target.value === '__new__') {
-                        setAdding(true);
+        <CreatableSelect
+            id={`inspector-${catalogKey}`}
+            label=""
+            ariaLabel={label}
+            value={value}
+            options={creatableOptions}
+            disabled={disabled}
+            allowCreate={!disabled}
+            createRoute={route(createRoute)}
+            optionsProp={catalogKey}
+            entityLabel={label.toLowerCase()}
+            placeholder="Search or add"
+            compact
+            keepTypedValue={catalogKey !== 'doorTypes'}
+            error={error}
+            inputClassName="!h-7 !min-h-0 !rounded-none !border-0 !bg-transparent !py-0 !pl-1 !pr-7 !text-[13px] !text-[#1a3d8f] !shadow-none focus:!bg-[#fff8dc] focus:!ring-0"
+            onChange={(id, option) => {
+                if (catalogKey === 'doorTypes') {
+                    onChange(id);
 
-                        return;
-                    }
+                    return;
+                }
 
-                    setAdding(false);
-                    onChange(event.target.value);
-                }}
-            >
-                <option value="">{emptyLabel}</option>
-                {listed.map((option) => (
-                    <option key={option.value} value={option.value}>{option.label}</option>
-                ))}
-                {disabled ? null : <option value="__new__">{addLabel}</option>}
-            </InspectorSelect>
-            {adding ? (
-                <div className="flex items-center gap-1 px-1 pb-1">
-                    <input
-                        aria-label={`New ${label}`}
-                        className={inspectorInput}
-                        value={draft}
-                        disabled={savingCatalog}
-                        placeholder={`New ${label.toLowerCase()}`}
-                        onChange={(event) => setDraft(event.target.value)}
-                        onKeyDown={(event) => {
-                            if (event.key === 'Enter') {
-                                event.preventDefault();
-                                create();
-                            }
-                        }}
-                    />
-                    <button
-                        type="button"
-                        className="shrink-0 px-1 text-[12px] font-semibold text-[#1a3d8f] disabled:text-neutral-400"
-                        disabled={savingCatalog}
-                        onClick={create}
-                    >
-                        {savingCatalog ? 'Adding…' : 'Add'}
-                    </button>
-                </div>
-            ) : null}
-            <InputError message={catalogError || error} className="px-1" />
-        </>
+                const chosen = option?.name ?? id;
+                onChange(catalogKey === 'openingTypes' ? storedOpeningType(chosen) : chosen);
+            }}
+        />
     );
 }
 
@@ -507,9 +462,14 @@ export default function OpeningEditor({
     const page = usePage<{
         doorTypes?: { id: number; name: string }[];
         openingCategories?: { id: number | null; name: string }[];
+        openingTypes?: { id: number; name: string }[];
     }>();
     const doorTypes = page.props.doorTypes ?? [];
     const openingCategories = page.props.openingCategories ?? [];
+    const openingTypeOptions = (page.props.openingTypes ?? []).map((type) => ({
+        value: storedOpeningType(type.name),
+        label: type.name,
+    }));
     const editing = Boolean(opening) || creating;
 
     if (formSource !== selectionKey) {
@@ -702,16 +662,21 @@ export default function OpeningEditor({
                                     {text('Opening tag', 'tag')}
                                     {text('Location / floor', 'location')}
                                     <PropertyRow name="Opening">
-                                        <InspectorSelect aria-label="Opening" className={inspectorSelect} value={form.opening_type} disabled={!canEdit} onChange={(event) => {
-                                            const next = event.target.value;
-                                            set('opening_type', next);
-                                            if (next !== 'door') {
-                                                set('door_configuration_id', '');
-                                            }
-                                        }}>
-                                            <option value="door">Door</option>
-                                            <option value="window">Window</option>
-                                        </InspectorSelect>
+                                        <CatalogField
+                                            label="Opening"
+                                            value={form.opening_type}
+                                            options={openingTypeOptions}
+                                            disabled={!canEdit}
+                                            createRoute="admin.takeoffs.opening-types.store"
+                                            catalogKey="openingTypes"
+                                            error={fieldErrors.opening_type}
+                                            onChange={(value) => {
+                                                set('opening_type', value);
+                                                if (value !== 'door') {
+                                                    set('door_configuration_id', '');
+                                                }
+                                            }}
+                                        />
                                     </PropertyRow>
                                     {form.opening_type === 'door' ? (
                                         <PropertyRow name="Type">
@@ -720,8 +685,6 @@ export default function OpeningEditor({
                                                 value={form.door_configuration_id}
                                                 options={doorTypes.map((type) => ({ value: String(type.id), label: type.name }))}
                                                 disabled={!canEdit}
-                                                emptyLabel="Select a type"
-                                                addLabel="Add type…"
                                                 createRoute="admin.takeoffs.door-types.store"
                                                 catalogKey="doorTypes"
                                                 error={fieldErrors.door_configuration_id}
@@ -736,8 +699,6 @@ export default function OpeningEditor({
                                             value={form.product_category}
                                             options={openingCategories.map((category) => ({ value: category.name, label: category.name }))}
                                             disabled={!canEdit}
-                                            emptyLabel="Select a category"
-                                            addLabel="Add category…"
                                             createRoute="admin.takeoffs.opening-categories.store"
                                             catalogKey="openingCategories"
                                             error={fieldErrors.product_category}

@@ -559,6 +559,12 @@ class TakeoffWorkspaceController extends Controller
             array_map('intval', $result['created_ids'] ?? []),
         )));
         $markup = $this->rememberOpeningMark($takeoff, $document, $data, $label, (int) $user->id, $linkedIds, $body);
+        $numbers = $this->numberSelection($takeoff, $document, $data, $this->inReadingOrder($openings, $body), $type);
+        $openings = array_map(function (array $row) use ($numbers): array {
+            $row['callout'] = $numbers[(int) ($row['id'] ?? 0)] ?? null;
+
+            return $row;
+        }, $openings);
 
         if ($request->expectsJson()) {
             return response()->json([
@@ -603,6 +609,141 @@ class TakeoffWorkspaceController extends Controller
         return redirect()
             ->route('admin.takeoffs.show', $takeoff)
             ->with('success', $count === 1 ? 'Removed 1 opening from the selection.' : 'Removed '.$count.' openings from the selection.');
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     * @param  list<array<string, mixed>>  $created
+     * @return array<int, string>
+     */
+    private function numberSelection(Takeoff $takeoff, TakeoffDocument $document, array $data, array $created, string $type): array
+    {
+        if ($created === [] || ! isset($data['x'], $data['y'], $data['x2'], $data['y2'])) {
+            return [];
+        }
+
+        $prefix = $this->countPrefix($type);
+        $number = $this->nextCountNumber($takeoff, $prefix);
+        $left = min((float) $data['x'], (float) $data['x2']);
+        $right = max((float) $data['x'], (float) $data['x2']);
+        $top = min((float) $data['y'], (float) $data['y2']);
+        $bottom = max((float) $data['y'], (float) $data['y2']);
+        $count = count($created);
+        $span = max(0.0, $bottom - $top);
+        $pitch = $count <= 1 ? 1.0 : $span / ($count - 1);
+        $crowded = $count > 1 && $pitch < 0.045;
+        $startRoom = $left;
+        $endRoom = 1 - $right;
+        $atEnd = ($crowded || $startRoom < 0.07) && ($endRoom >= 0.07 || $endRoom > $startRoom);
+        $step = $count <= 1 ? 0.0 : max(0.045, $pitch);
+        $end = $top + ($step * max(0, $count - 1));
+        $shift = $end > 0.98 ? $end - 0.98 : 0.0;
+
+        if ($atEnd) {
+            $column = min(0.98, $right + 0.055);
+            $anchorX = max(0.02, min($right - 0.012, $column - 0.04));
+        } else {
+            $column = max(0.02, $left - 0.055);
+            $anchorX = min(0.98, max($column + 0.04, min($right - 0.01, $left + 0.012)));
+        }
+        $assigned = [];
+        $sort = (int) $takeoff->openings()->whereNotIn('id', array_map(fn (array $row): int => (int) ($row['id'] ?? 0), $created))->max('sort_order');
+
+        foreach (array_values($created) as $index => $row) {
+            $opening = $takeoff->openings()->whereKey((int) ($row['id'] ?? 0))->first();
+
+            if (! $opening instanceof TakeoffOpening) {
+                continue;
+            }
+
+            $callout = $prefix.$number;
+            $number++;
+            $sort++;
+            $y = max(0.02, min(0.98, $top + ($step * $index) - $shift));
+            $opening->update(['callout' => $callout, 'sort_order' => $sort]);
+            $assigned[(int) $opening->id] = $callout;
+            $this->createMarker($takeoff, $opening, [
+                'document_id' => $document->id,
+                'page' => (int) $data['page'],
+                'x' => $anchorX,
+                'y' => $y,
+                'label_x' => $column,
+                'label_y' => $y,
+            ]);
+        }
+
+        return $assigned;
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $openings
+     * @return list<array<string, mixed>>
+     */
+    private function inReadingOrder(array $openings, string $body): array
+    {
+        $upper = strtoupper($body);
+
+        usort($openings, function (array $left, array $right) use ($upper): int {
+            $leftAt = strpos($upper, strtoupper((string) ($left['tag'] ?? '')));
+            $rightAt = strpos($upper, strtoupper((string) ($right['tag'] ?? '')));
+
+            return ($leftAt === false ? PHP_INT_MAX : $leftAt) <=> ($rightAt === false ? PHP_INT_MAX : $rightAt);
+        });
+
+        return array_values($openings);
+    }
+
+    private function storedOpeningType(string $type): string
+    {
+        $display = TakeoffOpeningType::remember($type);
+
+        if ($display === null) {
+            return 'door';
+        }
+
+        $lower = mb_strtolower($display);
+
+        if ($lower === 'window') {
+            return 'window';
+        }
+
+        if ($lower === 'door') {
+            return 'door';
+        }
+
+        return $display;
+    }
+
+    private function countPrefix(string $type): string
+    {
+        $name = strtolower(trim($type));
+
+        if ($name === 'window' || $name === 'windows') {
+            return 'W';
+        }
+
+        if ($name === 'door' || $name === 'doors') {
+            return 'D';
+        }
+
+        $letter = strtoupper(mb_substr($name, 0, 1));
+
+        return preg_match('/^[A-Z]$/', $letter) === 1 ? $letter : 'D';
+    }
+
+    private function nextCountNumber(Takeoff $takeoff, string $prefix): int
+    {
+        $max = 0;
+
+        foreach ($takeoff->openings()->get(['tag', 'callout', 'counted_tag']) as $opening) {
+            foreach ([$opening->callout, $opening->counted_tag ? $opening->tag : null] as $value) {
+                if (preg_match('/^'.preg_quote($prefix, '/').'(\d+)$/i', (string) $value, $match) === 1) {
+                    $max = max($max, (int) $match[1]);
+                }
+            }
+        }
+
+        return $max + 1;
     }
 
     /**
@@ -1444,7 +1585,7 @@ class TakeoffWorkspaceController extends Controller
         return [
             'tag' => ['nullable', 'string', 'max:50'],
             'is_bulk' => ['required', 'boolean'],
-            'opening_type' => ['required', Rule::in(config('takeoffs.opening_types'))],
+            'opening_type' => ['required', 'string', 'max:80'],
             'door_configuration_id' => ['nullable', 'integer', 'exists:door_configurations,id'],
             'location' => ['nullable', 'string', 'max:255'],
             'quantity' => ['required', 'numeric', 'gt:0', 'max:999999'],
@@ -1554,11 +1695,13 @@ class TakeoffWorkspaceController extends Controller
             }
         }
 
+        $openingType = $this->storedOpeningType((string) ($data['opening_type'] ?? ''));
+
         return [
             'tag' => $this->blank($data['tag'] ?? null),
             'is_bulk' => (bool) $data['is_bulk'],
-            'opening_type' => $data['opening_type'],
-            'door_configuration_id' => $data['opening_type'] === 'door' ? ($data['door_configuration_id'] ?? null) : null,
+            'opening_type' => $openingType,
+            'door_configuration_id' => $openingType === 'door' ? ($data['door_configuration_id'] ?? null) : null,
             'location' => $this->blank($data['location'] ?? null),
             'quantity' => TakeoffMoney::money($data['quantity']),
             'product_category' => OpeningCategory::remember($data['product_category'] ?? null),
@@ -1645,6 +1788,8 @@ class TakeoffWorkspaceController extends Controller
             'y' => bcadd(TakeoffMoney::raw($data['y']), '0', 6),
             'x2' => isset($data['x2']) ? bcadd(TakeoffMoney::raw($data['x2']), '0', 6) : null,
             'y2' => isset($data['y2']) ? bcadd(TakeoffMoney::raw($data['y2']), '0', 6) : null,
+            'label_x' => isset($data['label_x']) ? bcadd(TakeoffMoney::raw($data['label_x']), '0', 6) : null,
+            'label_y' => isset($data['label_y']) ? bcadd(TakeoffMoney::raw($data['label_y']), '0', 6) : null,
         ]);
     }
 

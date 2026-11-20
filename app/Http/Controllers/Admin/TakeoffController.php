@@ -357,7 +357,9 @@ class TakeoffController extends Controller
                 : 'Takeoff details were updated.');
         $takeoff->record($user, $action, $summary, ['status' => $takeoff->status]);
 
-        return back()->with('success', $summary);
+        return redirect()
+            ->route('admin.takeoffs.index')
+            ->with('success', $summary);
     }
 
     public function destroy(Request $request, Takeoff $takeoff): RedirectResponse

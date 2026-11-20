@@ -28,7 +28,7 @@ import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent, ty
 
 export type MarkDraft = {
     number: string;
-    type: 'door' | 'window';
+    type: string;
     width: string;
     height: string;
     notes: string;
@@ -542,10 +542,11 @@ export default function DrawingPalette(props: Props) {
                                     aria-label="Opening type"
                                     value={props.mark.type}
                                     className="h-8 rounded-md border border-[#d5deea] bg-white px-2 text-sm font-medium normal-case tracking-normal"
-                                    onChange={(event) => props.onMarkChange({ type: event.target.value === 'window' ? 'window' : 'door' })}
+                                    onChange={(event) => props.onMarkChange({ type: event.target.value })}
                                 >
                                     <option value="door">Door</option>
                                     <option value="window">Window</option>
+                                    {props.mark.type !== 'door' && props.mark.type !== 'window' ? <option value={props.mark.type}>{props.mark.type}</option> : null}
                                 </select>
                             </label>
                             <div className="grid grid-cols-2 gap-2">

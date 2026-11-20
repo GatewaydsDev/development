@@ -175,11 +175,12 @@ export default function Show({ takeoff, templates, quotations, can, openingTypes
     const [openingsNaming, setOpeningsNaming] = useState(false);
     const [openingTypeName, setOpeningTypeName] = useState('');
     const [openingTypeId, setOpeningTypeId] = useState('');
-    const [openingsFound, setOpeningsFound] = useState<{ id?: number; tag: string; opening_type: string; quantity: string; width: string | null; height: string | null; location: string | null }[]>([]);
+    const [openingsFound, setOpeningsFound] = useState<{ id?: number; tag: string; callout?: string | null; opening_type: string; quantity: string; width: string | null; height: string | null; location: string | null }[]>([]);
     const [selectedOpeningIds, setSelectedOpeningIds] = useState<number[]>([]);
     const [savedSectionId, setSavedSectionId] = useState<number | null>(null);
     const [savedMarkupId, setSavedMarkupId] = useState<number | null>(null);
     const [selectionRemoval, setSelectionRemoval] = useState<{ markupId: number | null; openingIds: number[] } | null>(null);
+    const [copyRemovalId, setCopyRemovalId] = useState<number | null>(null);
     const [selectedOpeningId, setSelectedOpeningId] = useState<number | null>(null);
     const [selectedDocumentId, setSelectedDocumentId] = useState<number | null>(() => {
         try {
@@ -438,7 +439,7 @@ export default function Show({ takeoff, templates, quotations, can, openingTypes
         router.delete(route('admin.takeoffs.openings.destroy', [takeoff.uuid, openingId]), { preserveScroll: true });
     };
 
-    const saveMarkDetails = (openingId: number, details: { opening_type: 'door' | 'window'; width: string; height: string; notes: string; callout: string | null }) => {
+    const saveMarkDetails = (openingId: number, details: { opening_type: string; width: string; height: string; notes: string; callout: string | null }) => {
         const opening = takeoff.openings.find((item) => item.id === openingId);
 
         if (!opening) {
@@ -895,7 +896,7 @@ export default function Show({ takeoff, templates, quotations, can, openingTypes
                         success?: string | null;
                         error?: string | null;
                         created_section_id?: number | null;
-                        created_openings?: { id?: number; tag: string; opening_type: string; quantity: string; width: string | null; height: string | null; location: string | null }[];
+                        created_openings?: { id?: number; tag: string; callout?: string | null; opening_type: string; quantity: string; width: string | null; height: string | null; location: string | null }[];
                         created_markup_id?: number | null;
                     };
                     const created = flash.created_openings ?? [];
@@ -1396,10 +1397,14 @@ export default function Show({ takeoff, templates, quotations, can, openingTypes
                         {openingsFound.length > 0 ? (
                             <ul className="mt-3 max-h-64 overflow-y-auto rounded-md border">
                                 {openingsFound.map((item) => (
-                                    <li key={item.tag} className="grid grid-cols-[4rem_4.5rem_1fr] items-center gap-2 border-b px-3 py-2 text-sm last:border-b-0">
-                                        <span className="font-semibold">{item.tag}</span>
-                                        <span>{item.opening_type === 'window' ? 'Window' : item.opening_type === 'door' ? 'Door' : item.opening_type}</span>
-                                        <span className="truncate text-neutral-500">{[item.width, item.height].filter(Boolean).join(' x ')}{item.location ? ` · ${item.location}` : ''}</span>
+                                    <li key={item.tag} className="grid grid-cols-[3.25rem_4.5rem_1fr] items-center gap-2 border-b px-3 py-2 text-sm last:border-b-0">
+                                        <span className="font-semibold tabular-nums">{item.callout || item.tag}</span>
+                                        <span className="truncate">{item.callout ? item.tag : (item.opening_type === 'window' ? 'Window' : item.opening_type === 'door' ? 'Door' : item.opening_type)}</span>
+                                        <span className="truncate text-neutral-500">{[
+                                            item.callout ? (item.opening_type === 'window' ? 'Window' : item.opening_type === 'door' ? 'Door' : item.opening_type) : null,
+                                            [item.width, item.height].filter(Boolean).join(' x ') || null,
+                                            item.location,
+                                        ].filter(Boolean).join(' · ')}</span>
                                     </li>
                                 ))}
                             </ul>
@@ -1415,6 +1420,31 @@ export default function Show({ takeoff, templates, quotations, can, openingTypes
                             <div className="mt-4 flex justify-end gap-2">
                                 <Button type="button" variant="outline" size="sm" className="rounded-full" onClick={() => setSelectionRemoval(null)}>Keep selection</Button>
                                 <Button type="button" size="sm" className="rounded-full bg-red-700 text-white hover:bg-red-800" onClick={removeSelection}>Remove selection</Button>
+                            </div>
+                        </div>
+                    </div>
+                ) : null}
+                {copyRemovalId ? (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+                        <div className="w-[min(24rem,calc(100vw-2rem))] rounded-xl border border-[#b7ebc9] bg-[#e7f8ee] p-4 text-neutral-950 shadow-xl">
+                            <p className="text-base font-semibold">Remove this copy?</p>
+                            <p className="mt-1 text-sm text-neutral-700">
+                                {(takeoff.sections ?? []).find((item) => item.id === copyRemovalId)?.title || 'This copied section'} will be removed from the drawing.
+                            </p>
+                            <div className="mt-4 flex justify-end gap-2">
+                                <Button type="button" variant="outline" size="sm" className="rounded-full" onClick={() => setCopyRemovalId(null)}>Keep it</Button>
+                                <Button
+                                    type="button"
+                                    size="sm"
+                                    className="rounded-full bg-red-700 text-white hover:bg-red-800"
+                                    onClick={() => {
+                                        const sectionId = copyRemovalId;
+                                        setCopyRemovalId(null);
+                                        router.delete(route('admin.takeoffs.sections.destroy', [takeoff.uuid, sectionId]), { preserveScroll: true });
+                                    }}
+                                >
+                                    Remove copy
+                                </Button>
                             </div>
                         </div>
                     </div>
@@ -1645,9 +1675,7 @@ export default function Show({ takeoff, templates, quotations, can, openingTypes
                                     onCopyRegion={editable ? readRegion : undefined}
                                     onOpeningsRegion={editable ? beginOpeningSelection : undefined}
                                     openingsBox={openingsBox}
-                                    onDeleteSection={editable ? (sectionId) => {
-                                        router.delete(route('admin.takeoffs.sections.destroy', [takeoff.uuid, sectionId]), { preserveScroll: true });
-                                    } : undefined}
+                                    onDeleteSection={editable ? (sectionId) => setCopyRemovalId(sectionId) : undefined}
                                     uploading={uploadingPdf}
                                     uploadError={uploadError}
                                     tool={countTool}

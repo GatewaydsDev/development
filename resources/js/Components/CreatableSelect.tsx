@@ -69,6 +69,10 @@ type CreatableSelectProps = {
     onUseWithoutSaving?: (name: string) => void;
     autoFocus?: boolean;
     onOpen?: () => void;
+    disabled?: boolean;
+    inputClassName?: string;
+    ariaLabel?: string;
+    keepTypedValue?: boolean;
 };
 
 const nameSchema = z
@@ -121,6 +125,10 @@ export default function CreatableSelect({
     onUseWithoutSaving,
     autoFocus = false,
     onOpen,
+    disabled = false,
+    inputClassName,
+    ariaLabel,
+    keepTypedValue = false,
 }: CreatableSelectProps) {
     const listboxId = useId();
     const containerRef = useRef<HTMLDivElement>(null);
@@ -345,7 +353,24 @@ export default function CreatableSelect({
         }
 
         if (exactMatch && !exactMatchAlreadyAdded) {
-            choose(exactMatch);
+            if (String(exactMatch.id) !== value) {
+                choose(exactMatch);
+            } else {
+                setHasTyped(false);
+                setIsOpen(false);
+            }
+
+            return;
+        }
+
+        if (keepTypedValue && normalizedQuery !== '') {
+            if (normalizedQuery !== value && normalizedQuery !== selectedName) {
+                onChange(normalizedQuery, { id: normalizedQuery, name: normalizedQuery });
+            }
+
+            setHasTyped(false);
+            setIsOpen(false);
+
             return;
         }
 
@@ -388,10 +413,10 @@ export default function CreatableSelect({
             });
         };
 
-        document.addEventListener('pointerdown', handlePointerDown);
+        document.addEventListener('pointerdown', handlePointerDown, true);
 
         return () => {
-            document.removeEventListener('pointerdown', handlePointerDown);
+            document.removeEventListener('pointerdown', handlePointerDown, true);
         };
     }, []);
 
@@ -522,9 +547,11 @@ export default function CreatableSelect({
                     ref={inputRef}
                     id={id}
                     role="combobox"
+                    aria-label={ariaLabel || undefined}
                     aria-autocomplete="list"
                     aria-expanded={isOpen}
                     aria-controls={listboxId}
+                    disabled={disabled}
                     value={query}
                     autoFocus={autoFocus}
                     autoComplete="off"
@@ -539,8 +566,13 @@ export default function CreatableSelect({
                     className={cn(
                         'h-11 w-full min-w-0 border-border bg-background pr-10 text-base text-foreground placeholder:text-muted-foreground focus:border-ring focus:ring-ring sm:text-sm',
                         stateInitials && stateInitialsInputClassName,
+                        inputClassName,
                     )}
                     onFocus={() => {
+                        if (disabled) {
+                            return;
+                        }
+
                         onOpen?.();
                         setHasTyped(false);
                         setIsOpen(true);

@@ -185,7 +185,7 @@ type Props = {
     uploadError?: string | null;
     tool: CountTool;
     onToolChange: (tool: CountTool) => void;
-    onSaveDetails?: (openingId: number, details: { opening_type: 'door' | 'window'; width: string; height: string; notes: string; callout: string | null }) => void;
+    onSaveDetails?: (openingId: number, details: { opening_type: string; width: string; height: string; notes: string; callout: string | null }) => void;
     onUndo?: () => void;
     canUndo?: boolean;
     onSaveRotation?: (documentId: number, rotation: number) => void;
@@ -607,17 +607,22 @@ export default function PdfWorkspace({
         event.stopPropagation();
         const target = event.currentTarget;
         delete target.dataset.moved;
-        target.setPointerCapture(event.pointerId);
         draggingRef.current = true;
         const marker = openings.flatMap((opening) => opening.markers).find((item) => item.id === markerId);
         const boxed = marker ? isCountBox(marker) : false;
         const start = positionsRef.current[markerId];
+        const originX = event.clientX;
+        const originY = event.clientY;
 
         const move = (moveEvent: PointerEvent) => {
             const canvas = canvasRef.current;
 
-            if (!canvas || !positionsRef.current[markerId]) {
+            if (!canvas || !positionsRef.current[markerId] || Math.hypot(moveEvent.clientX - originX, moveEvent.clientY - originY) < 4) {
                 return;
+            }
+
+            if (!target.hasPointerCapture(moveEvent.pointerId)) {
+                target.setPointerCapture(moveEvent.pointerId);
             }
 
             target.dataset.moved = '1';
@@ -1068,7 +1073,7 @@ export default function PdfWorkspace({
         const line = openings.findIndex((opening) => opening.id === selectedOpening.id) + 1;
         setMarkDraft({
             number: countMark(selectedOpening.callout, Math.max(line, 1)),
-            type: selectedOpening.opening_type === 'window' ? 'window' : 'door',
+            type: selectedOpening.opening_type || 'door',
             width: selectedOpening.width ?? '',
             height: selectedOpening.height ?? '',
             notes: selectedOpening.notes ?? '',
@@ -1257,6 +1262,75 @@ export default function PdfWorkspace({
         }
 
         return { a, b, openingType: openingsBox.openingType };
+    })();
+    const selectedOnDrawing = (() => {
+        if (selectedOpeningId == null) {
+            return null;
+        }
+
+        const match = markers.find(({ opening }) => opening.id === selectedOpeningId);
+
+        if (!match) {
+            return null;
+        }
+
+        const marker = match.marker;
+
+        if (isCountBox(marker)) {
+            const a = sheetPoint(Number(marker.x), Number(marker.y));
+            const b = sheetPoint(Number(marker.x2), Number(marker.y2));
+
+            if (!a || !b) {
+                return null;
+            }
+
+            const x = Math.min(a.x, b.x);
+            const y = Math.min(a.y, b.y);
+
+            return {
+                row: { x, y, width: Math.abs(b.x - a.x), height: Math.abs(b.y - a.y) },
+                column: null as { x: number; y: number; width: number; height: number } | null,
+            };
+        }
+
+        const anchor = sheetPoint(Number(marker.x), Number(marker.y));
+
+        if (!anchor) {
+            return null;
+        }
+
+        const box = savedOpeningMarks.find((markup) => (markup.opening_ids ?? []).includes(selectedOpeningId));
+        const left = box ? Math.min(box.a.x, box.b.x) : Math.max(0, anchor.x - 72);
+        const right = box ? Math.max(box.a.x, box.b.x) : anchor.x + 240;
+        const top = box ? Math.min(box.a.y, box.b.y) : Math.max(0, anchor.y - 16);
+        const bottom = box ? Math.max(box.a.y, box.b.y) : anchor.y + 16;
+        const peers = (box ? markers.filter(({ opening }) => (box.opening_ids ?? []).includes(opening.id)) : [match])
+            .map(({ marker: peer }) => sheetPoint(Number(peer.x), Number(peer.y)))
+            .filter((point): point is { x: number; y: number } => point !== null)
+            .sort((first, second) => first.y - second.y);
+        const index = peers.findIndex((point) => Math.abs(point.y - anchor.y) < 1.5);
+        const before = index > 0 ? peers[index - 1].y : undefined;
+        const after = index >= 0 && index < peers.length - 1 ? peers[index + 1].y : undefined;
+        const fallback = Math.max(14, Math.min(34, (bottom - top) / Math.max(peers.length, 1)));
+        const rowTop = Math.max(top, anchor.y - (before == null ? fallback / 2 : Math.abs(anchor.y - before) / 2));
+        const rowBottom = Math.min(bottom, anchor.y + (after == null ? fallback / 2 : Math.abs(after - anchor.y) / 2));
+        const columnWidth = Math.max(28, Math.min(84, (right - left) * 0.16));
+        const columnLeft = Math.max(left, Math.min(anchor.x - columnWidth / 2, right - columnWidth));
+
+        return {
+            row: {
+                x: left,
+                y: rowTop,
+                width: Math.max(0, right - left),
+                height: Math.max(10, rowBottom - rowTop),
+            },
+            column: {
+                x: columnLeft,
+                y: top,
+                width: columnWidth,
+                height: Math.max(0, bottom - top),
+            },
+        };
     })();
 
     const rememberMarkup = (kind: 'pen' | 'box', points: { x: number; y: number }[]) => {
@@ -1702,6 +1776,28 @@ export default function PdfWorkspace({
                             </g>
                             );
                         })}
+                        {selectedOnDrawing ? (
+                            <g data-opening-highlight="true">
+                                {selectedOnDrawing.column ? (
+                                    <rect
+                                        x={selectedOnDrawing.column.x}
+                                        y={selectedOnDrawing.column.y}
+                                        width={selectedOnDrawing.column.width}
+                                        height={selectedOnDrawing.column.height}
+                                        fill="rgba(217,119,6,0.18)"
+                                    />
+                                ) : null}
+                                <rect
+                                    x={selectedOnDrawing.row.x}
+                                    y={selectedOnDrawing.row.y}
+                                    width={selectedOnDrawing.row.width}
+                                    height={selectedOnDrawing.row.height}
+                                    fill="rgba(217,119,6,0.34)"
+                                    stroke="#b45309"
+                                    strokeWidth="1.5"
+                                />
+                            </g>
+                        ) : null}
                         {trace ? (
                             <path
                                 d={tracePath(trace.pixels, trace.kind)}
@@ -1774,6 +1870,10 @@ export default function PdfWorkspace({
                                 onPointerDown={(event) => {
                                     if (renaming || (event.target as HTMLElement).closest('[data-remove-mark], [data-callout-input]')) {
                                         return;
+                                    }
+
+                                    if (tool !== 'remove') {
+                                        onSelectOpening(opening.id);
                                     }
 
                                     beginDrag(event, marker.id, 'label');

@@ -405,7 +405,7 @@ test('a takeoff revision is saved on the same record', function () {
         'revision_number' => 2,
         'revision_label' => 'B',
         'notes' => 'Revised the door width on the drawing.',
-    ])->assertRedirect();
+    ])->assertRedirect(route('admin.takeoffs.index'));
 
     expect(Takeoff::query()->count())->toBe(1)
         ->and($takeoff->fresh()->revision_number)->toBe(2)
@@ -1342,13 +1342,34 @@ test('door openings reuse a type and a category from the object inspector lists'
         ->and($opening->product_category)->toBe('Fixed')
         ->and(OpeningCategory::query()->where('name', 'Fixed')->exists())->toBeTrue();
 
+    $this->actingAs($admin)->patch(route('admin.takeoffs.openings.update', [$takeoff, $opening]), [
+        'tag' => 'D1',
+        'is_bulk' => false,
+        'opening_type' => 'Louver',
+        'quantity' => '1',
+        'product_category' => 'Storm',
+        'dimension_unit' => 'in',
+        'scope' => 'both',
+        'disposition' => 'active',
+        'verification_status' => 'recorded',
+    ])->assertRedirect()
+        ->assertSessionHasNoErrors();
+
+    $opening->refresh();
+
+    expect($opening->opening_type)->toBe('Louver')
+        ->and($opening->product_category)->toBe('Storm')
+        ->and(OpeningCategory::query()->where('name', 'Storm')->exists())->toBeTrue()
+        ->and(TakeoffOpeningType::query()->where('name', 'Louver')->exists())->toBeTrue();
+
     $this->actingAs($admin)->get(route('admin.takeoffs.show', $takeoff))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->has('doorTypes')
             ->has('openingCategories')
             ->where('takeoff.openings.0.door_type', null)
-            ->where('takeoff.openings.0.product_category', 'Fixed'));
+            ->where('takeoff.openings.0.opening_type', 'Louver')
+            ->where('takeoff.openings.0.product_category', 'Storm'));
 });
 
 test('a marked area of the drawing is copied into a saved section', function () {
@@ -1659,14 +1680,41 @@ test('a door or window section creates the openings it lists', function () {
     $linkedId = (int) $takeoff->openings()->where('tag', 'W9')->value('id');
     $mark = $takeoff->markups()->where('kind', 'openings')->first();
 
+    $placed = $takeoff->openings()->where('tag', 'W9')->first();
+    $pin = $placed->markers()->first();
+
     expect($linkedId)->toBeGreaterThan(0)
         ->and($takeoff->openings()->where('tag', 'W9')->count())->toBe(1)
+        ->and($placed->callout)->toBe('D1')
+        ->and($pin)->not->toBeNull()
+        ->and((float) $pin->x)->toBeLessThan(0.2)
+        ->and((float) $pin->y)->toBeLessThan(0.3)
+        ->and((float) $pin->label_x)->toBeLessThan(0.1)
+        ->and((float) $pin->label_y)->toEqual((float) $pin->y)
         ->and($takeoff->sections()->where('title', 'Door')->exists())->toBeFalse()
         ->and($takeoff->sections()->count())->toBe(3)
         ->and($mark)->not->toBeNull()
         ->and($mark->label)->toBe('Door')
         ->and($mark->opening_ids)->toBe([$linkedId])
         ->and($mark->points)->toHaveCount(2);
+
+    $this->actingAs($admin)->post(route('admin.takeoffs.openings.from-text', $takeoff), [
+        'document_id' => $document->id,
+        'page' => 1,
+        'opening_type' => 'door',
+        'title' => 'Door',
+        'body' => 'D20 3\'-0" 7\'-0" Hall',
+        'x' => 0.02,
+        'y' => 0.3,
+        'x2' => 0.28,
+        'y2' => 0.55,
+    ])->assertRedirect();
+
+    $edge = $takeoff->openings()->where('tag', 'D20')->first()->markers()->first();
+
+    expect($edge)->not->toBeNull()
+        ->and((float) $edge->label_x)->toBeGreaterThan(0.28)
+        ->and((float) $edge->x)->toBeLessThan((float) $edge->label_x);
 
     $this->actingAs($admin)->post(route('admin.takeoffs.openings.from-text', $takeoff), [
         'document_id' => $document->id,
