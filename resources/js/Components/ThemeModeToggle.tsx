@@ -47,16 +47,16 @@ export default function ThemeModeToggle({
                 aria-label={t('theme.change')}
                 className={cn(
                     buttonVariants({ variant: 'outline', size: 'sm' }),
-                    'gap-1.5',
+                    'gap-1.5 lg:size-9 lg:px-0',
                     onDarkHeader && darkHeaderTriggerClass,
                 )}
             >
                 <ActiveIcon data-icon="inline-start" />
-                <span className="hidden xl:inline">
+                <span className="lg:hidden">
                     {t(activeTheme?.labelKey ?? 'theme.system')}
                 </span>
                 <ChevronDownIcon
-                    className="hidden xl:block"
+                    className="lg:hidden"
                     data-icon="inline-end"
                 />
             </DropdownMenuTrigger>

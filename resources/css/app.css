@@ -176,9 +176,9 @@
     overflow-wrap: anywhere;
   }
 
-  html.auth-static *,
-  html.auth-static *::before,
-  html.auth-static *::after {
+  html.auth-static *:not(.login-motion):not(.login-motion *),
+  html.auth-static *:not(.login-motion):not(.login-motion *)::before,
+  html.auth-static *:not(.login-motion):not(.login-motion *)::after {
     animation: none !important;
     animation-duration: 0s !important;
     animation-delay: 0s !important;
@@ -2376,5 +2376,104 @@ html[data-page-skeleton] main .page-skeleton-media * {
     animation: none;
     background-image: none;
     -webkit-text-fill-color: currentColor;
+  }
+}
+
+.login-motion {
+  position: relative;
+  width: min(100%, 36rem);
+  height: 14.5rem;
+  margin: 0 auto 1.25rem;
+}
+
+.login-motion__ring {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: min(22rem, 86%);
+  aspect-ratio: 1;
+  transform: translate(-50%, -50%) scaleY(0.48);
+  border: 1px dashed color-mix(in oklch, #10b981 50%, transparent);
+  border-radius: 999px;
+}
+
+.login-motion__arm,
+.login-motion__pin {
+  animation-duration: 42s;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+  animation-delay: calc(var(--login-motion-index) * -4.2s);
+}
+
+.login-motion__arm {
+  position: absolute;
+  inset: 0;
+  transform-origin: center;
+  animation-name: login-motion-spin;
+}
+
+.login-motion__pin {
+  position: absolute;
+  top: 50%;
+  right: 0;
+  width: 2.75rem;
+  height: 2.75rem;
+  margin-top: -1.375rem;
+  margin-right: -1.375rem;
+  animation-name: login-motion-unspin;
+}
+
+.login-motion__badge {
+  display: grid;
+  width: 100%;
+  height: 100%;
+  place-items: center;
+  border-radius: 999px;
+  border: 1px solid color-mix(in oklch, #10b981 48%, var(--border));
+  background: color-mix(in oklch, var(--background) 86%, #10b981);
+  color: #047857;
+  box-shadow: 0 10px 24px color-mix(in oklch, #10b981 24%, transparent);
+  transform: scaleY(2.083);
+}
+
+.dark .login-motion__badge {
+  background: color-mix(in oklch, var(--background) 78%, #064e3b);
+  color: #6ee7b7;
+}
+
+@keyframes login-motion-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes login-motion-unspin {
+  to {
+    transform: rotate(-360deg);
+  }
+}
+
+@media (max-width: 640px) {
+  .login-motion {
+    height: 11.5rem;
+  }
+
+  .login-motion__ring {
+    width: min(16rem, 88%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .login-motion__arm,
+  .login-motion__pin {
+    animation: none;
+  }
+
+  .login-motion__arm {
+    transform: rotate(calc(var(--login-motion-index) * 36deg));
+  }
+
+  .login-motion__pin {
+    transform: rotate(calc(var(--login-motion-index) * -36deg));
   }
 }

@@ -6,7 +6,25 @@ import { Button } from '@/Components/ui/button';
 import PublicLayout from '@/Layouts/PublicLayout';
 import { Head, Link, useForm } from '@inertiajs/react';
 import { conditionalPasskeysAvailable, loginWithPasskey, passkeysSupported } from '@/lib/passkeys';
-import { BanIcon, Eye, EyeOff, ScanFaceIcon, MailCheckIcon, ShieldAlertIcon } from 'lucide-react';
+import {
+    BanIcon,
+    BriefcaseIcon,
+    Building2Icon,
+    CalendarDaysIcon,
+    DoorOpenIcon,
+    Eye,
+    EyeOff,
+    FileSpreadsheetIcon,
+    HardHatIcon,
+    LockKeyholeIcon,
+    MailIcon,
+    RulerIcon,
+    ScanFaceIcon,
+    MailCheckIcon,
+    ShieldAlertIcon,
+    ShieldCheckIcon,
+    type LucideIcon,
+} from 'lucide-react';
 import { FormEventHandler } from 'react';
 import { useEffect, useRef, useState } from 'react';
 
@@ -17,6 +35,48 @@ type LoginAlert = {
     left: number;
     emailed: boolean;
 };
+
+const loginMotion: Array<{ icon: LucideIcon; label: string }> = [
+    { icon: DoorOpenIcon, label: 'Doors' },
+    { icon: LockKeyholeIcon, label: 'Secure locks' },
+    { icon: RulerIcon, label: 'Takeoffs' },
+    { icon: BriefcaseIcon, label: 'Projects' },
+    { icon: MailIcon, label: 'Mail' },
+    { icon: CalendarDaysIcon, label: 'Schedules' },
+    { icon: FileSpreadsheetIcon, label: 'Bids' },
+    { icon: ShieldCheckIcon, label: 'Security' },
+    { icon: HardHatIcon, label: 'Installation' },
+    { icon: Building2Icon, label: 'Facilities' },
+];
+
+function LoginMotion() {
+    return (
+        <div className="login-motion">
+            <p className="sr-only">
+                {loginMotion.map((item) => item.label).join(', ')}
+            </p>
+            <div className="login-motion__ring" aria-hidden="true">
+                {loginMotion.map((item, index) => {
+                    const Icon = item.icon;
+
+                    return (
+                        <div
+                            key={item.label}
+                            className="login-motion__arm"
+                            style={{ ['--login-motion-index' as string]: index }}
+                        >
+                            <div className="login-motion__pin">
+                                <span className="login-motion__badge">
+                                    <Icon className="size-5" />
+                                </span>
+                            </div>
+                        </div>
+                    );
+                })}
+            </div>
+        </div>
+    );
+}
 
 function LoginAlertCard({ alert }: { alert: LoginAlert }) {
     if (alert.type === 'attempt') {
@@ -346,6 +406,7 @@ export default function Login({
 
                     <div className="flex items-center justify-center px-4 py-16 text-center sm:px-6 lg:px-8">
                         <div className="max-w-2xl">
+                            <LoginMotion />
                             <p className="text-sm font-medium uppercase tracking-[0.3em] text-primary">
                                 Gateway Door Systems
                             </p>

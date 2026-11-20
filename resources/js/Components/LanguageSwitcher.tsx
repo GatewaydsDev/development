@@ -9,7 +9,7 @@ import {
 import { buttonVariants } from '@/Components/ui/button';
 import { languages, LanguageCode } from '@/i18n';
 import { cn } from '@/lib/utils';
-import { ChevronDownIcon, LanguagesIcon } from 'lucide-react';
+import { ChevronDownIcon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 const darkHeaderTriggerClass =
@@ -37,17 +37,16 @@ export default function LanguageSwitcher({
                 aria-label={t('language.change')}
                 className={cn(
                     buttonVariants({ variant: 'outline', size: 'sm' }),
-                    'gap-1.5',
+                    'gap-1.5 lg:size-9 lg:px-0',
                     onDarkHeader && darkHeaderTriggerClass,
                 )}
             >
                 <span aria-hidden="true">{currentLanguage.flag}</span>
-                <span className="hidden xl:inline">
+                <span className="lg:hidden">
                     {t(currentLanguage.labelKey)}
                 </span>
-                <LanguagesIcon className="xl:hidden" data-icon="inline-end" />
                 <ChevronDownIcon
-                    className="hidden xl:block"
+                    className="lg:hidden"
                     data-icon="inline-end"
                 />
             </DropdownMenuTrigger>
