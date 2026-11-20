@@ -134,7 +134,7 @@ export default function Index({
     };
 
     const projectRowGridClassName =
-        'w-full xl:grid-cols-[minmax(0,1.1fr)_minmax(0,0.95fr)_minmax(22rem,1.4fr)_minmax(0,0.75fr)_minmax(0,7rem)_minmax(0,6rem)_12.5rem]';
+        'w-full xl:grid-cols-[minmax(0,1.1fr)_minmax(0,0.95fr)_minmax(22rem,1.35fr)_minmax(12rem,1fr)_minmax(0,0.7fr)_minmax(0,7rem)_minmax(0,6rem)_12.5rem]';
 
     return (
         <AuthenticatedLayout
@@ -302,7 +302,7 @@ export default function Index({
 
                         <CardContent className="p-2 pt-0 sm:p-6 sm:pt-0">
                             <div className="overflow-x-auto rounded-lg border border-emerald-200 bg-card max-xl:border-0 max-xl:bg-transparent dark:border-emerald-900">
-                                <div className="grid gap-3 xl:block xl:min-w-[96rem]">
+                                <div className="grid gap-3 xl:block xl:min-w-[112rem]">
                                 <div
                                     className={cn(
                                         'hidden items-center gap-6 border-b border-emerald-200 bg-emerald-50 px-5 py-4 text-xs font-semibold uppercase tracking-wide text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-200 xl:grid',
@@ -312,6 +312,7 @@ export default function Index({
                                     <div>Project</div>
                                     <div>Contractors</div>
                                     <div className="whitespace-nowrap tracking-normal">Quotation, bid, takeoff, schedule</div>
+                                    <div>Bid dates</div>
                                     <div>Bid scope</div>
                                     <div>Status</div>
                                     <div>Priority</div>
@@ -341,11 +342,6 @@ export default function Index({
                                                 <p className="break-words text-sm text-muted-foreground xl:truncate">
                                                     {project.project_number ||
                                                         'No project number'}
-                                                </p>
-                                                <p className="text-sm text-foreground">
-                                                    {project.bid_date
-                                                        ? `Bid date ${project.bid_date}`
-                                                        : 'No bid date'}
                                                 </p>
                                                 {(project.addendums_count ?? 0) > 0 && (
                                                     <p className="text-sm text-muted-foreground">
@@ -446,6 +442,30 @@ export default function Index({
                                                     className="border-emerald-600 bg-emerald-100 text-emerald-950 dark:border-emerald-400 dark:bg-emerald-950 dark:text-emerald-50"
                                                 />
                                                 </div>
+                                            </div>
+                                            <div className="min-w-0">
+                                                <DirectoryFieldLabel hideFrom="xl">
+                                                    Bid dates
+                                                </DirectoryFieldLabel>
+                                                {project.bid_dates && project.bid_dates.length > 0 ? (
+                                                    <ul className="flex flex-col gap-2 text-sm">
+                                                        {project.bid_dates.map((bidDate, index) => (
+                                                            <li key={bidDate.id ?? bidDate.bid_date ?? index}>
+                                                                <p className="font-medium text-foreground">
+                                                                    {index === 0 ? 'Current · ' : ''}
+                                                                    {bidDate.bid_date || 'Not set'}
+                                                                </p>
+                                                                <p className="break-words text-muted-foreground">
+                                                                    {bidDate.notes || 'No change noted.'}
+                                                                </p>
+                                                            </li>
+                                                        ))}
+                                                    </ul>
+                                                ) : (
+                                                    <p className="text-sm text-muted-foreground">
+                                                        No bid date
+                                                    </p>
+                                                )}
                                             </div>
                                             <div className="min-w-0">
                                                 <DirectoryFieldLabel hideFrom="xl">

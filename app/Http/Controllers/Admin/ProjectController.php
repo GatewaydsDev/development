@@ -1384,23 +1384,21 @@ class ProjectController extends Controller
                     ->all(),
             'bid_date' => $project->bidDates->first()?->bid_date?->toDateString(),
             'addendums_count' => $project->addendums->count(),
-            'bid_dates' => $summary
-                ? []
-                : $project->bidDates
-                    ->map(fn (ProjectBidDate $bidDate): array => [
-                        'id' => $bidDate->id,
-                        'bid_date' => $bidDate->bid_date?->toDateString(),
-                        'notes' => $bidDate->notes,
-                        'user_id' => $bidDate->user_id,
-                        'user' => $bidDate->user
-                            ? [
-                                'id' => $bidDate->user->id,
-                                'name' => $bidDate->user->name,
-                            ]
-                            : null,
-                    ])
-                    ->values()
-                    ->all(),
+            'bid_dates' => $project->bidDates
+                ->map(fn (ProjectBidDate $bidDate): array => [
+                    'id' => $bidDate->id,
+                    'bid_date' => $bidDate->bid_date?->toDateString(),
+                    'notes' => $bidDate->notes,
+                    'user_id' => $summary ? null : $bidDate->user_id,
+                    'user' => ! $summary && $bidDate->user
+                        ? [
+                            'id' => $bidDate->user->id,
+                            'name' => $bidDate->user->name,
+                        ]
+                        : null,
+                ])
+                ->values()
+                ->all(),
             'addendums' => $summary
                 ? []
                 : $project->addendums

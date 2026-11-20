@@ -1354,6 +1354,16 @@ test('a project keeps every bid date and each addendum', function () {
         ->and($project->bidDates->first()?->user_id)->toBe($admin->id)
         ->and($project->addendums->pluck('number')->all())->toBe(['1', '2']);
 
+    $this->actingAs($admin)
+        ->get(route('admin.projects.index', ['search' => 'Courthouse openings']))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('projects.data.0.bid_dates.0.bid_date', '2026-11-20')
+            ->where('projects.data.0.bid_dates.0.notes', 'Addendum 2 moved the bid')
+            ->where('projects.data.0.bid_dates.1.bid_date', '2026-11-02')
+            ->where('projects.data.0.bid_dates.1.notes', 'Original bid')
+        );
+
     $current = $project->bidDates->first();
     $earlier = $project->bidDates->last();
     $firstAddendum = $project->addendums->first();
