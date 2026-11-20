@@ -133,6 +133,92 @@ const uniqueAttachments = (files: File[]) => {
 const isImageFile = (file: File) =>
     file.type.startsWith('image/') || /\.(avif|bmp|gif|heic|heif|jpe?g|png|svg|webp)$/i.test(file.name);
 
+const isVectorImage = (file: File) => file.type === 'image/svg+xml' || /\.svg$/i.test(file.name);
+
+const EMAIL_IMAGE_TARGET_BYTES = 220_000;
+
+const canvasJpeg = (canvas: HTMLCanvasElement, quality: number) =>
+    new Promise<Blob | null>((resolve) => {
+        canvas.toBlob((blob) => resolve(blob), 'image/jpeg', quality);
+    });
+
+const shrinkEmailImage = async (file: File): Promise<File> => {
+    if (!isImageFile(file) || isVectorImage(file)) {
+        return file;
+    }
+
+    let bitmap: ImageBitmap;
+
+    try {
+        bitmap = await createImageBitmap(file);
+    } catch {
+        return file;
+    }
+
+    const paint = (longestEdge: number) => {
+        const scale = Math.min(1, longestEdge / Math.max(bitmap.width, bitmap.height, 1));
+        const width = Math.max(1, Math.round(bitmap.width * scale));
+        const height = Math.max(1, Math.round(bitmap.height * scale));
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const context = canvas.getContext('2d');
+
+        if (!context) {
+            return null;
+        }
+
+        context.fillStyle = '#ffffff';
+        context.fillRect(0, 0, width, height);
+        context.drawImage(bitmap, 0, 0, width, height);
+
+        return canvas;
+    };
+
+    let smallest: Blob | null = null;
+
+    for (const edge of [1280, 960, 720, 480]) {
+        const canvas = paint(edge);
+
+        if (!canvas) {
+            break;
+        }
+
+        for (let quality = 0.72; quality >= 0.42; quality = Math.round((quality - 0.1) * 100) / 100) {
+            const blob = await canvasJpeg(canvas, quality);
+
+            if (!blob) {
+                continue;
+            }
+
+            if (!smallest || blob.size < smallest.size) {
+                smallest = blob;
+            }
+
+            if (blob.size <= EMAIL_IMAGE_TARGET_BYTES) {
+                break;
+            }
+        }
+
+        if (smallest && smallest.size <= EMAIL_IMAGE_TARGET_BYTES) {
+            break;
+        }
+    }
+
+    bitmap.close();
+
+    if (!smallest || smallest.size >= file.size) {
+        return file;
+    }
+
+    const base = file.name.replace(/\.[^.]+$/, '') || 'picture';
+
+    return new File([smallest], `${base}.jpg`, {
+        type: 'image/jpeg',
+        lastModified: file.lastModified,
+    });
+};
+
 const droppedFiles = (transfer: DataTransfer | null) => Array.from(transfer?.files ?? []);
 
 const carriesFiles = (transfer: DataTransfer | null) =>
@@ -635,6 +721,10 @@ export default function ComposeMail({
     const [linkOpen, setLinkOpen] = useState(false);
     const [linkUrl, setLinkUrl] = useState('');
     const [attachedFiles, setAttachedFiles] = useState<File[]>([]);
+    const [shrinkingImages, setShrinkingImages] = useState(false);
+    const attachedFilesRef = useRef<File[]>([]);
+    const attachmentQueue = useRef(Promise.resolve());
+    const shrinkCount = useRef(0);
     const addDroppedFilesRef = useRef<(files: File[]) => void>(() => {});
     const form = useForm({
         to: draft?.to ?? '',
@@ -812,7 +902,7 @@ export default function ComposeMail({
     const submit = (event: FormEvent) => {
         event.preventDefault();
 
-        if (!editor) {
+        if (!editor || shrinkingImages) {
             return;
         }
 
@@ -836,7 +926,7 @@ export default function ComposeMail({
     };
 
     const saveDraft = () => {
-        if (!editor || form.processing) {
+        if (!editor || form.processing || shrinkingImages) {
             return;
         }
 
@@ -854,13 +944,60 @@ export default function ComposeMail({
 
     const updateAttachments = (next: File[]) => {
         const files = uniqueAttachments(next);
+        attachedFilesRef.current = files;
         setAttachedFiles(files);
         form.setData('attachments', files);
     };
 
-    addDroppedFilesRef.current = (files) => {
-        updateAttachments([...attachedFiles, ...files]);
+    const addAttachmentFiles = (incoming: File[]) => {
+        if (incoming.length === 0) {
+            return;
+        }
+
+        shrinkCount.current += 1;
+        setShrinkingImages(true);
+        attachmentQueue.current = attachmentQueue.current
+            .then(async () => {
+                const prepared = await Promise.all(incoming.map((file) => shrinkEmailImage(file)));
+                const taken = new Set(attachedFilesRef.current.map((file) => attachmentKey(file)));
+                const named = prepared.map((file) => {
+                    const key = attachmentKey(file);
+
+                    if (key === '' || !taken.has(key)) {
+                        if (key !== '') {
+                            taken.add(key);
+                        }
+
+                        return file;
+                    }
+
+                    const base = file.name.replace(/\.[^.]+$/, '') || 'picture';
+                    const extension = file.name.match(/\.[^.]+$/)?.[0] ?? '';
+                    let count = 2;
+                    let name = `${base}-${count}${extension}`;
+
+                    while (taken.has(name.toLowerCase())) {
+                        count += 1;
+                        name = `${base}-${count}${extension}`;
+                    }
+
+                    taken.add(name.toLowerCase());
+
+                    return new File([file], name, { type: file.type, lastModified: file.lastModified });
+                });
+
+                updateAttachments([...attachedFilesRef.current, ...named]);
+            })
+            .finally(() => {
+                shrinkCount.current = Math.max(0, shrinkCount.current - 1);
+
+                if (shrinkCount.current === 0) {
+                    setShrinkingImages(false);
+                }
+            });
     };
+
+    addDroppedFilesRef.current = addAttachmentFiles;
 
     const acceptDroppedFiles = (event: ReactDragEvent) => {
         if (!carriesFiles(event.dataTransfer)) {
@@ -1020,16 +1157,16 @@ export default function ComposeMail({
                 <Button
                     type="button"
                     variant="outline"
-                    disabled={form.processing}
+                    disabled={form.processing || shrinkingImages}
                     className="min-h-10 shrink-0 px-3"
                     onClick={saveDraft}
                 >
                     <SaveIcon className="size-4" />
-                    {form.processing ? t('savingDraft') : t('saveDraft')}
+                    {shrinkingImages ? t('shrinkingImages') : form.processing ? t('savingDraft') : t('saveDraft')}
                 </Button>
                 <Button
                     type="submit"
-                    disabled={form.processing}
+                    disabled={form.processing || shrinkingImages}
                     className="min-h-10 shrink-0 bg-emerald-700 px-3 text-white hover:bg-emerald-800"
                 >
                     <SendIcon className="size-4" />
@@ -1043,15 +1180,14 @@ export default function ComposeMail({
                 multiple
                 className="hidden"
                 onChange={(event) => {
-                    const files = Array.from(event.target.files ?? []);
-                    updateAttachments([...attachedFiles, ...files]);
+                    addAttachmentFiles(Array.from(event.target.files ?? []));
                     event.target.value = '';
                 }}
             />
-            {attachedFiles.length > 0 ? (
+            {attachedFiles.length > 0 || shrinkingImages ? (
                 <div className="border-b border-border bg-muted/40 px-3 py-2">
                     <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                        {t('attachments')}
+                        {shrinkingImages ? t('shrinkingImages') : t('attachments')}
                     </p>
                     <ul className="flex flex-wrap gap-2" aria-label={t('attachments')}>
                         {attachedFiles.map((file, index) => {
@@ -1201,13 +1337,13 @@ export default function ComposeMail({
                 <div className="flex min-h-14 items-center gap-1 overflow-x-auto overscroll-x-contain px-2 py-1.5 touch-pan-x [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                     {ribbonTab === 'message' ? (
                         <>
-                            <Button type="submit" disabled={form.processing} className="h-10 shrink-0 bg-emerald-700 px-4 text-white hover:bg-emerald-800 max-sm:hidden">
+                            <Button type="submit" disabled={form.processing || shrinkingImages} className="h-10 shrink-0 bg-emerald-700 px-4 text-white hover:bg-emerald-800 max-sm:hidden">
                                 <SendIcon className="size-4" />
                                 {form.processing ? t('sending') : t('send')}
                             </Button>
-                            <Button type="button" variant="outline" className="h-10 shrink-0" disabled={form.processing} onClick={saveDraft}>
+                            <Button type="button" variant="outline" className="h-10 shrink-0" disabled={form.processing || shrinkingImages} onClick={saveDraft}>
                                 <SaveIcon className="size-4" />
-                                {form.processing ? t('savingDraft') : t('saveDraft')}
+                                {shrinkingImages ? t('shrinkingImages') : form.processing ? t('savingDraft') : t('saveDraft')}
                             </Button>
                             <Button type="button" variant="outline" className="h-10 shrink-0 max-sm:hidden" onClick={onDiscard}>
                                 <XIcon className="size-4" />
