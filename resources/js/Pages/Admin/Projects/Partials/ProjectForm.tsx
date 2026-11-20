@@ -41,11 +41,15 @@ import {
 import { z } from 'zod';
 import { type PageProps } from '@/types';
 import {
+    blankAddendum,
+    blankBidDate,
     blankContractor,
     blankPrice,
     blankRevision,
     blankScope,
     projectToFormData,
+    type ProjectAddendumFormData,
+    type ProjectBidDateFormData,
     type ProjectFormData,
     type ProjectOptions,
     type ProjectPayload,
@@ -177,6 +181,34 @@ function projectSchema(options: ProjectOptions, canEditCoreFields: boolean) {
                     user_name: z.string(),
                 }),
             ),
+            bid_dates: z.array(
+                z.object({
+                    id: z.string(),
+                    bid_date: optionalDateSchema,
+                    notes: z
+                        .string()
+                        .trim()
+                        .max(2000, 'Bid date notes must be 2,000 characters or less.'),
+                    user_id: z.string(),
+                    user_name: z.string(),
+                }),
+            ),
+            addendums: z.array(
+                z.object({
+                    id: z.string(),
+                    number: z
+                        .string()
+                        .trim()
+                        .max(50, 'Addendum number must be 50 characters or less.'),
+                    issued_on: optionalDateSchema,
+                    notes: z
+                        .string()
+                        .trim()
+                        .max(2000, 'Addendum notes must be 2,000 characters or less.'),
+                    user_id: z.string(),
+                    user_name: z.string(),
+                }),
+            ),
         })
         .superRefine((values, context) => {
             if (
@@ -292,6 +324,71 @@ function projectSchema(options: ProjectOptions, canEditCoreFields: boolean) {
                     seenRevisions.set(number, index);
                 }
             });
+
+            const seenBidDates = new Map<string, number>();
+            values.bid_dates.forEach((bidDate, index) => {
+                const date = bidDate.bid_date.trim();
+                const notes = bidDate.notes.trim();
+
+                if (date === '' && notes === '') {
+                    return;
+                }
+
+                if (date === '') {
+                    context.addIssue({
+                        code: 'custom',
+                        path: ['bid_dates', index, 'bid_date'],
+                        message: 'Enter the bid date.',
+                    });
+
+                    return;
+                }
+
+                const firstIndex = seenBidDates.get(date);
+
+                if (firstIndex !== undefined) {
+                    context.addIssue({
+                        code: 'custom',
+                        path: ['bid_dates', index, 'bid_date'],
+                        message: 'This bid date is already on the list. Add the new date instead.',
+                    });
+                } else {
+                    seenBidDates.set(date, index);
+                }
+            });
+
+            const seenAddendums = new Map<string, number>();
+            values.addendums.forEach((addendum, index) => {
+                const number = addendum.number.trim().toLowerCase();
+                const issuedOn = addendum.issued_on.trim();
+                const notes = addendum.notes.trim();
+
+                if (number === '' && issuedOn === '' && notes === '') {
+                    return;
+                }
+
+                if (number === '') {
+                    context.addIssue({
+                        code: 'custom',
+                        path: ['addendums', index, 'number'],
+                        message: 'Enter the addendum number.',
+                    });
+
+                    return;
+                }
+
+                const firstIndex = seenAddendums.get(number);
+
+                if (firstIndex !== undefined) {
+                    context.addIssue({
+                        code: 'custom',
+                        path: ['addendums', index, 'number'],
+                        message: 'This addendum is already on the list.',
+                    });
+                } else {
+                    seenAddendums.set(number, index);
+                }
+            });
         });
 }
 
@@ -369,6 +466,22 @@ export default function ProjectForm({
     } = useFieldArray({
         control,
         name: 'revisions',
+    });
+    const {
+        fields: bidDateFields,
+        prepend: prependBidDate,
+        remove: removeBidDate,
+    } = useFieldArray({
+        control,
+        name: 'bid_dates',
+    });
+    const {
+        fields: addendumFields,
+        append: appendAddendum,
+        remove: removeAddendum,
+    } = useFieldArray({
+        control,
+        name: 'addendums',
     });
     const {
         fields: priceFields,
@@ -508,6 +621,30 @@ export default function ProjectForm({
                     revision_date: revision.revision_date,
                     notes: revision.notes,
                 })),
+            bid_dates: (values.bid_dates ?? [])
+                .filter(
+                    (bidDate) =>
+                        bidDate.bid_date.trim() !== '' ||
+                        bidDate.notes.trim() !== '',
+                )
+                .map((bidDate) => ({
+                    id: bidDate.id.trim() || null,
+                    bid_date: bidDate.bid_date,
+                    notes: bidDate.notes,
+                })),
+            addendums: (values.addendums ?? [])
+                .filter(
+                    (addendum) =>
+                        addendum.number.trim() !== '' ||
+                        addendum.issued_on.trim() !== '' ||
+                        addendum.notes.trim() !== '',
+                )
+                .map((addendum) => ({
+                    id: addendum.id.trim() || null,
+                    number: addendum.number,
+                    issued_on: addendum.issued_on,
+                    notes: addendum.notes,
+                })),
         };
         const submitOptions = {
             onBefore: () => setProcessing(true),
@@ -593,6 +730,31 @@ export default function ProjectForm({
             value as PathValue<ProjectFormData, FieldPath<ProjectFormData>>,
         );
     };
+    const setBidDateData = (
+        index: number,
+        field: keyof ProjectBidDateFormData,
+        value: string,
+    ) => {
+        setData(
+            `bid_dates.${index}.${field}` as FieldPath<ProjectFormData>,
+            value as PathValue<ProjectFormData, FieldPath<ProjectFormData>>,
+        );
+    };
+    const setAddendumData = (
+        index: number,
+        field: keyof ProjectAddendumFormData,
+        value: string,
+    ) => {
+        setData(
+            `addendums.${index}.${field}` as FieldPath<ProjectFormData>,
+            value as PathValue<ProjectFormData, FieldPath<ProjectFormData>>,
+        );
+    };
+    const currentBidDate = data.bid_dates
+        .map((bidDate) => bidDate.bid_date)
+        .filter((bidDate) => bidDate !== '')
+        .sort()
+        .at(-1);
 
     return (
         <Card className="shadow-sm">
@@ -865,6 +1027,288 @@ export default function ProjectForm({
                                     </div>
                             </div>
                         )}
+
+                        {canEditCoreFields && (
+                            <div className="flex flex-col gap-4 rounded-lg border border-orange-200 bg-orange-50/70 p-4 dark:border-orange-900 dark:bg-orange-950/30">
+                                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                                    <div>
+                                        <h3 className="text-base font-semibold text-foreground">
+                                            Bid dates
+                                        </h3>
+                                        <p className="text-sm text-muted-foreground">
+                                            Keep every bid date. When the date changes, add the new date here. The latest date stays the current bid date.
+                                        </p>
+                                    </div>
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        onClick={() =>
+                                            prependBidDate(
+                                                blankBidDate(
+                                                    currentUserId,
+                                                    auth.user?.name ?? '',
+                                                ),
+                                            )
+                                        }
+                                        className={`w-full sm:w-auto ${addButtonClassName}`}
+                                    >
+                                        <PlusIcon className="size-4" />
+                                        Add bid date
+                                    </Button>
+                                </div>
+
+                                {bidDateFields.length === 0 ? (
+                                    <div className="rounded-lg border border-dashed border-border bg-muted/20 p-4 text-sm text-muted-foreground">
+                                        No bid dates added yet.
+                                    </div>
+                                ) : (
+                                    <div className="flex flex-col gap-4">
+                                        {bidDateFields.map((field, index) => {
+                                            const bidDate = data.bid_dates[index];
+                                            const isCurrent =
+                                                bidDate?.bid_date !== '' &&
+                                                bidDate?.bid_date === currentBidDate;
+
+                                            return (
+                                                <div
+                                                    key={field.id}
+                                                    className="grid min-w-0 items-start gap-4 rounded-lg border border-border bg-muted/10 p-4 md:grid-cols-2 xl:grid-cols-[minmax(10rem,0.8fr)_minmax(0,1.4fr)_minmax(0,1fr)_auto]"
+                                                >
+                                                    <div className="flex flex-col gap-2">
+                                                        <InputLabel
+                                                            htmlFor={`project-bid-date-${index}`}
+                                                            value={isCurrent ? 'Bid date · Current' : 'Bid date'}
+                                                            className={labelClassName}
+                                                        />
+                                                        <TextInput
+                                                            id={`project-bid-date-${index}`}
+                                                            type="date"
+                                                            value={bidDate?.bid_date ?? ''}
+                                                            className={inputClassName}
+                                                            onChange={(event) =>
+                                                                setBidDateData(
+                                                                    index,
+                                                                    'bid_date',
+                                                                    event.target.value,
+                                                                )
+                                                            }
+                                                        />
+                                                        <InputError
+                                                            message={errorMessage(
+                                                                validationErrors,
+                                                                `bid_dates.${index}.bid_date`,
+                                                            )}
+                                                        />
+                                                    </div>
+                                                    <div className="flex flex-col gap-2">
+                                                        <InputLabel
+                                                            htmlFor={`project-bid-date-notes-${index}`}
+                                                            value="Why it changed"
+                                                            className={labelClassName}
+                                                        />
+                                                        <TextInput
+                                                            id={`project-bid-date-notes-${index}`}
+                                                            value={bidDate?.notes ?? ''}
+                                                            className={inputClassName}
+                                                            placeholder="Addendum 2 moved the bid"
+                                                            onChange={(event) =>
+                                                                setBidDateData(
+                                                                    index,
+                                                                    'notes',
+                                                                    event.target.value,
+                                                                )
+                                                            }
+                                                        />
+                                                        <InputError
+                                                            message={errorMessage(
+                                                                validationErrors,
+                                                                `bid_dates.${index}.notes`,
+                                                            )}
+                                                        />
+                                                    </div>
+                                                    <div className="flex flex-col gap-2">
+                                                        <InputLabel
+                                                            htmlFor={`project-bid-date-user-${index}`}
+                                                            value="Recorded by"
+                                                            className={labelClassName}
+                                                        />
+                                                        <TextInput
+                                                            id={`project-bid-date-user-${index}`}
+                                                            value={bidDate?.user_name ?? ''}
+                                                            disabled
+                                                            readOnly
+                                                            className={`${inputClassName} cursor-not-allowed bg-muted`}
+                                                        />
+                                                    </div>
+                                                    <div className="flex items-start lg:pt-7">
+                                                        <Button
+                                                            type="button"
+                                                            variant="outline"
+                                                            className={removeButtonClassName}
+                                                            onClick={() => removeBidDate(index)}
+                                                            aria-label={`Remove bid date ${index + 1}`}
+                                                        >
+                                                            <Trash2Icon className="size-4" />
+                                                            Remove
+                                                        </Button>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
+                        {canEditCoreFields && (
+                            <div className="flex flex-col gap-4 rounded-lg border border-violet-200 bg-violet-50/70 p-4 dark:border-violet-900 dark:bg-violet-950/30">
+                                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                                    <div>
+                                        <h3 className="text-base font-semibold text-foreground">
+                                            Addendums
+                                        </h3>
+                                        <p className="text-sm text-muted-foreground">
+                                            Record each addendum issued for this project. When an addendum moves the bid, add the new date in Bid dates.
+                                        </p>
+                                    </div>
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        onClick={() =>
+                                            appendAddendum(
+                                                blankAddendum(
+                                                    currentUserId,
+                                                    auth.user?.name ?? '',
+                                                ),
+                                            )
+                                        }
+                                        className={`w-full sm:w-auto ${addButtonClassName}`}
+                                    >
+                                        <PlusIcon className="size-4" />
+                                        Add addendum
+                                    </Button>
+                                </div>
+
+                                {addendumFields.length === 0 ? (
+                                    <div className="rounded-lg border border-dashed border-border bg-muted/20 p-4 text-sm text-muted-foreground">
+                                        No addendums added yet.
+                                    </div>
+                                ) : (
+                                    <div className="flex flex-col gap-4">
+                                        {addendumFields.map((field, index) => {
+                                            const addendum = data.addendums[index];
+
+                                            return (
+                                                <div
+                                                    key={field.id}
+                                                    className="grid min-w-0 items-start gap-4 rounded-lg border border-border bg-muted/10 p-4 md:grid-cols-2 xl:grid-cols-[minmax(8rem,0.7fr)_minmax(10rem,0.85fr)_minmax(0,1.4fr)_minmax(0,1fr)_auto]"
+                                                >
+                                                    <div className="flex flex-col gap-2">
+                                                        <InputLabel
+                                                            htmlFor={`project-addendum-number-${index}`}
+                                                            value="Addendum"
+                                                            className={labelClassName}
+                                                        />
+                                                        <TextInput
+                                                            id={`project-addendum-number-${index}`}
+                                                            value={addendum?.number ?? ''}
+                                                            className={inputClassName}
+                                                            placeholder="1, 2, 3"
+                                                            onChange={(event) =>
+                                                                setAddendumData(
+                                                                    index,
+                                                                    'number',
+                                                                    event.target.value,
+                                                                )
+                                                            }
+                                                        />
+                                                        <InputError
+                                                            message={errorMessage(
+                                                                validationErrors,
+                                                                `addendums.${index}.number`,
+                                                            )}
+                                                        />
+                                                    </div>
+                                                    <div className="flex flex-col gap-2">
+                                                        <InputLabel
+                                                            htmlFor={`project-addendum-date-${index}`}
+                                                            value="Issued on"
+                                                            className={labelClassName}
+                                                        />
+                                                        <TextInput
+                                                            id={`project-addendum-date-${index}`}
+                                                            type="date"
+                                                            value={addendum?.issued_on ?? ''}
+                                                            className={inputClassName}
+                                                            onChange={(event) =>
+                                                                setAddendumData(
+                                                                    index,
+                                                                    'issued_on',
+                                                                    event.target.value,
+                                                                )
+                                                            }
+                                                        />
+                                                    </div>
+                                                    <div className="flex flex-col gap-2">
+                                                        <InputLabel
+                                                            htmlFor={`project-addendum-notes-${index}`}
+                                                            value="What changed"
+                                                            className={labelClassName}
+                                                        />
+                                                        <TextInput
+                                                            id={`project-addendum-notes-${index}`}
+                                                            value={addendum?.notes ?? ''}
+                                                            className={inputClassName}
+                                                            placeholder="Hardware spec revised"
+                                                            onChange={(event) =>
+                                                                setAddendumData(
+                                                                    index,
+                                                                    'notes',
+                                                                    event.target.value,
+                                                                )
+                                                            }
+                                                        />
+                                                        <InputError
+                                                            message={errorMessage(
+                                                                validationErrors,
+                                                                `addendums.${index}.notes`,
+                                                            )}
+                                                        />
+                                                    </div>
+                                                    <div className="flex flex-col gap-2">
+                                                        <InputLabel
+                                                            htmlFor={`project-addendum-user-${index}`}
+                                                            value="Recorded by"
+                                                            className={labelClassName}
+                                                        />
+                                                        <TextInput
+                                                            id={`project-addendum-user-${index}`}
+                                                            value={addendum?.user_name ?? ''}
+                                                            disabled
+                                                            readOnly
+                                                            className={`${inputClassName} cursor-not-allowed bg-muted`}
+                                                        />
+                                                    </div>
+                                                    <div className="flex items-start lg:pt-7">
+                                                        <Button
+                                                            type="button"
+                                                            variant="outline"
+                                                            className={removeButtonClassName}
+                                                            onClick={() => removeAddendum(index)}
+                                                            aria-label={`Remove addendum ${index + 1}`}
+                                                        >
+                                                            <Trash2Icon className="size-4" />
+                                                            Remove
+                                                        </Button>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
 
                         <div className="grid items-start gap-5 sm:grid-cols-2 xl:grid-cols-3">
                             <div className="flex flex-col gap-2">

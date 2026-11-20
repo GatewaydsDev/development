@@ -23,6 +23,17 @@ test('the login page is not kept for the browser back button', function () {
         ->and($cacheControl)->toContain('no-cache');
 });
 
+test('login opens the dashboard instead of the page requested before sign-in', function () {
+    $user = User::factory()->create();
+
+    $this->get(route('admin.projects.index'));
+
+    $this->post('/login', [
+        'email' => $user->email,
+        'password' => 'password',
+    ])->assertRedirect(route('dashboard', absolute: false));
+});
+
 test('users can authenticate using the login screen', function () {
     $user = User::factory()->create();
 

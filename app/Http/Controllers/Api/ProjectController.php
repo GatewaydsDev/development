@@ -225,6 +225,8 @@ class ProjectController extends Controller
             'scopes.product',
             'scopes.service',
             'revisions.user:id,name',
+            'bidDates.user:id,name',
+            'addendums.user:id,name',
             'status',
         ]);
 

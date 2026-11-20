@@ -36,8 +36,14 @@ class WebAuthnLoginController
             $lockout->reset($user);
         }
 
+        $home = $user instanceof User && ! $user->hasPermission('view-dashboard') && $user->hasPermission('view-client-portal')
+            ? route('portal.index', absolute: false)
+            : route('dashboard', absolute: false);
+
+        $request->session()->forget('url.intended');
+
         return response()->json([
-            'redirect' => redirect()->intended(route('dashboard', absolute: false))->getTargetUrl(),
+            'redirect' => $home,
         ]);
     }
 }

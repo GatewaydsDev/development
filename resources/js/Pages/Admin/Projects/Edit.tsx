@@ -45,7 +45,7 @@ export default function Edit({ project, options }: EditProps) {
                         method="patch"
                         submitLabel="Save changes"
                         title={project.name}
-                        description="Update the project name, address, contractors, scopes, text, status, and revisions."
+                        description="Update the project name, address, contractors, scopes, text, status, revisions, bid dates, and addendums."
                         options={options}
                         project={project}
                     />

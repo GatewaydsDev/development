@@ -519,6 +519,13 @@
                 </tr>
                 <tr>
                     <td>
+                        <span class="meta-label">Bid date</span>
+                        <span class="meta-value">{{ $bidDate ?: 'Not set' }}</span>
+                    </td>
+                    <td></td>
+                </tr>
+                <tr>
+                    <td>
                         <span class="meta-label">Estimated start</span>
                         <span class="meta-value">{{ $estimatedStart ?: 'Not set' }}</span>
                     </td>
@@ -549,6 +556,56 @@
                                 <td>{{ $revision['date'] }}</td>
                                 <td>{{ $revision['user'] }}</td>
                                 <td>{{ $revision['notes'] }}</td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            @endif
+
+            <h2 class="section-title">Bid dates</h2>
+            @if (count($bidDates) === 0)
+                <p class="muted">No bid dates added yet.</p>
+            @else
+                <table class="pricing">
+                    <thead>
+                        <tr>
+                            <th>Bid date</th>
+                            <th>Why it changed</th>
+                            <th>Recorded by</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach ($bidDates as $bidDateRow)
+                            <tr>
+                                <td>{{ $bidDateRow['date'] }}</td>
+                                <td>{{ $bidDateRow['notes'] }}</td>
+                                <td>{{ $bidDateRow['user'] }}</td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            @endif
+
+            <h2 class="section-title">Addendums</h2>
+            @if (count($addendums) === 0)
+                <p class="muted">No addendums added yet.</p>
+            @else
+                <table class="pricing">
+                    <thead>
+                        <tr>
+                            <th>Addendum</th>
+                            <th>Issued on</th>
+                            <th>What changed</th>
+                            <th>Recorded by</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach ($addendums as $addendum)
+                            <tr>
+                                <td>{{ $addendum['number'] }}</td>
+                                <td>{{ $addendum['date'] }}</td>
+                                <td>{{ $addendum['notes'] }}</td>
+                                <td>{{ $addendum['user'] }}</td>
                             </tr>
                         @endforeach
                     </tbody>

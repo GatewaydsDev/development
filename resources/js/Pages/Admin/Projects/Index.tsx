@@ -342,6 +342,18 @@ export default function Index({
                                                     {project.project_number ||
                                                         'No project number'}
                                                 </p>
+                                                <p className="text-sm text-foreground">
+                                                    {project.bid_date
+                                                        ? `Bid date ${project.bid_date}`
+                                                        : 'No bid date'}
+                                                </p>
+                                                {(project.addendums_count ?? 0) > 0 && (
+                                                    <p className="text-sm text-muted-foreground">
+                                                        {project.addendums_count === 1
+                                                            ? '1 addendum'
+                                                            : `${project.addendums_count} addendums`}
+                                                    </p>
+                                                )}
                                             </div>
                                             <div className="min-w-0 text-sm text-muted-foreground">
                                                 <DirectoryFieldLabel hideFrom="xl">

@@ -44,6 +44,8 @@ class ProjectDocument
             'scopes.product',
             'scopes.service',
             'revisions.user:id,name',
+            'bidDates.user:id,name',
+            'addendums.user:id,name',
             'prices',
         ]);
 
@@ -83,6 +85,7 @@ class ProjectDocument
             'status' => $this->project->status?->name,
             'priority' => $this->priorityLabel(),
             'assignee' => $this->project->assignee?->name,
+            'bidDate' => $this->dateLabel($this->project->bidDates->first()?->bid_date),
             'estimatedStart' => $this->dateLabel($this->project->estimated_start_date),
             'estimatedEnd' => $this->dateLabel($this->project->estimated_end_date),
             'showBudget' => $this->showSensitiveFields,
@@ -101,6 +104,8 @@ class ProjectDocument
             'contractors' => $this->contractorRows(),
             'scopes' => $this->scopeRows(),
             'revisions' => $this->revisionRows(),
+            'bidDates' => $this->bidDateRows(),
+            'addendums' => $this->addendumRows(),
             'publicNotes' => $this->plainText($this->project->public_notes),
             'internalNotes' => $this->showSensitiveFields
                 ? $this->plainText($this->project->internal_notes)
@@ -238,6 +243,7 @@ class ProjectDocument
             ['Status', $this->project->status?->name ?: '—'],
             ['Priority', $this->priorityLabel()],
             ['Assigned to', $this->project->assignee?->name ?: '—'],
+            ['Bid date', $this->dateLabel($this->project->bidDates->first()?->bid_date) ?: '—'],
             ['Estimated start', $this->dateLabel($this->project->estimated_start_date) ?: '—'],
             ['Estimated end', $this->dateLabel($this->project->estimated_end_date) ?: '—'],
         ];
@@ -271,6 +277,51 @@ class ProjectDocument
                 $table->addCell(2200, ['bgColor' => $bg])->addText($revision['date'], ['size' => 9]);
                 $table->addCell(2800, ['bgColor' => $bg])->addText($revision['user'], ['size' => 9]);
                 $table->addCell(4000, ['bgColor' => $bg])->addText($revision['notes'], ['size' => 9]);
+            }
+        }
+
+        $section->addTextBreak(1);
+        $section->addText('Bid dates', ['bold' => true, 'size' => 13, 'color' => $this->wordColor('brand')]);
+        $bidDates = $this->bidDateRows();
+        if ($bidDates === []) {
+            $section->addText('No bid dates added yet.', ['italic' => true, 'size' => 10, 'color' => '6B7280']);
+        } else {
+            $table = $section->addTable('projectMetaTable');
+            $table->addRow(360);
+            foreach ([['Bid date', 2200], ['Why it changed', 5200], ['Recorded by', 3400]] as [$heading, $width]) {
+                $table->addCell($width, ['bgColor' => $this->wordColor('table_header_bg'), 'valign' => 'center'])
+                    ->addText($heading, ['bold' => true, 'color' => $this->wordColor('table_header_text'), 'size' => 9]);
+            }
+
+            foreach ($bidDates as $index => $bidDate) {
+                $bg = $index % 2 === 1 ? $this->wordColor('row_alt') : 'FFFFFF';
+                $table->addRow();
+                $table->addCell(2200, ['bgColor' => $bg])->addText($bidDate['date'], ['size' => 9]);
+                $table->addCell(5200, ['bgColor' => $bg])->addText($bidDate['notes'], ['size' => 9]);
+                $table->addCell(3400, ['bgColor' => $bg])->addText($bidDate['user'], ['size' => 9]);
+            }
+        }
+
+        $section->addTextBreak(1);
+        $section->addText('Addendums', ['bold' => true, 'size' => 13, 'color' => $this->wordColor('brand')]);
+        $addendums = $this->addendumRows();
+        if ($addendums === []) {
+            $section->addText('No addendums added yet.', ['italic' => true, 'size' => 10, 'color' => '6B7280']);
+        } else {
+            $table = $section->addTable('projectMetaTable');
+            $table->addRow(360);
+            foreach ([['Addendum', 1600], ['Issued on', 2200], ['What changed', 4800], ['Recorded by', 2200]] as [$heading, $width]) {
+                $table->addCell($width, ['bgColor' => $this->wordColor('table_header_bg'), 'valign' => 'center'])
+                    ->addText($heading, ['bold' => true, 'color' => $this->wordColor('table_header_text'), 'size' => 9]);
+            }
+
+            foreach ($addendums as $index => $addendum) {
+                $bg = $index % 2 === 1 ? $this->wordColor('row_alt') : 'FFFFFF';
+                $table->addRow();
+                $table->addCell(1600, ['bgColor' => $bg])->addText($addendum['number'], ['size' => 9]);
+                $table->addCell(2200, ['bgColor' => $bg])->addText($addendum['date'], ['size' => 9]);
+                $table->addCell(4800, ['bgColor' => $bg])->addText($addendum['notes'], ['size' => 9]);
+                $table->addCell(2200, ['bgColor' => $bg])->addText($addendum['user'], ['size' => 9]);
             }
         }
 
@@ -416,6 +467,37 @@ class ProjectDocument
                 'date' => $this->dateLabel($revision->revision_date) ?: 'Not set',
                 'user' => $revision->user?->name ?: 'Not set',
                 'notes' => filled($revision->notes) ? (string) $revision->notes : 'No notes added.',
+            ])
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @return list<array{date: string, notes: string, user: string}>
+     */
+    private function bidDateRows(): array
+    {
+        return $this->project->bidDates
+            ->map(fn ($bidDate): array => [
+                'date' => $this->dateLabel($bidDate->bid_date) ?: 'Not set',
+                'notes' => filled($bidDate->notes) ? (string) $bidDate->notes : 'No notes added.',
+                'user' => $bidDate->user?->name ?: 'Not set',
+            ])
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @return list<array{number: string, date: string, notes: string, user: string}>
+     */
+    private function addendumRows(): array
+    {
+        return $this->project->addendums
+            ->map(fn ($addendum): array => [
+                'number' => (string) ($addendum->number ?: '—'),
+                'date' => $this->dateLabel($addendum->issued_on) ?: 'Not set',
+                'notes' => filled($addendum->notes) ? (string) $addendum->notes : 'No notes added.',
+                'user' => $addendum->user?->name ?: 'Not set',
             ])
             ->values()
             ->all();

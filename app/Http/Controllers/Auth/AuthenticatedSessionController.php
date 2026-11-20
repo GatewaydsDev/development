@@ -40,11 +40,9 @@ class AuthenticatedSessionController extends Controller
             ? route('portal.index', absolute: false)
             : route('dashboard', absolute: false);
 
-        $target = redirect()
-            ->intended($home)
-            ->getTargetUrl();
+        $request->session()->forget('url.intended');
 
-        return Inertia::location($target);
+        return Inertia::location($home);
     }
 
     /**

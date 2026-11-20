@@ -150,6 +150,21 @@ class Project extends Model
             ->orderByDesc('id');
     }
 
+    public function bidDates(): HasMany
+    {
+        return $this->hasMany(ProjectBidDate::class)
+            ->orderByDesc('bid_date')
+            ->orderByDesc('id');
+    }
+
+    public function addendums(): HasMany
+    {
+        return $this->hasMany(ProjectAddendum::class)
+            ->orderByRaw('case when issued_on is null then 1 else 0 end')
+            ->orderBy('issued_on')
+            ->orderBy('id');
+    }
+
     public function bids(): HasMany
     {
         return $this->hasMany(Bid::class)->latest();

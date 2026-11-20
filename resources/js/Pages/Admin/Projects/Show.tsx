@@ -26,7 +26,9 @@ import { useState } from 'react';
 import { formatCurrency } from '@/lib/money';
 import {
     BriefcaseIcon,
+    CalendarDaysIcon,
     EditIcon,
+    FilePlus2Icon,
     FileTextIcon,
     HammerIcon,
     HistoryIcon,
@@ -266,6 +268,10 @@ export default function Show({ project, options, clientCompany = null, clientCom
                                     </div>
                                 )}
                                 <DetailItem
+                                    label="Bid date"
+                                    value={project.bid_date}
+                                />
+                                <DetailItem
                                     label="Estimated start"
                                     value={project.estimated_start_date}
                                 />
@@ -366,6 +372,120 @@ export default function Show({ project, options, clientCompany = null, clientCom
                                     value={project.site_state}
                                 />
                             </dl>
+                        </CardContent>
+                    </Card>
+
+                    <Card className="border-orange-200 bg-orange-50/70 dark:border-orange-900 dark:bg-orange-950/30">
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2">
+                                <CalendarDaysIcon className="size-5 text-muted-foreground" />
+                                Bid dates
+                            </CardTitle>
+                            <CardDescription>
+                                Every bid date stays on the project. The latest date is the current bid date.
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            {project.bid_dates && project.bid_dates.length > 0 ? (
+                                <div className="flex flex-col gap-3">
+                                    {project.bid_dates.map((bidDate, index) => (
+                                        <div
+                                            key={bidDate.id ?? bidDate.bid_date}
+                                            className="grid gap-3 rounded-lg border border-border bg-muted/30 p-4 sm:grid-cols-[10rem_minmax(0,1.4fr)_minmax(10rem,0.9fr)] sm:items-start"
+                                        >
+                                            <div>
+                                                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                                                    {index === 0 ? 'Current bid date' : 'Earlier bid date'}
+                                                </p>
+                                                <p className="mt-1 font-medium text-foreground">
+                                                    {bidDate.bid_date || 'Not set'}
+                                                </p>
+                                            </div>
+                                            <div>
+                                                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                                                    Why it changed
+                                                </p>
+                                                <p className="mt-1 text-sm text-foreground">
+                                                    {bidDate.notes || 'No notes added.'}
+                                                </p>
+                                            </div>
+                                            <div>
+                                                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                                                    Recorded by
+                                                </p>
+                                                <p className="mt-1 text-sm text-foreground">
+                                                    {bidDate.user?.name || 'Not set'}
+                                                </p>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : (
+                                <p className="text-sm text-muted-foreground">
+                                    No bid dates added yet.
+                                </p>
+                            )}
+                        </CardContent>
+                    </Card>
+
+                    <Card className="border-violet-200 bg-violet-50/70 dark:border-violet-900 dark:bg-violet-950/30">
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2">
+                                <FilePlus2Icon className="size-5 text-muted-foreground" />
+                                Addendums
+                            </CardTitle>
+                            <CardDescription>
+                                Addendums issued for this project. A new bid date is added separately when an addendum moves the bid.
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            {project.addendums && project.addendums.length > 0 ? (
+                                <div className="flex flex-col gap-3">
+                                    {project.addendums.map((addendum) => (
+                                        <div
+                                            key={addendum.id ?? addendum.number}
+                                            className="grid gap-3 rounded-lg border border-border bg-muted/30 p-4 sm:grid-cols-[8rem_10rem_minmax(0,1.4fr)_minmax(10rem,0.9fr)] sm:items-start"
+                                        >
+                                            <div>
+                                                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                                                    Addendum
+                                                </p>
+                                                <p className="mt-1 font-medium text-foreground">
+                                                    {addendum.number}
+                                                </p>
+                                            </div>
+                                            <div>
+                                                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                                                    Issued on
+                                                </p>
+                                                <p className="mt-1 text-sm text-foreground">
+                                                    {addendum.issued_on || 'Not set'}
+                                                </p>
+                                            </div>
+                                            <div>
+                                                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                                                    What changed
+                                                </p>
+                                                <p className="mt-1 text-sm text-foreground">
+                                                    {addendum.notes || 'No notes added.'}
+                                                </p>
+                                            </div>
+                                            <div>
+                                                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                                                    Recorded by
+                                                </p>
+                                                <p className="mt-1 text-sm text-foreground">
+                                                    {addendum.user?.name || 'Not set'}
+                                                </p>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : (
+                                <p className="text-sm text-muted-foreground">
+                                    No addendums added yet.
+                                </p>
+                            )}
                         </CardContent>
                     </Card>
 

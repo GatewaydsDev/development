@@ -1312,3 +1312,96 @@ test('a project can be linked to more than one company and updated', function ()
     $this->actingAs($admin)->get(route('contact-directory.companies.show', $c))
         ->assertInertia(fn ($page) => $page->where('projects.0.name', 'Shared job'));
 });
+
+test('a project keeps every bid date and each addendum', function () {
+    $admin = projectAdmin();
+    $base = [
+        'name' => 'Courthouse openings',
+        'project_number' => '',
+        'assigned_to' => '',
+        'status_id' => projectStatusId(),
+        'priority' => 'normal',
+        'estimated_start_date' => '',
+        'estimated_end_date' => '',
+        'completed_at' => '',
+        'public_notes' => '',
+        'internal_notes' => '',
+        'contractors' => [],
+        'scopes' => [],
+        'revisions' => [],
+        'prices' => [],
+    ];
+
+    $this->actingAs($admin)
+        ->post(route('admin.projects.store'), [
+            ...$base,
+            'bid_dates' => [
+                ['bid_date' => '2026-11-02', 'notes' => 'Original bid'],
+                ['bid_date' => '2026-11-20', 'notes' => 'Addendum 2 moved the bid'],
+            ],
+            'addendums' => [
+                ['number' => '2', 'issued_on' => '2026-11-12', 'notes' => 'Hardware spec revised'],
+                ['number' => '1', 'issued_on' => '2026-10-28', 'notes' => 'Drawing cloud'],
+            ],
+        ])
+        ->assertSessionHasNoErrors();
+
+    $project = Project::query()->where('name', 'Courthouse openings')->firstOrFail();
+    $project->load(['bidDates.user', 'addendums.user']);
+
+    expect($project->bidDates)->toHaveCount(2)
+        ->and($project->bidDates->first()?->bid_date->toDateString())->toBe('2026-11-20')
+        ->and($project->bidDates->first()?->user_id)->toBe($admin->id)
+        ->and($project->addendums->pluck('number')->all())->toBe(['1', '2']);
+
+    $current = $project->bidDates->first();
+    $earlier = $project->bidDates->last();
+    $firstAddendum = $project->addendums->first();
+
+    $this->actingAs($admin)
+        ->patch(route('admin.projects.update', $project), [
+            ...$base,
+            'bid_dates' => [
+                [
+                    'id' => $current->id,
+                    'bid_date' => '2026-11-20',
+                    'notes' => 'Addendum 2 moved the bid',
+                ],
+                [
+                    'id' => $earlier->id,
+                    'bid_date' => '2026-11-02',
+                    'notes' => 'Original bid',
+                ],
+                ['bid_date' => '2026-12-04', 'notes' => 'Owner postponed the opening'],
+            ],
+            'addendums' => [
+                [
+                    'id' => $firstAddendum->id,
+                    'number' => '1',
+                    'issued_on' => '2026-10-28',
+                    'notes' => 'Drawing cloud',
+                ],
+            ],
+        ])
+        ->assertSessionHasNoErrors();
+
+    $project->refresh()->load(['bidDates', 'addendums']);
+
+    expect($project->bidDates)->toHaveCount(3)
+        ->and($project->bidDates->first()?->bid_date->toDateString())->toBe('2026-12-04')
+        ->and($project->addendums)->toHaveCount(1)
+        ->and($project->addendums->first()?->number)->toBe('1');
+
+    $this->actingAs($admin)
+        ->patch(route('admin.projects.update', $project), [
+            ...$base,
+            'bid_dates' => [
+                ['bid_date' => '2026-12-04', 'notes' => 'First'],
+                ['bid_date' => '2026-12-04', 'notes' => 'Same day again'],
+            ],
+            'addendums' => [],
+        ])
+        ->assertSessionHasErrors('bid_dates.1.bid_date');
+
+    expect($project->fresh()->bidDates)->toHaveCount(3);
+});

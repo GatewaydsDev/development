@@ -42,7 +42,7 @@ export default function Create({ options }: CreateProps) {
                         action={route('admin.projects.store')}
                         submitLabel="Create project"
                         title="Project information"
-                        description="Create a project with name, status, assignment, contractors, scopes, and revisions."
+                        description="Create a project with name, status, assignment, contractors, scopes, revisions, bid dates, and addendums."
                         options={options}
                     />
                 </div>

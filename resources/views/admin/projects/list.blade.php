@@ -400,6 +400,10 @@
                                 <td>
                                     <span class="name">{{ $row['name'] }}</span>
                                     <span class="muted">{{ $row['project_number'] }}</span>
+                                    <span class="muted">{{ $row['bid_date'] }}</span>
+                                    @if ($row['addendums'] !== '')
+                                        <span class="muted">{{ $row['addendums'] }}</span>
+                                    @endif
                                 </td>
                                 <td>{{ $row['contractors'] }}</td>
                                 <td>{{ $row['bid_scope'] }}</td>

@@ -230,6 +230,10 @@ class ProjectListDocument
                 $projectCell = $table->addCell(5200, ['bgColor' => $bg, 'valign' => 'center']);
                 $projectCell->addText($row['name'], ['size' => 10, 'color' => $this->wordColor('title'), 'bold' => true]);
                 $projectCell->addText($row['project_number'], ['size' => 8, 'color' => '6B7280']);
+                $projectCell->addText($row['bid_date'], ['size' => 8, 'color' => '111827']);
+                if ($row['addendums'] !== '') {
+                    $projectCell->addText($row['addendums'], ['size' => 8, 'color' => '6B7280']);
+                }
 
                 $table->addCell(4800, ['bgColor' => $bg, 'valign' => 'center'])
                     ->addText($row['contractors'], ['size' => 9, 'color' => '111827']);
@@ -280,6 +284,14 @@ class ProjectListDocument
         return [
             'name' => $project->name,
             'project_number' => $project->project_number ?: 'No project number',
+            'bid_date' => $project->bidDates->first()?->bid_date
+                ? 'Bid date '.$project->bidDates->first()->bid_date->format('M j, Y')
+                : 'No bid date',
+            'addendums' => $project->addendums->count() === 0
+                ? ''
+                : ($project->addendums->count() === 1
+                    ? '1 addendum'
+                    : $project->addendums->count().' addendums'),
             'contractors' => $project->contractors
                 ->pluck('name')
                 ->filter()

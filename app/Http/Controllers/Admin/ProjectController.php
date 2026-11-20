@@ -10,6 +10,8 @@ use App\Models\ContactDirectory\ContactCompany;
 use App\Models\Contractor;
 use App\Models\Product;
 use App\Models\Project;
+use App\Models\ProjectAddendum;
+use App\Models\ProjectBidDate;
 use App\Models\ProjectPrice;
 use App\Models\ProjectPriority;
 use App\Models\ProjectRevision;
@@ -272,6 +274,8 @@ class ProjectController extends Controller
             'scopes.product',
             'scopes.service',
             'revisions.user:id,name',
+            'bidDates.user:id,name',
+            'addendums.user:id,name',
             'prices',
             'status',
             'clientCompany.users',
@@ -313,6 +317,8 @@ class ProjectController extends Controller
             'scopes.product',
             'scopes.service',
             'revisions.user:id,name',
+            'bidDates.user:id,name',
+            'addendums.user:id,name',
             'prices',
             'status',
         ]);
@@ -450,6 +456,8 @@ class ProjectController extends Controller
                 'scopes.product',
                 'scopes.service',
                 'revisions',
+                'bidDates.user:id,name',
+                'addendums',
                 'status',
                 'quotations' => fn ($query) => $query
                     ->select('id', 'uuid', 'project_id', 'quotation_number', 'title', 'status')
@@ -734,6 +742,31 @@ class ProjectController extends Controller
                 'revisions.*.number' => ['required', 'string', 'max:50', 'distinct'],
                 'revisions.*.revision_date' => ['nullable', 'date'],
                 'revisions.*.notes' => ['nullable', 'string', 'max:2000'],
+                'bid_dates' => ['sometimes', 'array'],
+                'bid_dates.*.id' => [
+                    'nullable',
+                    'integer',
+                    Rule::exists(ProjectBidDate::class, 'id')->where(
+                        fn ($query) => $project
+                            ? $query->where('project_id', $project->id)
+                            : $query->whereRaw('0 = 1'),
+                    ),
+                ],
+                'bid_dates.*.bid_date' => ['required', 'date', 'distinct'],
+                'bid_dates.*.notes' => ['nullable', 'string', 'max:2000'],
+                'addendums' => ['sometimes', 'array'],
+                'addendums.*.id' => [
+                    'nullable',
+                    'integer',
+                    Rule::exists(ProjectAddendum::class, 'id')->where(
+                        fn ($query) => $project
+                            ? $query->where('project_id', $project->id)
+                            : $query->whereRaw('0 = 1'),
+                    ),
+                ],
+                'addendums.*.number' => ['required', 'string', 'max:50', 'distinct'],
+                'addendums.*.issued_on' => ['nullable', 'date'],
+                'addendums.*.notes' => ['nullable', 'string', 'max:2000'],
             ];
         }
 
@@ -914,6 +947,14 @@ class ProjectController extends Controller
         }
         $this->syncScopes($project, $validated['scopes'] ?? []);
         $this->syncRevisions($project, $validated['revisions'] ?? [], $request->user());
+
+        if (array_key_exists('bid_dates', $validated)) {
+            $this->syncBidDates($project, $validated['bid_dates'], $request->user());
+        }
+
+        if (array_key_exists('addendums', $validated)) {
+            $this->syncAddendums($project, $validated['addendums'], $request->user());
+        }
     }
 
     /**
@@ -1155,6 +1196,102 @@ class ProjectController extends Controller
     }
 
     /**
+     * @param  array<int, array<string, mixed>>  $bidDates
+     */
+    private function syncBidDates(Project $project, array $bidDates, User $user): void
+    {
+        $bidDates = collect($bidDates)
+            ->filter(fn (array $bidDate): bool => filled($bidDate['bid_date'] ?? null))
+            ->unique(fn (array $bidDate): string => (string) $bidDate['bid_date'])
+            ->values();
+
+        $keptIds = [];
+
+        foreach ($bidDates as $bidDate) {
+            $bidDateId = (int) ($bidDate['id'] ?? 0);
+            $existing = $bidDateId > 0
+                ? $project->bidDates()->whereKey($bidDateId)->first()
+                : null;
+            $attributes = [
+                'bid_date' => $bidDate['bid_date'],
+                'notes' => filled($bidDate['notes'] ?? null) ? trim((string) $bidDate['notes']) : null,
+            ];
+
+            if ($existing) {
+                $changed = $existing->bid_date?->toDateString() !== $attributes['bid_date']
+                    || trim((string) ($existing->notes ?? '')) !== trim((string) ($attributes['notes'] ?? ''));
+
+                if ($changed) {
+                    $attributes['user_id'] = $user->id;
+                }
+
+                $existing->update($attributes);
+                $keptIds[] = $existing->id;
+
+                continue;
+            }
+
+            $keptIds[] = $project->bidDates()->create([
+                ...$attributes,
+                'user_id' => $user->id,
+            ])->id;
+        }
+
+        $project->bidDates()
+            ->when($keptIds !== [], fn ($query) => $query->whereKeyNot($keptIds))
+            ->delete();
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $addendums
+     */
+    private function syncAddendums(Project $project, array $addendums, User $user): void
+    {
+        $addendums = collect($addendums)
+            ->filter(fn (array $addendum): bool => filled($addendum['number'] ?? null))
+            ->unique(fn (array $addendum): string => strtolower(trim((string) $addendum['number'])))
+            ->values();
+
+        $keptIds = [];
+
+        foreach ($addendums as $addendum) {
+            $addendumId = (int) ($addendum['id'] ?? 0);
+            $existing = $addendumId > 0
+                ? $project->addendums()->whereKey($addendumId)->first()
+                : null;
+            $attributes = [
+                'number' => trim((string) $addendum['number']),
+                'issued_on' => $addendum['issued_on'] ?: null,
+                'notes' => filled($addendum['notes'] ?? null) ? trim((string) $addendum['notes']) : null,
+            ];
+
+            if ($existing) {
+                $changed = $existing->number !== $attributes['number']
+                    || $existing->issued_on?->toDateString() !== $attributes['issued_on']
+                    || trim((string) ($existing->notes ?? '')) !== trim((string) ($attributes['notes'] ?? ''));
+
+                if ($changed) {
+                    $attributes['user_id'] = $user->id;
+                }
+
+                $existing->update($attributes);
+                $keptIds[] = $existing->id;
+
+                continue;
+            }
+
+            $keptIds[] = $project->addendums()->create([
+                ...$attributes,
+                'user_id' => $user->id,
+            ])->id;
+        }
+
+        $project->addendums()
+            ->when($keptIds !== [], fn ($query) => $query->whereKeyNot($keptIds))
+            ->delete();
+    }
+
+    /**
      * @return array<string, mixed>
      */
     public function projectPayload(Project $project, User $user, bool $summary = false): array
@@ -1240,6 +1377,43 @@ class ProjectController extends Controller
                             ? [
                                 'id' => $revision->user->id,
                                 'name' => $revision->user->name,
+                            ]
+                            : null,
+                    ])
+                    ->values()
+                    ->all(),
+            'bid_date' => $project->bidDates->first()?->bid_date?->toDateString(),
+            'addendums_count' => $project->addendums->count(),
+            'bid_dates' => $summary
+                ? []
+                : $project->bidDates
+                    ->map(fn (ProjectBidDate $bidDate): array => [
+                        'id' => $bidDate->id,
+                        'bid_date' => $bidDate->bid_date?->toDateString(),
+                        'notes' => $bidDate->notes,
+                        'user_id' => $bidDate->user_id,
+                        'user' => $bidDate->user
+                            ? [
+                                'id' => $bidDate->user->id,
+                                'name' => $bidDate->user->name,
+                            ]
+                            : null,
+                    ])
+                    ->values()
+                    ->all(),
+            'addendums' => $summary
+                ? []
+                : $project->addendums
+                    ->map(fn (ProjectAddendum $addendum): array => [
+                        'id' => $addendum->id,
+                        'number' => $addendum->number,
+                        'issued_on' => $addendum->issued_on?->toDateString(),
+                        'notes' => $addendum->notes,
+                        'user_id' => $addendum->user_id,
+                        'user' => $addendum->user
+                            ? [
+                                'id' => $addendum->user->id,
+                                'name' => $addendum->user->name,
                             ]
                             : null,
                     ])

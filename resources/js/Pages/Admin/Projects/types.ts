@@ -92,6 +92,29 @@ export type ProjectRevision = {
     } | null;
 };
 
+export type ProjectBidDate = {
+    id?: number;
+    bid_date: string | null;
+    notes: string | null;
+    user_id?: number | null;
+    user?: {
+        id: number;
+        name: string;
+    } | null;
+};
+
+export type ProjectAddendum = {
+    id?: number;
+    number: string;
+    issued_on: string | null;
+    notes: string | null;
+    user_id?: number | null;
+    user?: {
+        id: number;
+        name: string;
+    } | null;
+};
+
 export type ProjectPayload = {
     id: number;
     uuid: string;
@@ -123,6 +146,10 @@ export type ProjectPayload = {
     companies?: Array<{ uuid: string; name: string; main_office: string | null }>;
     scopes: ProjectScope[];
     revisions: ProjectRevision[];
+    bid_date?: string | null;
+    addendums_count?: number;
+    bid_dates?: ProjectBidDate[];
+    addendums?: ProjectAddendum[];
     assignee: {
         id: number;
         name: string;
@@ -206,6 +233,23 @@ export type ProjectRevisionFormData = {
     user_name: string;
 };
 
+export type ProjectBidDateFormData = {
+    id: string;
+    bid_date: string;
+    notes: string;
+    user_id: string;
+    user_name: string;
+};
+
+export type ProjectAddendumFormData = {
+    id: string;
+    number: string;
+    issued_on: string;
+    notes: string;
+    user_id: string;
+    user_name: string;
+};
+
 export type ProjectPriceFormData = {
     id: string;
     label: string;
@@ -235,6 +279,8 @@ export type ProjectFormData = {
     company_uuids: string[];
     scopes: ProjectScopeFormData[];
     revisions: ProjectRevisionFormData[];
+    bid_dates: ProjectBidDateFormData[];
+    addendums: ProjectAddendumFormData[];
 };
 
 export function scopeTypeLabel(
@@ -282,6 +328,27 @@ export function blankRevision(userId = '', userName = ''): ProjectRevisionFormDa
         id: '',
         number: '',
         revision_date: '',
+        notes: '',
+        user_id: userId,
+        user_name: userName,
+    };
+}
+
+export function blankBidDate(userId = '', userName = ''): ProjectBidDateFormData {
+    return {
+        id: '',
+        bid_date: '',
+        notes: '',
+        user_id: userId,
+        user_name: userName,
+    };
+}
+
+export function blankAddendum(userId = '', userName = ''): ProjectAddendumFormData {
+    return {
+        id: '',
+        number: '',
+        issued_on: '',
         notes: '',
         user_id: userId,
         user_name: userName,
@@ -389,6 +456,35 @@ export function projectToFormData(
                             ? String(revision.user.id)
                             : '',
                       user_name: revision.user?.name ?? '',
+                  }))
+                : [],
+        bid_dates:
+            project?.bid_dates && project.bid_dates.length > 0
+                ? project.bid_dates.map((bidDate) => ({
+                      id: bidDate.id ? String(bidDate.id) : '',
+                      bid_date: bidDate.bid_date ?? '',
+                      notes: bidDate.notes ?? '',
+                      user_id: bidDate.user_id
+                          ? String(bidDate.user_id)
+                          : bidDate.user
+                            ? String(bidDate.user.id)
+                            : '',
+                      user_name: bidDate.user?.name ?? '',
+                  }))
+                : [],
+        addendums:
+            project?.addendums && project.addendums.length > 0
+                ? project.addendums.map((addendum) => ({
+                      id: addendum.id ? String(addendum.id) : '',
+                      number: addendum.number ?? '',
+                      issued_on: addendum.issued_on ?? '',
+                      notes: addendum.notes ?? '',
+                      user_id: addendum.user_id
+                          ? String(addendum.user_id)
+                          : addendum.user
+                            ? String(addendum.user.id)
+                            : '',
+                      user_name: addendum.user?.name ?? '',
                   }))
                 : [],
     };
