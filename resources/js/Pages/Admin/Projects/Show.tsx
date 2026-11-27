@@ -38,6 +38,8 @@ import {
     TrashIcon,
 } from 'lucide-react';
 import {
+    bidDaysLeftLabel,
+    formatBidTime,
     optionLabel,
     scopeTypeLabel,
     type ProjectOptions,
@@ -272,8 +274,17 @@ export default function Show({ project, options, clientCompany = null, clientCom
                                     label="Bid date"
                                     value={
                                         project.bid_date
-                                            ? isoToMaskedDate(project.bid_date) ||
-                                              project.bid_date
+                                            ? [
+                                                  isoToMaskedDate(project.bid_date) ||
+                                                      project.bid_date,
+                                                  formatBidTime(project.bid_dates?.[0]?.bid_time),
+                                                  bidDaysLeftLabel(
+                                                      project.bid_date,
+                                                      project.bid_dates?.[0]?.bid_time,
+                                                  ),
+                                              ]
+                                                  .filter(Boolean)
+                                                  .join(' · ')
                                             : null
                                     }
                                 />
@@ -406,11 +417,25 @@ export default function Show({ project, options, clientCompany = null, clientCom
                                                 <p className="mt-1 font-medium text-foreground">
                                                     {isoToMaskedDate(bidDate.bid_date ?? '') ||
                                                         'Not set'}
+                                                    {formatBidTime(bidDate.bid_time)
+                                                        ? ` · ${formatBidTime(bidDate.bid_time)}`
+                                                        : ''}
                                                 </p>
+                                                {bidDaysLeftLabel(
+                                                    bidDate.bid_date,
+                                                    bidDate.bid_time,
+                                                ) ? (
+                                                    <p className="mt-1 text-sm font-medium text-emerald-800 dark:text-emerald-200">
+                                                        {bidDaysLeftLabel(
+                                                            bidDate.bid_date,
+                                                            bidDate.bid_time,
+                                                        )}
+                                                    </p>
+                                                ) : null}
                                             </div>
                                             <div>
                                                 <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                                                    Why it changed
+                                                    Notes
                                                 </p>
                                                 <p className="mt-1 text-sm text-foreground">
                                                     {bidDate.notes || 'No notes added.'}
@@ -451,7 +476,7 @@ export default function Show({ project, options, clientCompany = null, clientCom
                                     {project.addendums.map((addendum) => (
                                         <div
                                             key={addendum.id ?? addendum.number}
-                                            className="grid gap-3 rounded-lg border border-border bg-muted/30 p-4 sm:grid-cols-[8rem_10rem_minmax(0,1.4fr)_minmax(10rem,0.9fr)] sm:items-start"
+                                            className="grid gap-3 rounded-lg border border-border bg-muted/30 p-4 sm:grid-cols-[8rem_10rem_minmax(0,1.2fr)_minmax(0,1fr)_minmax(10rem,0.8fr)] sm:items-start"
                                         >
                                             <div>
                                                 <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
@@ -471,11 +496,30 @@ export default function Show({ project, options, clientCompany = null, clientCom
                                             </div>
                                             <div>
                                                 <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                                                    What changed
+                                                    Notes
                                                 </p>
                                                 <p className="mt-1 text-sm text-foreground">
                                                     {addendum.notes || 'No notes added.'}
                                                 </p>
+                                            </div>
+                                            <div>
+                                                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                                                    Document
+                                                </p>
+                                                {addendum.document?.url ? (
+                                                    <a
+                                                        href={addendum.document.url}
+                                                        target="_blank"
+                                                        rel="noreferrer"
+                                                        className="mt-1 inline-block text-sm font-medium text-emerald-800 underline dark:text-emerald-200"
+                                                    >
+                                                        {addendum.document.name || 'Open document'}
+                                                    </a>
+                                                ) : (
+                                                    <p className="mt-1 text-sm text-foreground">
+                                                        No document
+                                                    </p>
+                                                )}
                                             </div>
                                             <div>
                                                 <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">

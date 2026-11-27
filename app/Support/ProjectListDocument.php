@@ -284,9 +284,7 @@ class ProjectListDocument
         return [
             'name' => $project->name,
             'project_number' => $project->project_number ?: 'No project number',
-            'bid_date' => $project->bidDates->first()?->bid_date
-                ? 'Bid date '.$project->bidDates->first()->bid_date->format('m/d/Y')
-                : 'No bid date',
+            'bid_date' => $this->bidDateLine($project),
             'addendums' => $project->addendums->count() === 0
                 ? ''
                 : ($project->addendums->count() === 1
@@ -299,6 +297,26 @@ class ProjectListDocument
             'bid_scope' => $this->bidScope($project),
             'status' => $project->status?->name ?: 'Not set',
         ];
+    }
+
+    private function bidDateLine(Project $project): string
+    {
+        $bidDate = $project->bidDates->first();
+
+        if ($bidDate?->bid_date === null) {
+            return 'No bid date';
+        }
+
+        $line = 'Bid date '.$bidDate->bid_date->format('m/d/Y');
+
+        if (preg_match('/^(\d{2}):(\d{2})/', (string) $bidDate->bid_time, $match)) {
+            $hour = (int) $match[1];
+            $suffix = $hour >= 12 ? 'PM' : 'AM';
+            $hour12 = $hour % 12 ?: 12;
+            $line .= ' · '.$hour12.':'.$match[2].' '.$suffix;
+        }
+
+        return $line;
     }
 
     private function bidScope(Project $project): string

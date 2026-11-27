@@ -85,7 +85,7 @@ class ProjectDocument
             'status' => $this->project->status?->name,
             'priority' => $this->priorityLabel(),
             'assignee' => $this->project->assignee?->name,
-            'bidDate' => $this->bidDateLabel($this->project->bidDates->first()?->bid_date),
+            'bidDate' => $this->currentBidLabel(),
             'estimatedStart' => $this->dateLabel($this->project->estimated_start_date),
             'estimatedEnd' => $this->dateLabel($this->project->estimated_end_date),
             'showBudget' => $this->showSensitiveFields,
@@ -243,7 +243,7 @@ class ProjectDocument
             ['Status', $this->project->status?->name ?: '—'],
             ['Priority', $this->priorityLabel()],
             ['Assigned to', $this->project->assignee?->name ?: '—'],
-            ['Bid date', $this->bidDateLabel($this->project->bidDates->first()?->bid_date) ?: '—'],
+            ['Bid date', $this->currentBidLabel() ?: '—'],
             ['Estimated start', $this->dateLabel($this->project->estimated_start_date) ?: '—'],
             ['Estimated end', $this->dateLabel($this->project->estimated_end_date) ?: '—'],
         ];
@@ -288,7 +288,7 @@ class ProjectDocument
         } else {
             $table = $section->addTable('projectMetaTable');
             $table->addRow(360);
-            foreach ([['Bid date', 2200], ['Why it changed', 5200], ['Recorded by', 3400]] as [$heading, $width]) {
+            foreach ([['Bid date', 2200], ['Notes', 5200], ['Recorded by', 3400]] as [$heading, $width]) {
                 $table->addCell($width, ['bgColor' => $this->wordColor('table_header_bg'), 'valign' => 'center'])
                     ->addText($heading, ['bold' => true, 'color' => $this->wordColor('table_header_text'), 'size' => 9]);
             }
@@ -310,7 +310,7 @@ class ProjectDocument
         } else {
             $table = $section->addTable('projectMetaTable');
             $table->addRow(360);
-            foreach ([['Addendum', 1600], ['Issued on', 2200], ['What changed', 4800], ['Recorded by', 2200]] as [$heading, $width]) {
+            foreach ([['Addendum', 1400], ['Issued on', 1800], ['Notes', 3200], ['Document', 2400], ['Recorded by', 2000]] as [$heading, $width]) {
                 $table->addCell($width, ['bgColor' => $this->wordColor('table_header_bg'), 'valign' => 'center'])
                     ->addText($heading, ['bold' => true, 'color' => $this->wordColor('table_header_text'), 'size' => 9]);
             }
@@ -318,10 +318,11 @@ class ProjectDocument
             foreach ($addendums as $index => $addendum) {
                 $bg = $index % 2 === 1 ? $this->wordColor('row_alt') : 'FFFFFF';
                 $table->addRow();
-                $table->addCell(1600, ['bgColor' => $bg])->addText($addendum['number'], ['size' => 9]);
-                $table->addCell(2200, ['bgColor' => $bg])->addText($addendum['date'], ['size' => 9]);
-                $table->addCell(4800, ['bgColor' => $bg])->addText($addendum['notes'], ['size' => 9]);
-                $table->addCell(2200, ['bgColor' => $bg])->addText($addendum['user'], ['size' => 9]);
+                $table->addCell(1400, ['bgColor' => $bg])->addText($addendum['number'], ['size' => 9]);
+                $table->addCell(1800, ['bgColor' => $bg])->addText($addendum['date'], ['size' => 9]);
+                $table->addCell(3200, ['bgColor' => $bg])->addText($addendum['notes'], ['size' => 9]);
+                $table->addCell(2400, ['bgColor' => $bg])->addText($addendum['document'], ['size' => 9]);
+                $table->addCell(2000, ['bgColor' => $bg])->addText($addendum['user'], ['size' => 9]);
             }
         }
 
@@ -479,7 +480,7 @@ class ProjectDocument
     {
         return $this->project->bidDates
             ->map(fn ($bidDate): array => [
-                'date' => $this->bidDateLabel($bidDate->bid_date) ?: 'Not set',
+                'date' => $this->bidDateWithTime($bidDate->bid_date, $bidDate->bid_time),
                 'notes' => filled($bidDate->notes) ? (string) $bidDate->notes : 'No notes added.',
                 'user' => $bidDate->user?->name ?: 'Not set',
             ])
@@ -488,7 +489,7 @@ class ProjectDocument
     }
 
     /**
-     * @return list<array{number: string, date: string, notes: string, user: string}>
+     * @return list<array{number: string, date: string, notes: string, document: string, user: string}>
      */
     private function addendumRows(): array
     {
@@ -497,6 +498,7 @@ class ProjectDocument
                 'number' => (string) ($addendum->number ?: '—'),
                 'date' => $this->dateLabel($addendum->issued_on) ?: 'Not set',
                 'notes' => filled($addendum->notes) ? (string) $addendum->notes : 'No notes added.',
+                'document' => filled($addendum->document_name) ? (string) $addendum->document_name : 'No document',
                 'user' => $addendum->user?->name ?: 'Not set',
             ])
             ->values()
@@ -575,6 +577,38 @@ class ProjectDocument
         return $date instanceof \DateTimeInterface
             ? $date->format('F j, Y')
             : (string) $date;
+    }
+
+    private function currentBidLabel(): ?string
+    {
+        $bidDate = $this->project->bidDates->first();
+
+        if ($bidDate === null) {
+            return null;
+        }
+
+        return $this->bidDateWithTime($bidDate->bid_date, $bidDate->bid_time);
+    }
+
+    private function bidDateWithTime(mixed $date, mixed $time): string
+    {
+        $label = $this->bidDateLabel($date) ?: 'Not set';
+        $clock = $this->clockLabel($time);
+
+        return $clock !== '' ? $label.' · '.$clock : $label;
+    }
+
+    private function clockLabel(mixed $time): string
+    {
+        if (! preg_match('/^(\d{2}):(\d{2})/', trim((string) $time), $match)) {
+            return '';
+        }
+
+        $hour = (int) $match[1];
+        $suffix = $hour >= 12 ? 'PM' : 'AM';
+        $hour12 = $hour % 12 ?: 12;
+
+        return $hour12.':'.$match[2].' '.$suffix;
     }
 
     private function bidDateLabel(mixed $date): ?string

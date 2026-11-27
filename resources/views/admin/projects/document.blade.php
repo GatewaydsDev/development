@@ -570,7 +570,7 @@
                     <thead>
                         <tr>
                             <th>Bid date</th>
-                            <th>Why it changed</th>
+                            <th>Notes</th>
                             <th>Recorded by</th>
                         </tr>
                     </thead>
@@ -595,7 +595,8 @@
                         <tr>
                             <th>Addendum</th>
                             <th>Issued on</th>
-                            <th>What changed</th>
+                            <th>Notes</th>
+                            <th>Document</th>
                             <th>Recorded by</th>
                         </tr>
                     </thead>
@@ -605,6 +606,7 @@
                                 <td>{{ $addendum['number'] }}</td>
                                 <td>{{ $addendum['date'] }}</td>
                                 <td>{{ $addendum['notes'] }}</td>
+                                <td>{{ $addendum['document'] }}</td>
                                 <td>{{ $addendum['user'] }}</td>
                             </tr>
                         @endforeach

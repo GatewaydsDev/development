@@ -44,6 +44,7 @@ import { type PageProps } from '@/types';
 import {
     blankAddendum,
     blankBidDate,
+    bidDaysLeftLabel,
     blankContractor,
     blankPrice,
     blankRevision,
@@ -75,6 +76,11 @@ const optionalDateSchema = z
         'Enter a valid date.',
     );
 
+const optionalTimeSchema = z.string().refine(
+    (value) => value === '' || /^([01]\d|2[0-3]):[0-5]\d$/.test(value),
+    'Enter a valid time.',
+);
+
 const optionalMoneySchema = z.string().refine((value) => {
     if (value.trim() === '') {
         return true;
@@ -84,6 +90,25 @@ const optionalMoneySchema = z.string().refine((value) => {
 
     return amount !== null && amount >= 0;
 }, 'Budget amount must be zero or greater.');
+
+const addendumDocumentExtensions = ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'csv', 'png', 'jpg', 'jpeg', 'webp', 'txt'];
+
+const addendumDocumentSchema = z
+    .custom<File | null>((value) => value === null || value instanceof File)
+    .nullable()
+    .refine(
+        (file) => !file || file.size <= 20 * 1024 * 1024,
+        'Document must be 20 MB or less.',
+    )
+    .refine((file) => {
+        if (!file) {
+            return true;
+        }
+
+        const extension = file.name.split('.').pop()?.toLowerCase() ?? '';
+
+        return addendumDocumentExtensions.includes(extension);
+    }, 'Use a PDF, Word, Excel, image, or text file.');
 
 const optionalEmailSchema = z
     .string()
@@ -186,6 +211,7 @@ function projectSchema(options: ProjectOptions, canEditCoreFields: boolean) {
                 z.object({
                     id: z.string(),
                     bid_date: optionalDateSchema,
+                    bid_time: optionalTimeSchema,
                     notes: z
                         .string()
                         .trim()
@@ -206,6 +232,10 @@ function projectSchema(options: ProjectOptions, canEditCoreFields: boolean) {
                         .string()
                         .trim()
                         .max(2000, 'Addendum notes must be 2,000 characters or less.'),
+                    document_name: z.string(),
+                    document_url: z.string(),
+                    document: addendumDocumentSchema,
+                    remove_document: z.boolean(),
                     user_id: z.string(),
                     user_name: z.string(),
                 }),
@@ -330,8 +360,9 @@ function projectSchema(options: ProjectOptions, canEditCoreFields: boolean) {
             values.bid_dates.forEach((bidDate, index) => {
                 const date = bidDate.bid_date.trim();
                 const notes = bidDate.notes.trim();
+                const time = bidDate.bid_time.trim();
 
-                if (date === '' && notes === '') {
+                if (date === '' && notes === '' && time === '') {
                     return;
                 }
 
@@ -363,8 +394,11 @@ function projectSchema(options: ProjectOptions, canEditCoreFields: boolean) {
                 const number = addendum.number.trim().toLowerCase();
                 const issuedOn = addendum.issued_on.trim();
                 const notes = addendum.notes.trim();
+                const hasDocument =
+                    addendum.document !== null ||
+                    (addendum.document_name.trim() !== '' && !addendum.remove_document);
 
-                if (number === '' && issuedOn === '' && notes === '') {
+                if (number === '' && issuedOn === '' && notes === '' && !hasDocument) {
                     return;
                 }
 
@@ -626,11 +660,13 @@ export default function ProjectForm({
                 .filter(
                     (bidDate) =>
                         bidDate.bid_date.trim() !== '' ||
-                        bidDate.notes.trim() !== '',
+                        bidDate.notes.trim() !== '' ||
+                        bidDate.bid_time.trim() !== '',
                 )
                 .map((bidDate) => ({
                     id: bidDate.id.trim() || null,
                     bid_date: bidDate.bid_date,
+                    bid_time: bidDate.bid_time,
                     notes: bidDate.notes,
                 })),
             addendums: (values.addendums ?? [])
@@ -638,15 +674,22 @@ export default function ProjectForm({
                     (addendum) =>
                         addendum.number.trim() !== '' ||
                         addendum.issued_on.trim() !== '' ||
-                        addendum.notes.trim() !== '',
+                        addendum.notes.trim() !== '' ||
+                        addendum.document !== null ||
+                        (addendum.document_name.trim() !== '' && !addendum.remove_document),
                 )
                 .map((addendum) => ({
                     id: addendum.id.trim() || null,
                     number: addendum.number,
                     issued_on: addendum.issued_on,
                     notes: addendum.notes,
+                    remove_document: addendum.remove_document,
+                    ...(addendum.document ? { document: addendum.document } : {}),
                 })),
         };
+        const hasAddendumDocument = payload.addendums.some(
+            (addendum) => addendum.document instanceof File,
+        );
         const submitOptions = {
             onBefore: () => setProcessing(true),
             onError: (serverErrors: Record<string, string>) => {
@@ -663,6 +706,15 @@ export default function ProjectForm({
             },
             onFinish: () => setProcessing(false),
         };
+
+        if (hasAddendumDocument) {
+            router.post(
+                action,
+                method === 'patch' ? { ...payload, _method: 'patch' } : payload,
+                { ...submitOptions, forceFormData: true },
+            );
+            return;
+        }
 
         if (method === 'patch') {
             router.patch(action, payload, submitOptions);
@@ -1037,7 +1089,7 @@ export default function ProjectForm({
                                             Bid dates
                                         </h3>
                                         <p className="text-sm text-muted-foreground">
-                                            Keep every bid date. When the date changes, add the new date here. The latest date stays the current bid date.
+                                            Keep every bid date. When the date changes, add the new date here. The latest date stays the current bid date, and the days left update as you type the date. Opens at is the time the bid opens.
                                         </p>
                                     </div>
                                     <Button
@@ -1073,7 +1125,7 @@ export default function ProjectForm({
                                             return (
                                                 <div
                                                     key={field.id}
-                                                    className="grid min-w-0 items-start gap-4 rounded-lg border border-border bg-muted/10 p-4 md:grid-cols-2 xl:grid-cols-[minmax(10rem,0.8fr)_minmax(0,1.4fr)_minmax(0,1fr)_auto]"
+                                                    className="grid min-w-0 items-start gap-4 rounded-lg border border-border bg-muted/10 p-4 md:grid-cols-2 xl:grid-cols-[minmax(10rem,0.85fr)_minmax(8.5rem,0.6fr)_minmax(0,1.2fr)_minmax(0,0.9fr)_auto]"
                                                 >
                                                     <div className="flex flex-col gap-2">
                                                         <InputLabel
@@ -1099,18 +1151,57 @@ export default function ProjectForm({
                                                                 `bid_dates.${index}.bid_date`,
                                                             )}
                                                         />
+                                                        {bidDaysLeftLabel(
+                                                            bidDate?.bid_date,
+                                                            bidDate?.bid_time,
+                                                        ) ? (
+                                                            <p className="text-sm font-medium text-emerald-800 dark:text-emerald-200">
+                                                                {bidDaysLeftLabel(
+                                                                    bidDate?.bid_date,
+                                                                    bidDate?.bid_time,
+                                                                )}
+                                                            </p>
+                                                        ) : null}
+                                                    </div>
+                                                    <div className="flex flex-col gap-2">
+                                                        <InputLabel
+                                                            htmlFor={`project-bid-time-${index}`}
+                                                            value="Opens at"
+                                                            className={labelClassName}
+                                                        />
+                                                        <TextInput
+                                                            id={`project-bid-time-${index}`}
+                                                            type="time"
+                                                            step={60}
+                                                            value={bidDate?.bid_time ?? ''}
+                                                            className={inputClassName}
+                                                            aria-label="Bid opening time"
+                                                            onChange={(event) =>
+                                                                setBidDateData(
+                                                                    index,
+                                                                    'bid_time',
+                                                                    event.target.value,
+                                                                )
+                                                            }
+                                                        />
+                                                        <InputError
+                                                            message={errorMessage(
+                                                                validationErrors,
+                                                                `bid_dates.${index}.bid_time`,
+                                                            )}
+                                                        />
                                                     </div>
                                                     <div className="flex flex-col gap-2">
                                                         <InputLabel
                                                             htmlFor={`project-bid-date-notes-${index}`}
-                                                            value="Why it changed"
+                                                            value="Notes"
                                                             className={labelClassName}
                                                         />
                                                         <TextInput
                                                             id={`project-bid-date-notes-${index}`}
                                                             value={bidDate?.notes ?? ''}
                                                             className={inputClassName}
-                                                            placeholder="Addendum 2 moved the bid"
+                                                            placeholder="Add a note"
                                                             onChange={(event) =>
                                                                 setBidDateData(
                                                                     index,
@@ -1168,7 +1259,7 @@ export default function ProjectForm({
                                             Addendums
                                         </h3>
                                         <p className="text-sm text-muted-foreground">
-                                            Record each addendum issued for this project. When an addendum moves the bid, add the new date in Bid dates.
+                                            Record each addendum issued for this project and keep its document here. When an addendum moves the bid, add the new date in Bid dates.
                                         </p>
                                     </div>
                                     <Button
@@ -1252,14 +1343,14 @@ export default function ProjectForm({
                                                     <div className="flex flex-col gap-2">
                                                         <InputLabel
                                                             htmlFor={`project-addendum-notes-${index}`}
-                                                            value="What changed"
+                                                            value="Notes"
                                                             className={labelClassName}
                                                         />
                                                         <TextInput
                                                             id={`project-addendum-notes-${index}`}
                                                             value={addendum?.notes ?? ''}
                                                             className={inputClassName}
-                                                            placeholder="Hardware spec revised"
+                                                            placeholder="Notes"
                                                             onChange={(event) =>
                                                                 setAddendumData(
                                                                     index,
@@ -1300,6 +1391,129 @@ export default function ProjectForm({
                                                             <Trash2Icon className="size-4" />
                                                             Remove
                                                         </Button>
+                                                    </div>
+                                                    <div className="flex flex-col gap-2 md:col-span-2 xl:col-span-full">
+                                                        <InputLabel
+                                                            htmlFor={`project-addendum-document-${index}`}
+                                                            value="Document"
+                                                            className={labelClassName}
+                                                        />
+                                                        <input
+                                                            id={`project-addendum-document-${index}`}
+                                                            type="file"
+                                                            accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,.png,.jpg,.jpeg,.webp,.txt,application/pdf"
+                                                            className="block w-full text-sm text-muted-foreground file:mr-4 file:rounded-md file:border-0 file:bg-emerald-600 file:px-3 file:py-2 file:text-sm file:font-medium file:text-white hover:file:bg-emerald-700"
+                                                            onChange={(event) => {
+                                                                const file = event.target.files?.[0] ?? null;
+                                                                const extension = file?.name.split('.').pop()?.toLowerCase() ?? '';
+
+                                                                if (
+                                                                    file &&
+                                                                    (!addendumDocumentExtensions.includes(extension) ||
+                                                                        file.size > 20 * 1024 * 1024)
+                                                                ) {
+                                                                    event.target.value = '';
+                                                                    setValue(
+                                                                        `addendums.${index}.document`,
+                                                                        null,
+                                                                        { shouldDirty: true },
+                                                                    );
+                                                                    setError(
+                                                                        `addendums.${index}.document`,
+                                                                        {
+                                                                            type: 'manual',
+                                                                            message: file.size > 20 * 1024 * 1024
+                                                                                ? 'Document must be 20 MB or less.'
+                                                                                : 'Use a PDF, Word, Excel, image, or text file.',
+                                                                        },
+                                                                    );
+                                                                    return;
+                                                                }
+
+                                                                clearErrors(`addendums.${index}.document`);
+                                                                setValue(
+                                                                    `addendums.${index}.document`,
+                                                                    file,
+                                                                    { shouldDirty: true },
+                                                                );
+                                                                setValue(
+                                                                    `addendums.${index}.remove_document`,
+                                                                    false,
+                                                                    { shouldDirty: true },
+                                                                );
+                                                            }}
+                                                        />
+                                                        <InputError
+                                                            message={errorMessage(
+                                                                validationErrors,
+                                                                `addendums.${index}.document`,
+                                                            )}
+                                                        />
+                                                        {addendum?.document ? (
+                                                            <div className="flex flex-col gap-2 text-sm">
+                                                                <div className="flex flex-wrap items-center gap-3">
+                                                                    <span className="font-medium text-foreground">
+                                                                        {addendum.document.name}
+                                                                    </span>
+                                                                    <Button
+                                                                        type="button"
+                                                                        variant="outline"
+                                                                        className="h-9"
+                                                                        onClick={() => {
+                                                                            const input = window.document.getElementById(
+                                                                                `project-addendum-document-${index}`,
+                                                                            ) as HTMLInputElement | null;
+                                                                            if (input) {
+                                                                                input.value = '';
+                                                                            }
+                                                                            setValue(
+                                                                                `addendums.${index}.document`,
+                                                                                null,
+                                                                                { shouldDirty: true },
+                                                                            );
+                                                                        }}
+                                                                    >
+                                                                        Clear selected file
+                                                                    </Button>
+                                                                </div>
+                                                                {addendum.document_url && !addendum.remove_document ? (
+                                                                    <p className="text-muted-foreground">
+                                                                        This file replaces {addendum.document_name || 'the saved document'} when you save.
+                                                                    </p>
+                                                                ) : null}
+                                                            </div>
+                                                        ) : null}
+                                                        {addendum?.document_url && !addendum.remove_document && !addendum.document ? (
+                                                            <div className="flex flex-wrap items-center gap-3 text-sm">
+                                                                <a
+                                                                    href={addendum.document_url}
+                                                                    target="_blank"
+                                                                    rel="noreferrer"
+                                                                    className="font-medium text-emerald-800 underline dark:text-emerald-200"
+                                                                >
+                                                                    {addendum.document_name || 'Open document'}
+                                                                </a>
+                                                                <Button
+                                                                    type="button"
+                                                                    variant="outline"
+                                                                    className="h-9"
+                                                                    onClick={() =>
+                                                                        setValue(
+                                                                            `addendums.${index}.remove_document`,
+                                                                            true,
+                                                                            { shouldDirty: true },
+                                                                        )
+                                                                    }
+                                                                >
+                                                                    Remove saved document
+                                                                </Button>
+                                                            </div>
+                                                        ) : null}
+                                                        {addendum?.remove_document ? (
+                                                            <p className="text-sm text-muted-foreground">
+                                                                The saved document will be removed when you save the project.
+                                                            </p>
+                                                        ) : null}
                                                     </div>
                                                 </div>
                                             );

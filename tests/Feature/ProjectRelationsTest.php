@@ -13,6 +13,8 @@ use App\Models\Quotation;
 use App\Models\Takeoff;
 use App\Models\User;
 use App\Models\UserLevel;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Testing\AssertableInertia as Assert;
 
 function projectAdmin(): User
@@ -1314,6 +1316,7 @@ test('a project can be linked to more than one company and updated', function ()
 });
 
 test('a project keeps every bid date and each addendum', function () {
+    Storage::fake('local');
     $admin = projectAdmin();
     $base = [
         'name' => 'Courthouse openings',
@@ -1337,10 +1340,15 @@ test('a project keeps every bid date and each addendum', function () {
             ...$base,
             'bid_dates' => [
                 ['bid_date' => '2026-11-02', 'notes' => 'Original bid'],
-                ['bid_date' => '2026-11-20', 'notes' => 'Addendum 2 moved the bid'],
+                ['bid_date' => '2026-11-20', 'bid_time' => '14:30', 'notes' => 'Addendum 2 moved the bid'],
             ],
             'addendums' => [
-                ['number' => '2', 'issued_on' => '2026-11-12', 'notes' => 'Hardware spec revised'],
+                [
+                    'number' => '2',
+                    'issued_on' => '2026-11-12',
+                    'notes' => 'Hardware spec revised',
+                    'document' => UploadedFile::fake()->createWithContent('addendum-2.pdf', "%PDF-1.4\n%%EOF\n"),
+                ],
                 ['number' => '1', 'issued_on' => '2026-10-28', 'notes' => 'Drawing cloud'],
             ],
         ])
@@ -1351,14 +1359,28 @@ test('a project keeps every bid date and each addendum', function () {
 
     expect($project->bidDates)->toHaveCount(2)
         ->and($project->bidDates->first()?->bid_date->toDateString())->toBe('2026-11-20')
+        ->and(substr((string) $project->bidDates->first()?->bid_time, 0, 5))->toBe('14:30')
         ->and($project->bidDates->first()?->user_id)->toBe($admin->id)
         ->and($project->addendums->pluck('number')->all())->toBe(['1', '2']);
+
+    $addendumWithFile = $project->addendums->firstWhere('number', '2');
+    $storedDocument = (string) $addendumWithFile?->document_path;
+
+    expect($addendumWithFile?->document_name)->toBe('addendum-2.pdf')
+        ->and($storedDocument)->not->toBe('');
+
+    Storage::disk('local')->assertExists($storedDocument);
+
+    $this->actingAs($admin)
+        ->get(route('admin.projects.addendums.document', [$project, $addendumWithFile?->uuid]))
+        ->assertOk();
 
     $this->actingAs($admin)
         ->get(route('admin.projects.index', ['search' => 'Courthouse openings']))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->where('projects.data.0.bid_dates.0.bid_date', '2026-11-20')
+            ->where('projects.data.0.bid_dates.0.bid_time', '14:30')
             ->where('projects.data.0.bid_dates.0.notes', 'Addendum 2 moved the bid')
             ->where('projects.data.0.bid_dates.1.bid_date', '2026-11-02')
             ->where('projects.data.0.bid_dates.1.notes', 'Original bid')
@@ -1402,6 +1424,8 @@ test('a project keeps every bid date and each addendum', function () {
         ->and($project->addendums)->toHaveCount(1)
         ->and($project->addendums->first()?->number)->toBe('1');
 
+    Storage::disk('local')->assertMissing($storedDocument);
+
     $this->actingAs($admin)
         ->patch(route('admin.projects.update', $project), [
             ...$base,
@@ -1412,6 +1436,33 @@ test('a project keeps every bid date and each addendum', function () {
             'addendums' => [],
         ])
         ->assertSessionHasErrors('bid_dates.1.bid_date');
+
+    $this->actingAs($admin)
+        ->patch(route('admin.projects.update', $project), [
+            ...$base,
+            'bid_dates' => [
+                ['bid_date' => '2026-12-04', 'bid_time' => '25:99', 'notes' => 'Bad time'],
+            ],
+            'addendums' => [],
+        ])
+        ->assertSessionHasErrors('bid_dates.0.bid_time');
+
+    $this->actingAs($admin)
+        ->patch(route('admin.projects.update', $project), [
+            ...$base,
+            'bid_dates' => [
+                ['bid_date' => '2026-12-04', 'notes' => 'Kept'],
+            ],
+            'addendums' => [
+                [
+                    'number' => '9',
+                    'issued_on' => '2026-12-01',
+                    'notes' => 'Bad file',
+                    'document' => UploadedFile::fake()->create('virus.exe', 20, 'application/octet-stream'),
+                ],
+            ],
+        ])
+        ->assertSessionHasErrors('addendums.0.document');
 
     expect($project->fresh()->bidDates)->toHaveCount(3);
 });

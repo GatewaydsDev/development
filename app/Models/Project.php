@@ -81,6 +81,12 @@ class Project extends Model
                 'project_number' => static::nextNumber(),
             ])->saveQuietly();
         });
+
+        static::deleting(function (Project $project): void {
+            $project->addendums()->get()->each(function (ProjectAddendum $addendum): void {
+                $addendum->deleteStoredDocument();
+            });
+        });
     }
 
     public static function numberPrefix(?int $year = null): string

@@ -30,6 +30,8 @@ import {
 } from 'lucide-react';
 import { FormEvent, useEffect, useState } from 'react';
 import {
+    bidDaysLeftLabel,
+    formatBidTime,
     type ProjectOptions,
     type ProjectsPaginator,
 } from './types';
@@ -468,9 +470,23 @@ export default function Index({
                                                                     {index === 0 ? 'Current · ' : ''}
                                                                     {isoToMaskedDate(bidDate.bid_date ?? '') ||
                                                                         'Not set'}
+                                                                    {formatBidTime(bidDate.bid_time)
+                                                                        ? ` · ${formatBidTime(bidDate.bid_time)}`
+                                                                        : ''}
                                                                 </p>
+                                                                {bidDaysLeftLabel(
+                                                                    bidDate.bid_date,
+                                                                    bidDate.bid_time,
+                                                                ) ? (
+                                                                    <p className="text-sm font-medium text-emerald-800 dark:text-emerald-200">
+                                                                        {bidDaysLeftLabel(
+                                                                            bidDate.bid_date,
+                                                                            bidDate.bid_time,
+                                                                        )}
+                                                                    </p>
+                                                                ) : null}
                                                                 <p className="break-words text-muted-foreground">
-                                                                    {bidDate.notes || 'No change noted.'}
+                                                                    {bidDate.notes || 'No notes.'}
                                                                 </p>
                                                             </li>
                                                         ))}

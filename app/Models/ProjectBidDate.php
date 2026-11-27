@@ -13,6 +13,7 @@ class ProjectBidDate extends Model
         'project_id',
         'user_id',
         'bid_date',
+        'bid_time',
         'notes',
     ];
 

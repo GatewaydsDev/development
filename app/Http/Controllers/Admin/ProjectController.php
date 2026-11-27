@@ -360,6 +360,15 @@ class ProjectController extends Controller
             ->with('success', 'Project removed successfully.');
     }
 
+    public function addendumDocument(Request $request, Project $project, string $addendum): BinaryFileResponse|\Symfony\Component\HttpFoundation\StreamedResponse
+    {
+        abort_unless(ProjectAccess::canView($request->user()), 403);
+
+        $record = $project->addendums()->where('uuid', $addendum)->firstOrFail();
+
+        return $record->documentResponse();
+    }
+
     public function storeStatus(Request $request): RedirectResponse
     {
         abort_unless(
@@ -753,6 +762,7 @@ class ProjectController extends Controller
                     ),
                 ],
                 'bid_dates.*.bid_date' => ['required', 'date', 'distinct'],
+                'bid_dates.*.bid_time' => ['nullable', 'date_format:H:i'],
                 'bid_dates.*.notes' => ['nullable', 'string', 'max:2000'],
                 'addendums' => ['sometimes', 'array'],
                 'addendums.*.id' => [
@@ -767,6 +777,8 @@ class ProjectController extends Controller
                 'addendums.*.number' => ['required', 'string', 'max:50', 'distinct'],
                 'addendums.*.issued_on' => ['nullable', 'date'],
                 'addendums.*.notes' => ['nullable', 'string', 'max:2000'],
+                'addendums.*.document' => ['nullable', 'file', 'mimes:pdf,doc,docx,xls,xlsx,csv,png,jpg,jpeg,webp,txt', 'max:20480'],
+                'addendums.*.remove_document' => ['nullable', 'boolean'],
             ];
         }
 
@@ -953,7 +965,7 @@ class ProjectController extends Controller
         }
 
         if (array_key_exists('addendums', $validated)) {
-            $this->syncAddendums($project, $validated['addendums'], $request->user());
+            $this->syncAddendums($project, $validated['addendums'], $request->user(), $request);
         }
     }
 
@@ -1214,11 +1226,13 @@ class ProjectController extends Controller
                 : null;
             $attributes = [
                 'bid_date' => $bidDate['bid_date'],
+                'bid_time' => $this->bidTimeValue($bidDate['bid_time'] ?? null),
                 'notes' => filled($bidDate['notes'] ?? null) ? trim((string) $bidDate['notes']) : null,
             ];
 
             if ($existing) {
                 $changed = $existing->bid_date?->toDateString() !== $attributes['bid_date']
+                    || $this->bidTimeValue($existing->bid_time) !== $attributes['bid_time']
                     || trim((string) ($existing->notes ?? '')) !== trim((string) ($attributes['notes'] ?? ''));
 
                 if ($changed) {
@@ -1242,12 +1256,33 @@ class ProjectController extends Controller
             ->delete();
     }
 
+    private function bidTimeValue(mixed $value): ?string
+    {
+        $time = trim((string) $value);
+
+        if ($time === '') {
+            return null;
+        }
+
+        if (! preg_match('/^([01]\d|2[0-3]):([0-5]\d)/', $time, $match)) {
+            return null;
+        }
+
+        return $match[1].':'.$match[2];
+    }
+
     /**
      * @param  array<int, array<string, mixed>>  $addendums
      */
-    private function syncAddendums(Project $project, array $addendums, User $user): void
+    private function syncAddendums(Project $project, array $addendums, User $user, Request $request): void
     {
         $addendums = collect($addendums)
+            ->map(function (array $addendum, int|string $index) use ($request): array {
+                $uploaded = $request->file("addendums.$index.document");
+                $addendum['_document'] = $uploaded instanceof \Illuminate\Http\UploadedFile ? $uploaded : null;
+
+                return $addendum;
+            })
             ->filter(fn (array $addendum): bool => filled($addendum['number'] ?? null))
             ->unique(fn (array $addendum): string => strtolower(trim((string) $addendum['number'])))
             ->values();
@@ -1275,20 +1310,48 @@ class ProjectController extends Controller
                 }
 
                 $existing->update($attributes);
+                $this->syncAddendumDocument($existing, $addendum);
                 $keptIds[] = $existing->id;
 
                 continue;
             }
 
-            $keptIds[] = $project->addendums()->create([
+            $created = $project->addendums()->create([
                 ...$attributes,
                 'user_id' => $user->id,
-            ])->id;
+            ]);
+            $this->syncAddendumDocument($created, $addendum);
+            $keptIds[] = $created->id;
         }
 
         $project->addendums()
             ->when($keptIds !== [], fn ($query) => $query->whereKeyNot($keptIds))
-            ->delete();
+            ->get()
+            ->each(function (ProjectAddendum $addendum): void {
+                $addendum->deleteStoredDocument();
+                $addendum->delete();
+            });
+    }
+
+    /**
+     * @param  array<string, mixed>  $addendum
+     */
+    private function syncAddendumDocument(ProjectAddendum $addendum, array $input): void
+    {
+        $uploaded = $input['_document'] ?? null;
+        $remove = filter_var($input['remove_document'] ?? false, FILTER_VALIDATE_BOOLEAN);
+
+        if ($uploaded instanceof \Illuminate\Http\UploadedFile) {
+            $addendum->storeDocument($uploaded);
+            $addendum->save();
+
+            return;
+        }
+
+        if ($remove && filled($addendum->document_path)) {
+            $addendum->deleteStoredDocument();
+            $addendum->save();
+        }
     }
 
     /**
@@ -1388,6 +1451,7 @@ class ProjectController extends Controller
                 ->map(fn (ProjectBidDate $bidDate): array => [
                     'id' => $bidDate->id,
                     'bid_date' => $bidDate->bid_date?->toDateString(),
+                    'bid_time' => $this->bidTimeValue($bidDate->bid_time),
                     'notes' => $bidDate->notes,
                     'user_id' => $summary ? null : $bidDate->user_id,
                     'user' => ! $summary && $bidDate->user
@@ -1407,6 +1471,12 @@ class ProjectController extends Controller
                         'number' => $addendum->number,
                         'issued_on' => $addendum->issued_on?->toDateString(),
                         'notes' => $addendum->notes,
+                        'document' => filled($addendum->document_path)
+                            ? [
+                                'name' => $addendum->document_name,
+                                'url' => route('admin.projects.addendums.document', [$project, $addendum->uuid]),
+                            ]
+                            : null,
                         'user_id' => $addendum->user_id,
                         'user' => $addendum->user
                             ? [

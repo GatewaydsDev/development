@@ -95,6 +95,7 @@ export type ProjectRevision = {
 export type ProjectBidDate = {
     id?: number;
     bid_date: string | null;
+    bid_time?: string | null;
     notes: string | null;
     user_id?: number | null;
     user?: {
@@ -103,11 +104,79 @@ export type ProjectBidDate = {
     } | null;
 };
 
+export function formatBidTime(value: string | null | undefined): string {
+    const match = (value ?? '').match(/^(\d{2}):(\d{2})/);
+
+    if (!match) {
+        return '';
+    }
+
+    const hour = Number(match[1]);
+    const minute = match[2];
+    const suffix = hour >= 12 ? 'PM' : 'AM';
+    const hour12 = hour % 12 || 12;
+
+    return `${hour12}:${minute} ${suffix}`;
+}
+
+export function bidDaysLeftLabel(
+    isoDate: string | null | undefined,
+    time?: string | null,
+): string | null {
+    const match = (isoDate ?? '').match(/^(\d{4})-(\d{2})-(\d{2})/);
+
+    if (!match) {
+        return null;
+    }
+
+    const bid = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const days = Math.round((bid.getTime() - today.getTime()) / 86400000);
+    const opens = formatBidTime(time);
+
+    if (days > 1) {
+        return opens ? `${days} days left · Opens ${opens}` : `${days} days left`;
+    }
+
+    if (days === 1) {
+        return opens ? `1 day left · Opens ${opens}` : '1 day left';
+    }
+
+    if (days === 0) {
+        const timeMatch = (time ?? '').match(/^(\d{2}):(\d{2})/);
+
+        if (timeMatch) {
+            const now = new Date();
+            const open = new Date();
+            open.setHours(Number(timeMatch[1]), Number(timeMatch[2]), 0, 0);
+
+            return now.getTime() > open.getTime()
+                ? `Opened today at ${opens}`
+                : `Opens today at ${opens}`;
+        }
+
+        return 'Bid is today';
+    }
+
+    if (days === -1) {
+        return opens ? `1 day ago · ${opens}` : '1 day ago';
+    }
+
+    return opens
+        ? `${Math.abs(days)} days ago · ${opens}`
+        : `${Math.abs(days)} days ago`;
+}
+
 export type ProjectAddendum = {
     id?: number;
     number: string;
     issued_on: string | null;
     notes: string | null;
+    document?: {
+        name: string | null;
+        url: string;
+    } | null;
     user_id?: number | null;
     user?: {
         id: number;
@@ -236,6 +305,7 @@ export type ProjectRevisionFormData = {
 export type ProjectBidDateFormData = {
     id: string;
     bid_date: string;
+    bid_time: string;
     notes: string;
     user_id: string;
     user_name: string;
@@ -246,6 +316,10 @@ export type ProjectAddendumFormData = {
     number: string;
     issued_on: string;
     notes: string;
+    document_name: string;
+    document_url: string;
+    document: File | null;
+    remove_document: boolean;
     user_id: string;
     user_name: string;
 };
@@ -338,6 +412,7 @@ export function blankBidDate(userId = '', userName = ''): ProjectBidDateFormData
     return {
         id: '',
         bid_date: '',
+        bid_time: '',
         notes: '',
         user_id: userId,
         user_name: userName,
@@ -350,6 +425,10 @@ export function blankAddendum(userId = '', userName = ''): ProjectAddendumFormDa
         number: '',
         issued_on: '',
         notes: '',
+        document_name: '',
+        document_url: '',
+        document: null,
+        remove_document: false,
         user_id: userId,
         user_name: userName,
     };
@@ -463,6 +542,7 @@ export function projectToFormData(
                 ? project.bid_dates.map((bidDate) => ({
                       id: bidDate.id ? String(bidDate.id) : '',
                       bid_date: bidDate.bid_date ?? '',
+                      bid_time: (bidDate.bid_time ?? '').slice(0, 5),
                       notes: bidDate.notes ?? '',
                       user_id: bidDate.user_id
                           ? String(bidDate.user_id)
@@ -479,6 +559,10 @@ export function projectToFormData(
                       number: addendum.number ?? '',
                       issued_on: addendum.issued_on ?? '',
                       notes: addendum.notes ?? '',
+                      document_name: addendum.document?.name ?? '',
+                      document_url: addendum.document?.url ?? '',
+                      document: null,
+                      remove_document: false,
                       user_id: addendum.user_id
                           ? String(addendum.user_id)
                           : addendum.user
