@@ -2009,52 +2009,148 @@ export default function Show({ takeoff, templates, quotations, can, openingTypes
 
                 {section === 'assemblies' ? (
                     <div className="space-y-4">
-                        <p className="text-sm text-muted-foreground">Matching openings can be grouped. A manual group with different configurations stays separate and shows a warning. One-time costs, such as freight, are not multiplied by quantity.</p>
-                        {editable ? (
-                            <div className="flex flex-wrap items-center gap-2">
-                                <Button type="button" variant="outline" size="sm" onClick={() => router.post(route('admin.takeoffs.groups.auto', takeoff.uuid), {}, { preserveScroll: true })}>Group matching openings</Button>
-                                <TextInput value={groupName} onChange={(event) => setGroupName(event.target.value)} placeholder="Group name" />
-                                <Button type="button" variant="create" size="sm" onClick={() => router.post(route('admin.takeoffs.groups.store', takeoff.uuid), { name: groupName, opening_ids: checked }, { preserveScroll: true })}>Group selected</Button>
-                            </div>
-                        ) : null}
-                        <div className="space-y-3">
-                            {takeoff.groups.map((group) => (
-                                <div key={group.id} className="rounded-md border p-3 border-amber-200 bg-amber-50/70 dark:border-amber-900 dark:bg-amber-950/30">
-                                    <div className="flex flex-wrap items-center justify-between gap-2">
-                                        <h3 className="font-medium">{group.name}</h3>
-                                        {group.mismatch ? <Badge variant="outline">Configurations differ</Badge> : null}
-                                        {group.manual ? <Badge variant="outline">Manual</Badge> : <Badge variant="outline">Matched</Badge>}
-                                    </div>
-                                    <p className="text-sm">{group.opening_ids.map((id) => takeoff.openings.find((opening) => opening.id === id)?.label).filter(Boolean).join(', ')}</p>
-                                    {group.estimate ? <p className="text-sm">Estimated cost {money(group.estimate.cost)} · selling {money(group.estimate.selling)} · quantity {group.estimate.quantity}</p> : null}
-                                    {editable ? <Button type="button" variant="outline" size="sm" onClick={() => router.delete(route('admin.takeoffs.groups.destroy', [takeoff.uuid, group.id]), { preserveScroll: true })}>Ungroup</Button> : null}
-                                    {can.pricing ? <CostForm takeoffUuid={takeoff.uuid} groupId={group.id} /> : null}
+                        <section className="rounded-xl border border-amber-200 bg-amber-50/70 p-4 dark:border-amber-900 dark:bg-amber-950/30">
+                            <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                                <div className="min-w-0 max-w-2xl">
+                                    <h2 className="text-base font-semibold text-amber-950 dark:text-amber-100">Assemblies</h2>
+                                    <p className="mt-1 text-sm text-muted-foreground">Check the openings, then group them. Matching openings can be grouped together. A manual group with different configurations stays separate and shows a warning. One-time costs, such as freight, are not multiplied by quantity.</p>
                                 </div>
-                            ))}
+                                {editable ? (
+                                    <div className="flex shrink-0 flex-col items-stretch gap-2 sm:items-end">
+                                        <Button type="button" variant="outline" size="xs" onClick={() => router.post(route('admin.takeoffs.groups.auto', takeoff.uuid), {}, { preserveScroll: true })}>Group matching openings</Button>
+                                        <div className="flex items-center gap-2">
+                                            <TextInput value={groupName} onChange={(event) => setGroupName(event.target.value)} placeholder="Group name" className="h-8 w-36 text-sm" />
+                                            <Button type="button" variant="create" size="xs" disabled={checked.length === 0} onClick={() => router.post(route('admin.takeoffs.groups.store', takeoff.uuid), { name: groupName, opening_ids: checked }, { preserveScroll: true })}>
+                                                Group selected{checked.length > 0 ? ` (${checked.length})` : ''}
+                                            </Button>
+                                        </div>
+                                    </div>
+                                ) : null}
+                            </div>
+                        </section>
+
+                        <div className="grid gap-4 xl:grid-cols-2">
+                            <section className="rounded-xl border border-emerald-200 bg-emerald-50/70 p-4 dark:border-emerald-900 dark:bg-emerald-950/30">
+                                <div className="flex items-start justify-between gap-3">
+                                    <div>
+                                        <h3 className="font-medium text-emerald-800 dark:text-emerald-200">1. Choose openings</h3>
+                                        <p className="text-xs text-muted-foreground">Select the openings that belong in one assembly.</p>
+                                    </div>
+                                    <p className="shrink-0 text-xs font-medium text-emerald-800 dark:text-emerald-200">{checked.length} selected</p>
+                                </div>
+                                {takeoff.openings.length === 0 ? (
+                                    <p className="mt-3 text-sm text-muted-foreground">No openings on this takeoff yet.</p>
+                                ) : (
+                                    <ul className="mt-3 flex max-h-80 flex-col gap-1.5 overflow-auto">
+                                        {takeoff.openings.map((opening) => {
+                                            const assembly = takeoff.groups.find((group) => group.opening_ids.includes(opening.id));
+
+                                            return (
+                                                <li key={opening.id}>
+                                                    <label className="flex items-start gap-2 rounded-lg border border-emerald-200/80 bg-background/80 px-2.5 py-2 text-sm dark:border-emerald-900">
+                                                        <input
+                                                            type="checkbox"
+                                                            className="mt-0.5"
+                                                            checked={checked.includes(opening.id)}
+                                                            onChange={(event) => setChecked((current) => event.target.checked ? [...current, opening.id] : current.filter((id) => id !== opening.id))}
+                                                        />
+                                                        <span className="min-w-0 flex-1">
+                                                            <span className="block font-medium text-foreground">{opening.label}</span>
+                                                            <span className="block truncate text-xs text-muted-foreground">{openingSpecs(opening)}</span>
+                                                        </span>
+                                                        {assembly ? <Badge variant="outline" className="shrink-0">{assembly.name}</Badge> : null}
+                                                    </label>
+                                                </li>
+                                            );
+                                        })}
+                                    </ul>
+                                )}
+                            </section>
+
+                            <section className="rounded-xl border border-amber-200 bg-background p-4 dark:border-amber-900">
+                                <h3 className="font-medium text-amber-950 dark:text-amber-100">2. Assemblies</h3>
+                                <p className="text-xs text-muted-foreground">Each assembly keeps its openings and costs together.</p>
+                                {takeoff.groups.length === 0 ? (
+                                    <p className="mt-3 text-sm text-muted-foreground">No assemblies yet. Group matching openings, or select openings and name a group.</p>
+                                ) : (
+                                    <div className="mt-3 space-y-3">
+                                        {takeoff.groups.map((group) => (
+                                            <div key={group.id} className="rounded-lg border border-amber-200 bg-amber-50/70 p-3 dark:border-amber-900 dark:bg-amber-950/30">
+                                                <div className="flex items-start justify-between gap-3">
+                                                    <div className="min-w-0">
+                                                        <h4 className="font-medium">{group.name}</h4>
+                                                        <div className="mt-1 flex flex-wrap gap-1">
+                                                            {group.manual ? <Badge variant="outline">Manual</Badge> : <Badge variant="outline">Matched</Badge>}
+                                                            {group.mismatch ? <Badge variant="outline">Configurations differ</Badge> : null}
+                                                        </div>
+                                                    </div>
+                                                    {editable ? (
+                                                        <Button type="button" variant="outline" size="xs" className="shrink-0" onClick={() => router.delete(route('admin.takeoffs.groups.destroy', [takeoff.uuid, group.id]), { preserveScroll: true })}>Ungroup</Button>
+                                                    ) : null}
+                                                </div>
+                                                <p className="mt-2 text-sm">{group.opening_ids.map((id) => takeoff.openings.find((opening) => opening.id === id)?.label).filter(Boolean).join(', ') || 'No openings'}</p>
+                                                {group.mismatch ? <p className="mt-1 text-xs text-amber-800 dark:text-amber-200">These openings are not the same configuration. Review them before pricing the group.</p> : null}
+                                                {group.estimate ? (
+                                                    <dl className="mt-2 grid grid-cols-3 gap-2 text-xs">
+                                                        <div>
+                                                            <dt className="text-muted-foreground">Quantity</dt>
+                                                            <dd className="font-medium">{group.estimate.quantity}</dd>
+                                                        </div>
+                                                        <div>
+                                                            <dt className="text-muted-foreground">Cost</dt>
+                                                            <dd className="font-medium">{money(group.estimate.cost)}</dd>
+                                                        </div>
+                                                        <div>
+                                                            <dt className="text-muted-foreground">Selling</dt>
+                                                            <dd className="font-medium">{money(group.estimate.selling)}</dd>
+                                                        </div>
+                                                    </dl>
+                                                ) : null}
+                                                {can.pricing ? <CostForm takeoffUuid={takeoff.uuid} groupId={group.id} /> : null}
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </section>
                         </div>
-                        <div className="rounded-md border p-3 border-emerald-200 bg-emerald-50/70 dark:border-emerald-900 dark:bg-emerald-950/30">
-                            <h3 className="font-medium text-emerald-800 dark:text-emerald-200">Openings</h3>
-                            {takeoff.openings.map((opening) => (
-                                <label key={opening.id} className="flex items-center gap-2 text-sm">
-                                    <input type="checkbox" checked={checked.includes(opening.id)} onChange={(event) => setChecked((current) => event.target.checked ? [...current, opening.id] : current.filter((id) => id !== opening.id))} />
-                                    {opening.label} {opening.group_id ? '(grouped)' : ''}
-                                </label>
-                            ))}
-                        </div>
-                        {can.pricing && selected ? <CostForm takeoffUuid={takeoff.uuid} openingId={selected.id} /> : <p className="text-sm text-muted-foreground">Select an opening on the schedule to add its unit costs.</p>}
-                        <div className="rounded-md border p-3 border-violet-200 bg-violet-50/70 dark:border-violet-900 dark:bg-violet-950/30">
+
+                        <section className="rounded-xl border p-4">
+                            <h3 className="font-medium">Opening costs</h3>
+                            {can.pricing && selected ? (
+                                <>
+                                    <p className="text-xs text-muted-foreground">Add a unit cost for {selected.label}. One-time costs stay flat when the quantity changes.</p>
+                                    <CostForm takeoffUuid={takeoff.uuid} openingId={selected.id} />
+                                </>
+                            ) : (
+                                <p className="mt-1 text-sm text-muted-foreground">Select an opening on the schedule to add its unit costs.</p>
+                            )}
+                        </section>
+
+                        <section className="rounded-xl border border-violet-200 bg-violet-50/70 p-4 dark:border-violet-900 dark:bg-violet-950/30">
                             <h3 className="font-medium text-violet-800 dark:text-violet-200">Assembly templates</h3>
-                            <p className="text-sm text-muted-foreground">Applying a template copies it onto the opening. Later template edits do not change this estimate.</p>
-                            <ul className="mt-2 space-y-1 text-sm">
-                                {templates.map((template) => (
-                                    <li key={template.id} className="flex items-center justify-between gap-2">
-                                        <span>{template.name}</span>
-                                        {editable && selected ? <Button type="button" size="sm" variant="outline" onClick={() => router.post(route('admin.takeoffs.templates.apply', [takeoff.uuid, selected.id]), { template_id: template.id }, { preserveScroll: true })}>Apply to {selected.label}</Button> : null}
-                                    </li>
-                                ))}
-                            </ul>
+                            <p className="text-sm text-muted-foreground">Applying a template copies it onto the selected opening. Later template edits do not change this estimate.</p>
+                            {templates.length === 0 ? (
+                                <p className="mt-3 text-sm text-muted-foreground">No templates saved yet.</p>
+                            ) : (
+                                <ul className="mt-3 divide-y divide-violet-200 dark:divide-violet-900">
+                                    {templates.map((template) => (
+                                        <li key={template.id} className="flex items-center justify-between gap-3 py-2">
+                                            <div className="min-w-0">
+                                                <p className="truncate text-sm font-medium">{template.name}</p>
+                                                <p className="truncate text-xs text-muted-foreground">
+                                                    {[template.opening_type, template.frame_type, template.hardware_set, template.glazing].filter(Boolean).join(' · ') || 'No details'}
+                                                </p>
+                                            </div>
+                                            {editable && selected ? (
+                                                <Button type="button" size="xs" variant="outline" className="shrink-0" onClick={() => router.post(route('admin.takeoffs.templates.apply', [takeoff.uuid, selected.id]), { template_id: template.id }, { preserveScroll: true })}>Apply</Button>
+                                            ) : null}
+                                        </li>
+                                    ))}
+                                </ul>
+                            )}
+                            {editable && !selected ? <p className="mt-2 text-xs text-muted-foreground">Select an opening on the schedule before applying a template.</p> : null}
                             {editable ? (
-                                <form className="mt-3 grid gap-2 md:grid-cols-3" onSubmit={(event) => {
+                                <form className="mt-3 border-t border-violet-200 pt-3 dark:border-violet-900" onSubmit={(event) => {
                                     event.preventDefault();
                                     const data = Object.fromEntries(new FormData(event.currentTarget).entries());
                                     router.post(route('admin.takeoffs.templates.store', takeoff.uuid), {
@@ -2063,52 +2159,77 @@ export default function Show({ takeoff, templates, quotations, can, openingTypes
                                     }, { preserveScroll: true });
                                     event.currentTarget.reset();
                                 }}>
-                                    <TextInput name="name" placeholder="Template name" required />
-                                    <select name="opening_type" className="h-12 rounded-md border-gray-300 py-2 text-sm leading-6" defaultValue="door"><option value="door">Door</option><option value="window">Window</option></select>
-                                    <TextInput name="frame_type" placeholder="Frame" />
-                                    <TextInput name="hardware_set" placeholder="Hardware" />
-                                    <TextInput name="glazing" placeholder="Glazing" />
-                                    <TextInput name="amount" placeholder="Default material cost" />
-                                    <Button type="submit" variant="create" size="sm">Save template</Button>
+                                    <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                                        <TextInput name="name" placeholder="Template name" required className="h-8 text-sm" />
+                                        <select name="opening_type" className="h-12 rounded-md border-gray-300 py-2 text-sm leading-6" defaultValue="door"><option value="door">Door</option><option value="window">Window</option></select>
+                                        <TextInput name="frame_type" placeholder="Frame" className="h-8 text-sm" />
+                                        <TextInput name="hardware_set" placeholder="Hardware" className="h-8 text-sm" />
+                                        <TextInput name="glazing" placeholder="Glazing" className="h-8 text-sm" />
+                                        <TextInput name="amount" placeholder="Default material cost" className="h-8 text-sm" />
+                                    </div>
+                                    <div className="mt-2 flex justify-end">
+                                        <Button type="submit" variant="create" size="xs">Save template</Button>
+                                    </div>
                                 </form>
                             ) : null}
-                        </div>
+                        </section>
+
                         {can.pricing ? (
-                            <form className="grid gap-2 rounded-md border p-3 md:grid-cols-3" onSubmit={(event) => {
-                                event.preventDefault();
-                                const data = new FormData(event.currentTarget);
-                                if (data.get('file') instanceof File && (data.get('file') as File).size === 0) {
-                                    data.delete('file');
-                                }
-                                router.post(route('admin.takeoffs.quotes.store', takeoff.uuid), data, { forceFormData: true, preserveScroll: true });
-                            }}>
-                                <h3 className="md:col-span-3 font-medium">Supplier quote</h3>
-                                <TextInput name="supplier_name" placeholder="Supplier" required />
-                                <TextInput name="quote_number" placeholder="Quote number" />
-                                <TextInput name="revision_label" placeholder="Revision" />
-                                <TextInput name="quote_date" type="date" />
-                                <TextInput name="expires_at" type="date" />
-                                <select name="opening_id" className="h-12 rounded-md border-gray-300 py-2 text-sm leading-6" defaultValue={selected?.id ?? ''}>
-                                    <option value="">Opening</option>
-                                    {takeoff.openings.map((opening) => <option key={opening.id} value={opening.id}>{opening.label}</option>)}
-                                </select>
-                                <textarea name="included_scope" className="rounded-md border-gray-300 text-sm" placeholder="Included scope" />
-                                <textarea name="exclusions" className="rounded-md border-gray-300 text-sm" placeholder="Exclusions" />
-                                <textarea name="pricing_notes" className="rounded-md border-gray-300 text-sm" placeholder="Pricing notes" />
-                                <input name="file" type="file" accept="application/pdf" />
-                                <Button type="submit" variant="create" size="sm">Save supplier quote</Button>
-                                <ul className="md:col-span-3 space-y-2 text-sm">
-                                    {takeoff.supplier_quotes.map((quote) => (
-                                        <li key={quote.id} className="rounded border p-2">
-                                            {quote.supplier_name} {quote.quote_number} {quote.revision_label}
-                                            {quote.expired ? <Badge variant="outline">Expired</Badge> : null}
-                                            {quote.accepted_at ? <Badge variant="outline">Accepted</Badge> : null}
-                                            {editable && !quote.accepted_at ? <Button type="button" size="sm" variant="outline" onClick={() => router.post(route('admin.takeoffs.quotes.accept', [takeoff.uuid, quote.id]), {}, { preserveScroll: true })}>Accept</Button> : null}
-                                            {editable ? <Button type="button" size="sm" variant="outline" onClick={() => router.post(route('admin.takeoffs.quotes.revise', [takeoff.uuid, quote.id]), { supplier_name: quote.supplier_name, quote_number: quote.quote_number, revision_label: 'Next' }, { preserveScroll: true })}>New revision</Button> : null}
-                                        </li>
-                                    ))}
-                                </ul>
-                            </form>
+                            <section className="rounded-xl border p-4">
+                                <h3 className="font-medium">Supplier quotes</h3>
+                                <p className="text-sm text-muted-foreground">Save a supplier price, then accept the quote you want to use.</p>
+                                <form className="mt-3" onSubmit={(event) => {
+                                    event.preventDefault();
+                                    const data = new FormData(event.currentTarget);
+                                    if (data.get('file') instanceof File && (data.get('file') as File).size === 0) {
+                                        data.delete('file');
+                                    }
+                                    router.post(route('admin.takeoffs.quotes.store', takeoff.uuid), data, { forceFormData: true, preserveScroll: true });
+                                }}>
+                                    <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                                        <TextInput name="supplier_name" placeholder="Supplier" required className="h-8 text-sm" />
+                                        <TextInput name="quote_number" placeholder="Quote number" className="h-8 text-sm" />
+                                        <TextInput name="revision_label" placeholder="Revision" className="h-8 text-sm" />
+                                        <TextInput name="quote_date" type="date" className="h-8 text-sm" />
+                                        <TextInput name="expires_at" type="date" className="h-8 text-sm" />
+                                        <select name="opening_id" className="h-12 rounded-md border-gray-300 py-2 text-sm leading-6" defaultValue={selected?.id ?? ''}>
+                                            <option value="">Opening</option>
+                                            {takeoff.openings.map((opening) => <option key={opening.id} value={opening.id}>{opening.label}</option>)}
+                                        </select>
+                                        <textarea name="included_scope" className="rounded-md border-gray-300 text-sm" placeholder="Included scope" rows={2} />
+                                        <textarea name="exclusions" className="rounded-md border-gray-300 text-sm" placeholder="Exclusions" rows={2} />
+                                        <textarea name="pricing_notes" className="rounded-md border-gray-300 text-sm" placeholder="Pricing notes" rows={2} />
+                                        <input name="file" type="file" accept="application/pdf" className="text-xs sm:col-span-2 lg:col-span-3" />
+                                    </div>
+                                    <div className="mt-2 flex justify-end">
+                                        <Button type="submit" variant="create" size="xs">Save supplier quote</Button>
+                                    </div>
+                                </form>
+                                {takeoff.supplier_quotes.length === 0 ? (
+                                    <p className="mt-3 text-sm text-muted-foreground">No supplier quotes yet.</p>
+                                ) : (
+                                    <ul className="mt-3 space-y-2 text-sm">
+                                        {takeoff.supplier_quotes.map((quote) => (
+                                            <li key={quote.id} className="flex items-start justify-between gap-3 rounded-lg border bg-background p-3">
+                                                <div className="min-w-0">
+                                                    <p className="font-medium">{quote.supplier_name} {quote.quote_number}</p>
+                                                    <p className="text-xs text-muted-foreground">{quote.revision_label || 'No revision'}</p>
+                                                    <div className="mt-1 flex flex-wrap gap-1">
+                                                        {quote.expired ? <Badge variant="outline">Expired</Badge> : null}
+                                                        {quote.accepted_at ? <Badge variant="outline">Accepted</Badge> : null}
+                                                    </div>
+                                                </div>
+                                                {editable ? (
+                                                    <div className="flex shrink-0 items-center gap-1.5">
+                                                        {!quote.accepted_at ? <Button type="button" size="xs" variant="outline" onClick={() => router.post(route('admin.takeoffs.quotes.accept', [takeoff.uuid, quote.id]), {}, { preserveScroll: true })}>Accept</Button> : null}
+                                                        <Button type="button" size="xs" variant="outline" onClick={() => router.post(route('admin.takeoffs.quotes.revise', [takeoff.uuid, quote.id]), { supplier_name: quote.supplier_name, quote_number: quote.quote_number, revision_label: 'Next' }, { preserveScroll: true })}>New revision</Button>
+                                                    </div>
+                                                ) : null}
+                                            </li>
+                                        ))}
+                                    </ul>
+                                )}
+                            </section>
                         ) : null}
                     </div>
                 ) : null}
@@ -2198,7 +2319,7 @@ function Estimate({ label, value }: { label: string; value: string }) {
 
 function CostForm({ takeoffUuid, openingId, groupId }: { takeoffUuid: string; openingId?: number; groupId?: number }) {
     return (
-        <form className="mt-3 grid gap-2 md:grid-cols-4" onSubmit={(event) => {
+        <form className="mt-3" onSubmit={(event) => {
             event.preventDefault();
             const data = Object.fromEntries(new FormData(event.currentTarget).entries());
             router.post(route('admin.takeoffs.costs.store', takeoffUuid), {
@@ -2208,22 +2329,26 @@ function CostForm({ takeoffUuid, openingId, groupId }: { takeoffUuid: string; op
             }, { preserveScroll: true });
             event.currentTarget.reset();
         }}>
-            <select name="kind" className="h-12 rounded-md border-gray-300 py-2 text-sm leading-6" defaultValue="material">
-                <option value="material">Material</option>
-                <option value="labor">Labor</option>
-                <option value="freight">Freight</option>
-                <option value="equipment">Equipment</option>
-                <option value="subcontract">Subcontract</option>
-                <option value="other">Other</option>
-            </select>
-            <select name="basis" className="h-12 rounded-md border-gray-300 py-2 text-sm leading-6" defaultValue="per_unit">
-                <option value="per_unit">Per unit</option>
-                <option value="one_time">One time</option>
-            </select>
-            <TextInput name="amount" placeholder="Amount" />
-            <TextInput name="labor_hours" placeholder="Labor hours" />
-            <TextInput name="hourly_rate" placeholder="Hourly rate" />
-            <Button type="submit" variant="outline" size="sm">Add cost</Button>
+            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
+                <select name="kind" className="h-12 rounded-md border-gray-300 py-2 text-sm leading-6" defaultValue="material">
+                    <option value="material">Material</option>
+                    <option value="labor">Labor</option>
+                    <option value="freight">Freight</option>
+                    <option value="equipment">Equipment</option>
+                    <option value="subcontract">Subcontract</option>
+                    <option value="other">Other</option>
+                </select>
+                <select name="basis" className="h-12 rounded-md border-gray-300 py-2 text-sm leading-6" defaultValue="per_unit">
+                    <option value="per_unit">Per unit</option>
+                    <option value="one_time">One time</option>
+                </select>
+                <TextInput name="amount" placeholder="Amount" className="h-8 text-sm" />
+                <TextInput name="labor_hours" placeholder="Labor hours" className="h-8 text-sm" />
+                <TextInput name="hourly_rate" placeholder="Hourly rate" className="h-8 text-sm" />
+            </div>
+            <div className="mt-2 flex justify-end">
+                <Button type="submit" variant="outline" size="xs">Add cost</Button>
+            </div>
         </form>
     );
 }

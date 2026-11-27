@@ -133,10 +133,16 @@ export function savedCountTool(): CountTool {
 
 const drawingToolsKey = 'gateway.takeoff-drawing-tools';
 
+type SavedDocumentView = {
+    page: number;
+    rotation: number;
+    zoom?: number;
+};
+
 type SavedDrawingTools = {
     zoom: number;
     tool: CountTool;
-    byDocument: Record<string, { page: number; rotation: number }>;
+    byDocument: Record<string, SavedDocumentView>;
 };
 
 function readDrawingTools(): SavedDrawingTools {
@@ -147,10 +153,27 @@ function readDrawingTools(): SavedDrawingTools {
         const zoom = Number(parsed?.zoom);
         const tool = parsed?.tool;
 
+        const byDocument: Record<string, SavedDocumentView> = {};
+
+        if (parsed?.byDocument && typeof parsed.byDocument === 'object') {
+            Object.entries(parsed.byDocument).forEach(([id, view]) => {
+                if (!view || typeof view !== 'object') {
+                    return;
+                }
+
+                const savedZoom = Number(view.zoom);
+                byDocument[id] = {
+                    page: Number(view.page) >= 1 ? Number(view.page) : 1,
+                    rotation: [0, 90, 180, 270].includes(Number(view.rotation)) ? Number(view.rotation) : 0,
+                    zoom: Number.isFinite(savedZoom) && savedZoom >= 0.05 && savedZoom <= 8 ? savedZoom : undefined,
+                };
+            });
+        }
+
         return {
             zoom: Number.isFinite(zoom) && zoom >= 0.05 && zoom <= 8 ? zoom : 1,
             tool: tool === 'window' || tool === 'select' || tool === 'hand' || tool === 'remove' || tool === 'pen' || tool === 'box' || tool === 'copy' || tool === 'openings' || tool === 'door' ? tool : 'door',
-            byDocument: parsed?.byDocument && typeof parsed.byDocument === 'object' ? parsed.byDocument : {},
+            byDocument,
         };
     } catch {
         return empty;
@@ -252,7 +275,8 @@ export default function PdfWorkspace({
     const stageRef = useRef<HTMLDivElement>(null);
     const fileRef = useRef<HTMLInputElement>(null);
     const zoomRef = useRef(1);
-    const fitSheetRef = useRef<(mode: 'page' | 'width' | 'actual') => boolean>(() => false);
+    const fitSheetRef = useRef<(mode: 'page' | 'width' | 'actual', lock?: boolean) => boolean>(() => false);
+    const zoomLocked = useRef(false);
     const fittedFullscreenKey = useRef('');
     const fittedStageKey = useRef('');
     const straightenRef = useRef(0);
@@ -264,7 +288,21 @@ export default function PdfWorkspace({
     const skipToolWrite = useRef(true);
     const [page, setPage] = useState(1);
     const [pageCount, setPageCount] = useState(1);
-    const [zoom, setZoom] = useState(savedTools.current.zoom);
+    const [zoom, setZoom] = useState(() => {
+        const id = selectedDocumentId ?? documents[0]?.id;
+        const view = id != null ? savedTools.current.byDocument[String(id)] : undefined;
+
+        if (view?.zoom !== undefined) {
+            zoomLocked.current = true;
+            zoomRef.current = view.zoom;
+
+            return view.zoom;
+        }
+
+        zoomRef.current = savedTools.current.zoom;
+
+        return savedTools.current.zoom;
+    });
     const [rotation, setRotation] = useState(0);
     const [error, setError] = useState<string | null>(null);
     const [positions, setPositions] = useState<Record<number, PinPosition>>({});
@@ -371,9 +409,16 @@ export default function PdfWorkspace({
         const nextPage = saved?.page && saved.page >= 1 ? saved.page : 1;
         const storedRotation = Number(document.rotation);
         const nextRotation = [0, 90, 180, 270].includes(storedRotation) ? storedRotation : 0;
+        const nextZoom = saved?.zoom;
         skipToolWrite.current = true;
+        zoomLocked.current = nextZoom !== undefined;
         setPage(nextPage);
         setRotation(nextRotation);
+
+        if (nextZoom !== undefined) {
+            zoomRef.current = nextZoom;
+            setZoom(nextZoom);
+        }
     }, [document?.id]);
 
     useEffect(() => {
@@ -395,7 +440,12 @@ export default function PdfWorkspace({
         const byDocument = { ...current.byDocument };
 
         if (document?.id) {
-            byDocument[String(document.id)] = { page, rotation };
+            const savedView = byDocument[String(document.id)];
+            byDocument[String(document.id)] = {
+                page,
+                rotation,
+                zoom: zoomLocked.current ? zoom : savedView?.zoom,
+            };
         }
 
         writeDrawingTools({ zoom, tool, byDocument });
@@ -708,9 +758,25 @@ export default function PdfWorkspace({
         }
     };
 
-    const changeZoom = (next: number, clientX?: number, clientY?: number) => {
+    const changeZoom = (next: number, clientX?: number, clientY?: number, lock = true) => {
         const current = zoomRef.current;
         const clamped = Math.min(8, Math.max(0.05, Number(next.toFixed(3))));
+
+        if (lock) {
+            zoomLocked.current = true;
+            const currentTools = readDrawingTools();
+            const byDocument = { ...currentTools.byDocument };
+
+            if (document?.id) {
+                const savedView = byDocument[String(document.id)];
+                byDocument[String(document.id)] = {
+                    page: savedView?.page ?? page,
+                    rotation: savedView?.rotation ?? rotation,
+                    zoom: clamped,
+                };
+                writeDrawingTools({ zoom: clamped, tool, byDocument });
+            }
+        }
 
         if (clamped === current) {
             return;
@@ -733,9 +799,13 @@ export default function PdfWorkspace({
         setZoom(clamped);
     };
 
-    const fitSheet = (mode: 'page' | 'width' | 'actual') => {
+    const fitSheet = (mode: 'page' | 'width' | 'actual', lock = true) => {
+        if (!lock && zoomLocked.current) {
+            return true;
+        }
+
         if (mode === 'actual') {
-            changeZoom(1);
+            changeZoom(1, undefined, undefined, lock);
 
             return true;
         }
@@ -744,8 +814,11 @@ export default function PdfWorkspace({
         const base = pageSizeRef.current;
 
         const stage = stageRef.current;
-        const measuredWidth = scroller.clientWidth >= 80 ? scroller.clientWidth : (stage?.clientWidth ?? 0);
-        const measuredHeight = scroller.clientHeight >= 80 ? scroller.clientHeight : (stage?.clientHeight ?? 0);
+        const columnWidth = stage?.clientWidth ?? 0;
+        const measuredWidth = columnWidth >= 80 ? columnWidth : (scroller && scroller.clientWidth >= 80 ? scroller.clientWidth : 0);
+        const measuredHeight = focus
+            ? (scroller && scroller.clientHeight >= 80 ? scroller.clientHeight : (stage?.clientHeight ?? 0))
+            : Math.max(320, window.innerHeight - 180);
 
         if (!scroller || base.width <= 1 || base.height <= 1 || measuredWidth < 80 || measuredHeight < 80) {
             return false;
@@ -758,7 +831,7 @@ export default function PdfWorkspace({
         const availableWidth = Math.max(1, measuredWidth - pad);
         const availableHeight = Math.max(1, measuredHeight - pad);
         const next = mode === 'width' ? availableWidth / width : Math.min(availableWidth / width, availableHeight / height);
-        changeZoom(next);
+        changeZoom(next, undefined, undefined, lock);
         scroller.scrollLeft = 0;
         scroller.scrollTop = 0;
 
@@ -828,7 +901,9 @@ export default function PdfWorkspace({
 
         const key = `${document?.id ?? 0}:${page}:${rotation}:${chrome.top}:${chrome.left}:${stageBox.width}x${stageBox.height}`;
 
-        if (fittedFullscreenKey.current === key) {
+        if (zoomLocked.current || fittedFullscreenKey.current === key) {
+            fittedFullscreenKey.current = key;
+
             return;
         }
 
@@ -837,7 +912,7 @@ export default function PdfWorkspace({
         const attempt = () => {
             tries += 1;
 
-            if (fitSheetRef.current('page')) {
+            if (fitSheetRef.current('page', false)) {
                 fittedFullscreenKey.current = key;
 
                 return;
@@ -859,7 +934,9 @@ export default function PdfWorkspace({
 
         const key = `${document?.id ?? 0}:${page}:${rotation}:${stageBox.width}x${stageBox.height}`;
 
-        if (fittedStageKey.current === key) {
+        if (zoomLocked.current || fittedStageKey.current === key) {
+            fittedStageKey.current = key;
+
             return;
         }
 
@@ -868,7 +945,7 @@ export default function PdfWorkspace({
         const attempt = () => {
             tries += 1;
 
-            if (fitSheetRef.current('page')) {
+            if (fitSheetRef.current('page', false)) {
                 fittedStageKey.current = key;
 
                 return;
@@ -1537,14 +1614,18 @@ export default function PdfWorkspace({
             ref={stageRef}
             className={focus
                 ? 'fixed z-10 flex min-h-0 min-w-0 flex-col overflow-hidden bg-[#1b2128]'
-                : 'relative z-0 flex h-[calc(100dvh-var(--app-sticky-top,4.75rem)-4.5rem)] min-h-[32rem] min-w-0 flex-col overflow-hidden'}
+                : 'relative z-0 flex w-full min-w-0 flex-col overflow-hidden'}
             style={focus ? {
                 top: chrome.top,
                 left: chrome.left,
                 width: `calc(100vw - ${chrome.left}px)`,
                 height: `calc(100dvh - ${chrome.top}px)`,
                 zIndex: 10,
-            } : undefined}
+            } : {
+                height: sheetPixels.height > 0 ? sheetPixels.height + 24 : '32rem',
+                maxHeight: 'calc(100dvh - var(--app-sticky-top, 4.75rem) - 4.5rem)',
+                minHeight: '12rem',
+            }}
         >
             <input
                 ref={fileRef}
@@ -1575,10 +1656,10 @@ export default function PdfWorkspace({
             <div className="relative min-h-0 min-w-0 flex-1">
                 <div
                     ref={scrollerRef}
-                    className={`absolute inset-0 overflow-auto bg-[#d7dee6] ${panning ? 'cursor-grab active:cursor-grabbing' : ''}`}
+                    className={`absolute inset-0 overflow-x-auto overflow-y-auto bg-[#d7dee6] ${panning ? 'cursor-grab active:cursor-grabbing' : ''}`}
                     onPointerDown={beginPan}
                     onPointerMove={(event) => {
-                        const rect = stageRef.current?.getBoundingClientRect();
+                        const rect = scrollerRef.current?.getBoundingClientRect();
 
                         if (!rect) {
                             return;
@@ -1593,8 +1674,9 @@ export default function PdfWorkspace({
                     }}
                     onPointerLeave={() => setPointer(null)}
                 >
-                <div className={split ? 'flex items-start gap-6 p-4' : 'grid min-h-full min-w-full p-1'}>
-                <div className="relative m-auto" style={straighten === 0 ? undefined : { transform: `rotate(${straighten}deg)` }}>
+                <div className={split ? 'flex items-start gap-6 p-4' : 'flex min-h-full w-max min-w-full items-start py-3'}>
+                {split ? null : <div className="w-[26rem] shrink-0" aria-hidden />}
+                <div className="relative w-max max-w-none" style={straighten === 0 ? undefined : { transform: `rotate(${straighten}deg)` }}>
                     <canvas
                         ref={canvasRef}
                         style={{
@@ -2019,6 +2101,7 @@ export default function PdfWorkspace({
                         );
                     })}
                 </div>
+                {split ? null : <div className="w-[26rem] shrink-0" aria-hidden />}
                 {split && page < pageCount ? (
                     <button type="button" className="shrink-0 rounded-md border border-white/70 bg-white/80 p-2 text-left shadow" onClick={() => setPage((current) => Math.min(pageCount, current + 1))}>
                         <canvas ref={peekRef} className="max-w-[42vw] bg-white" />
@@ -2036,8 +2119,8 @@ export default function PdfWorkspace({
                     onPage={setPage}
                     zoom={zoom}
                     onZoomBy={(factor) => {
-                        const stage = stageRef.current?.getBoundingClientRect();
-                        changeZoom(zoomRef.current * factor, stage ? stage.left + stage.width / 2 : undefined, stage ? stage.top + stage.height / 2 : undefined);
+                        const frame = scrollerRef.current?.getBoundingClientRect();
+                        changeZoom(zoomRef.current * factor, frame ? frame.left + frame.width / 2 : undefined, frame ? frame.top + frame.height / 2 : undefined);
                     }}
                     onFit={fitSheet}
                     onRotate={rotateSheet}

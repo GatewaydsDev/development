@@ -565,7 +565,7 @@ export default function InternalChat() {
             {open ? (
                 <section
                     aria-label="Super administrator chat"
-                    className={`fixed z-40 flex h-[min(70dvh,36rem)] flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-2xl ${besideFormActions ? 'start-3 end-[max(6.25rem,calc(env(safe-area-inset-right)+5.5rem))] bottom-[max(7.25rem,calc(env(safe-area-inset-bottom)+6.25rem))] sm:start-auto sm:end-[7.75rem] sm:bottom-[8.75rem] sm:w-[24rem] landscape:end-[5.5rem] landscape:bottom-28' : 'inset-x-3 bottom-24 sm:inset-x-auto sm:end-5 sm:w-[24rem]'}`}
+                    className={`fixed z-40 flex h-[min(70dvh,36rem)] flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-2xl ${besideFormActions ? 'start-3 end-[max(6.25rem,calc(env(safe-area-inset-right)+5.5rem))] bottom-[max(7.25rem,calc(env(safe-area-inset-bottom)+6.25rem))] sm:start-auto sm:end-[7.75rem] sm:bottom-[8.75rem] sm:w-[24rem] landscape:end-[5.5rem] landscape:bottom-28' : 'inset-x-3 bottom-24 sm:inset-x-auto sm:end-5 sm:w-[24rem] xl:end-20'}`}
                 >
                     <header className="flex items-start justify-between gap-3 border-b border-border px-4 py-3">
                         <div className="flex min-w-0 items-start gap-2">
@@ -831,7 +831,7 @@ export default function InternalChat() {
                 type="button"
                 onClick={() => setOpen((value) => !value)}
                 aria-label={unread > 0 ? `Open internal chat, ${unread} new messages` : 'Open internal chat'}
-                className={`fixed z-40 hidden size-14 items-center justify-center rounded-full bg-emerald-700 text-white shadow-lg shadow-emerald-950/20 hover:bg-emerald-800 lg:flex ${besideFormActions ? 'bottom-16 end-[7.75rem]' : 'bottom-5 end-5'} ${unread > 0 ? 'ring-4 ring-red-500/40' : ''}`}
+                className={`fixed z-40 hidden size-14 items-center justify-center rounded-full bg-emerald-700 text-white shadow-lg shadow-emerald-950/20 hover:bg-emerald-800 lg:flex xl:bottom-auto xl:end-2 xl:top-1/2 xl:-translate-y-1/2 ${besideFormActions ? 'bottom-16 end-[7.75rem]' : 'bottom-5 end-5'} ${unread > 0 ? 'ring-4 ring-red-500/40' : ''}`}
             >
                 <MessageCircleIcon className="size-6" />
                 {unread > 0 ? (

@@ -326,13 +326,25 @@ export default function Index({
                                             id={`project-row-${project.uuid}`}
                                             key={project.id}
                                             className={cn(
-                                                'grid gap-4 rounded-xl border border-border bg-card p-4 shadow-sm md:grid-cols-2 xl:min-h-24 xl:rounded-none xl:border-x-0 xl:border-t-0 xl:border-b xl:px-5 xl:py-6 xl:shadow-none xl:last:border-b-0 xl:items-start xl:gap-6',
+                                                'relative grid gap-4 rounded-xl border border-border bg-card p-4 shadow-sm md:grid-cols-2 xl:min-h-24 xl:rounded-none xl:border-x-0 xl:border-t-0 xl:border-b xl:px-5 xl:py-6 xl:shadow-none xl:last:border-b-0 xl:items-start xl:gap-6',
                                                 projectRowGridClassName,
+                                                options.can.update &&
+                                                    'cursor-pointer hover:bg-muted/40',
                                                 highlightedProjectUuid ===
                                                     project.uuid &&
                                                     'bg-emerald-50 dark:bg-emerald-950/30',
                                             )}
                                         >
+                                            {options.can.update && (
+                                                <Link
+                                                    href={route(
+                                                        'admin.projects.edit',
+                                                        project.uuid,
+                                                    )}
+                                                    aria-label={`Edit ${project.name}`}
+                                                    className="absolute inset-0 rounded-[inherit]"
+                                                />
+                                            )}
                                             <div className="flex min-w-0 flex-col gap-1">
                                                 <DirectoryFieldLabel hideFrom="xl">
                                                     Project
@@ -547,7 +559,7 @@ export default function Index({
                                                 <DirectoryFieldLabel hideFrom="xl">
                                                     Actions
                                                 </DirectoryFieldLabel>
-                                                <div className="grid grid-cols-5 gap-2 xl:flex xl:flex-nowrap xl:items-center xl:justify-end xl:gap-1.5 [&>*]:shrink-0">
+                                                <div className="relative z-10 grid grid-cols-5 gap-2 xl:flex xl:flex-nowrap xl:items-center xl:justify-end xl:gap-1.5 [&>*]:shrink-0">
                                                 <ActionHint hint="Print this project">
                                                     <Button
                                                         variant="outline"
@@ -746,7 +758,7 @@ function LinkedRecord({
     }
 
     return (
-        <Link href={href} className={cn(boxClassName, 'hover:brightness-95')}>
+        <Link href={href} className={cn(boxClassName, 'relative z-10 hover:brightness-95')}>
             {content}
         </Link>
     );

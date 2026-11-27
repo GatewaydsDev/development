@@ -932,14 +932,19 @@ export default function Index({
                                         {list.length === 0 ? (
                                             <p className="text-sm text-muted-foreground">{t('empty')}</p>
                                         ) : (
-                                            list.map((item) => (
+                                            list.map((item) => {
+                                                const reading = message?.id === item.id;
+
+                                                return (
                                                 <div
                                                     key={item.id}
                                                     className={cn(
                                                         'relative min-w-0 rounded-md border',
-                                                        folder === 'inbox' && !item.is_read
-                                                            ? 'border-sky-400/70 bg-sky-100/70 dark:border-sky-700 dark:bg-sky-950/45'
-                                                            : 'border-border',
+                                                        reading
+                                                            ? 'border-emerald-600 bg-emerald-100 ring-2 ring-emerald-600 dark:border-emerald-400 dark:bg-emerald-950/70 dark:ring-emerald-400'
+                                                            : folder === 'inbox' && !item.is_read
+                                                                ? 'border-sky-400/70 bg-sky-100/70 dark:border-sky-700 dark:bg-sky-950/45'
+                                                                : 'border-border',
                                                     )}
                                                 >
                                                     <div className="absolute end-0 top-0 z-10">
@@ -960,13 +965,19 @@ export default function Index({
                                                     })}
                                                     preserveScroll
                                                     preserveState
+                                                    aria-current={reading ? 'true' : undefined}
                                                     onClick={() => {
                                                         rememberListScroll();
                                                         if (folder === 'inbox' && !item.is_read) {
                                                             acknowledgeUnreadMail(item.id);
                                                         }
                                                     }}
-                                                    className="block min-h-11 min-w-0 rounded-md py-3.5 pe-12 ps-3 text-left touch-manipulation hover:bg-muted sm:py-3"
+                                                    className={cn(
+                                                        'block min-h-11 min-w-0 rounded-md py-3.5 pe-12 ps-3 text-left touch-manipulation sm:py-3',
+                                                        reading
+                                                            ? 'hover:bg-emerald-200/80 dark:hover:bg-emerald-900/60'
+                                                            : 'hover:bg-muted',
+                                                    )}
                                                 >
                                                     <p className="flex items-center gap-2 break-words text-foreground">
                                                         {folder === 'drafts' ? (
@@ -996,7 +1007,8 @@ export default function Index({
                                                     </p>
                                                 </Link>
                                                 </div>
-                                            ))
+                                                );
+                                            })
                                         )}
                                         <div className="grid grid-cols-2 gap-2 pt-2 sm:flex">
                                             {nextCursor ? (
