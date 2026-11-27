@@ -2,6 +2,7 @@ import AiDraftButton from '@/Components/AiDraftButton';
 import CreatableSelect from '@/Components/CreatableSelect';
 import RichTextEditor from '@/Components/RichTextEditor';
 import { notesToHtml } from '@/lib/notesHtml';
+import { requestValidationScroll } from '@/lib/scrollToValidationError';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import FormActionFab from '@/Components/FormActionFab';
 import TextInput from '@/Components/TextInput';
@@ -17,6 +18,7 @@ import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 're
 import { createPortal } from 'react-dom';
 import { countMark } from './pinLabels';
 import OpeningEditor, { openingForm, openingPayload, type OpeningForm } from './Partials/OpeningEditor';
+import OpeningRowDialog from './Partials/OpeningRowDialog';
 import TakeoffSteps from './Partials/TakeoffSteps';
 import OpeningReview from './Partials/OpeningReview';
 import PdfWorkspace, { savedCountTool, type CountTool, type PdfPoint } from './Partials/PdfWorkspace';
@@ -248,6 +250,7 @@ export default function Show({ takeoff, templates, quotations, can, openingTypes
     const documentIds = useRef(takeoff.documents.map((document) => document.id));
     const [paletteView, setPaletteView] = useState<'drawing' | 'inspector'>('drawing');
     const [creating, setCreating] = useState(false);
+    const [newOpeningErrors, setNewOpeningErrors] = useState<Record<string, string>>({});
 
     useEffect(() => {
         if (selectedOpeningId || creating) {
@@ -258,6 +261,27 @@ export default function Show({ takeoff, templates, quotations, can, openingTypes
     const [drafts, setDrafts] = useState<Record<string, OpeningForm>>({});
     const [query, setQuery] = useState('');
     const [category, setCategory] = useState('');
+    const [editingOpeningId, setEditingOpeningId] = useState<number | null>(null);
+    const [rowForm, setRowForm] = useState<OpeningForm | null>(null);
+    const [rowErrors, setRowErrors] = useState<Record<string, string>>({});
+    const [rowSaving, setRowSaving] = useState(false);
+    const catalogPage = usePage<PageProps<{ openingCategories?: { id: number | null; name: string }[] }>>();
+    const categoryNames = useMemo(() => {
+        const names = new Map<string, string>();
+        const add = (value: string | null | undefined) => {
+            const name = (value ?? '').trim();
+            const key = name.toLowerCase();
+
+            if (name !== '' && !names.has(key)) {
+                names.set(key, name);
+            }
+        };
+
+        (catalogPage.props.openingCategories ?? []).forEach((item) => add(item.name));
+        takeoff.openings.forEach((opening) => add(opening.product_category));
+
+        return [...names.values()].sort((left, right) => left.localeCompare(right, undefined, { sensitivity: 'base' }));
+    }, [catalogPage.props.openingCategories, takeoff.openings]);
     const [location, setLocation] = useState('');
     const [scope, setScope] = useState('');
     const [review, setReview] = useState('');
@@ -288,6 +312,19 @@ export default function Show({ takeoff, templates, quotations, can, openingTypes
     const selected = takeoff.openings.find((opening) => opening.id === selectedOpeningId) ?? null;
     const unsavedCount = Object.keys(drafts).length;
     const rememberDraft = useCallback((key: string, form: OpeningForm | null) => {
+        if (key === 'new' && form && (form.is_bulk || form.tag.trim() !== '')) {
+            setNewOpeningErrors((current) => {
+                if (!current.tag) {
+                    return current;
+                }
+
+                const next = { ...current };
+                delete next.tag;
+
+                return next;
+            });
+        }
+
         setDrafts((current) => {
             if (form === null) {
                 if (!(key in current)) {
@@ -386,7 +423,7 @@ export default function Show({ takeoff, templates, quotations, can, openingTypes
             return false;
         }
 
-        if (category && (opening.product_category ?? '') !== category) {
+        if (category && (opening.product_category ?? '').toLowerCase() !== category.toLowerCase()) {
             return false;
         }
 
@@ -1121,6 +1158,79 @@ export default function Show({ takeoff, templates, quotations, can, openingTypes
         details.patch(route('admin.takeoffs.update', takeoff.uuid), {
             preserveScroll: true,
             onSuccess: () => setDrafts({}),
+            onError: (errors) => revealOpeningErrors(errors),
+        });
+    };
+
+    const revealOpeningEditor = () => {
+        setSection('workspace');
+        setPaletteView('inspector');
+        window.setTimeout(() => {
+            window.document.getElementById('takeoff-drawing')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, 40);
+        window.setTimeout(() => requestValidationScroll(), 420);
+    };
+
+    const revealOpeningErrors = (errors: Record<string, string>) => {
+        const newOpening = Object.entries(errors).filter(([name]) => name === 'tag' || name.startsWith('openings.new'));
+
+        if (newOpening.length > 0) {
+            setCreating(true);
+            setSelectedOpeningId(null);
+            setNewOpeningErrors(Object.fromEntries(newOpening.map(([name, message]) => [
+                name.replace(/^openings\.new\./, ''),
+                message,
+            ])));
+        } else {
+            const openingId = Object.keys(errors)
+                .map((name) => name.match(/^openings\.(\d+)\./)?.[1])
+                .find((id) => id !== undefined);
+
+            if (openingId) {
+                setCreating(false);
+                setSelectedOpeningId(Number(openingId));
+            }
+        }
+
+        revealOpeningEditor();
+    };
+
+    const addOpening = () => {
+        if (!editable) {
+            return;
+        }
+
+        const form = drafts.new ?? openingForm(null, true);
+        setCreating(true);
+        setSelectedOpeningId(null);
+
+        if (!form.is_bulk && form.tag.trim() === '') {
+            setNewOpeningErrors({
+                tag: 'A tagged opening needs an opening tag. Use a bulk record for quantity-only items.',
+            });
+            revealOpeningEditor();
+
+            return;
+        }
+
+        setNewOpeningErrors({});
+        router.post(route('admin.takeoffs.openings.store', takeoff.uuid), openingPayload(form, null, pendingMarker), {
+            preserveScroll: true,
+            onSuccess: () => {
+                setCreating(false);
+                setPendingMarker(null);
+                setDrafts((current) => {
+                    if (!('new' in current)) {
+                        return current;
+                    }
+
+                    const next = { ...current };
+                    delete next.new;
+
+                    return next;
+                });
+            },
+            onError: (errors) => revealOpeningErrors(errors),
         });
     };
 
@@ -1137,7 +1247,90 @@ export default function Show({ takeoff, templates, quotations, can, openingTypes
         return errors;
     };
 
-        const editable = can.update && takeoff.status !== 'archived';
+    const editable = can.update && takeoff.status !== 'archived';
+
+    const editOpening = (id: number) => {
+        const opening = takeoff.openings.find((item) => item.id === id);
+
+        if (!opening) {
+            return;
+        }
+
+        if (!editable) {
+            openOpening(id);
+
+            return;
+        }
+
+        setEditingOpeningId(id);
+        setRowForm(drafts[String(id)] ?? openingForm(opening, false));
+        setRowErrors({});
+        setSelectedOpeningId(id);
+        setCreating(false);
+    };
+
+    const closeOpeningEditor = () => {
+        setEditingOpeningId(null);
+        setRowForm(null);
+        setRowErrors({});
+    };
+
+    const saveOpeningRow = () => {
+        if (editingOpeningId === null || rowForm === null) {
+            return;
+        }
+
+        const opening = takeoff.openings.find((item) => item.id === editingOpeningId);
+
+        if (!opening) {
+            return;
+        }
+
+        if (!rowForm.is_bulk && rowForm.tag.trim() === '') {
+            setRowErrors({
+                tag: 'A tagged opening needs an opening tag. Use a bulk record for quantity-only items.',
+            });
+            window.setTimeout(() => requestValidationScroll(), 40);
+
+            return;
+        }
+
+        setRowSaving(true);
+        router.patch(route('admin.takeoffs.openings.update', [takeoff.uuid, opening.id]), openingPayload(rowForm, opening.updated_at, null), {
+            preserveScroll: true,
+            onSuccess: () => {
+                setEditingOpeningId(null);
+                setRowForm(null);
+                setRowErrors({});
+                setDrafts((current) => {
+                    if (!(String(opening.id) in current)) {
+                        return current;
+                    }
+
+                    const next = { ...current };
+                    delete next[String(opening.id)];
+
+                    return next;
+                });
+            },
+            onError: (errors) => {
+                const next: Record<string, string> = {};
+
+                Object.entries(errors).forEach(([name, message]) => {
+                    const text = Array.isArray(message) ? message[0] : message;
+
+                    if (typeof text === 'string') {
+                        next[name.replace(/^openings\.\d+\./, '')] = text;
+                    }
+                });
+                setRowErrors(next);
+                window.setTimeout(() => requestValidationScroll(), 40);
+            },
+            onFinish: () => setRowSaving(false),
+        });
+    };
+
+    const editingOpening = takeoff.openings.find((opening) => opening.id === editingOpeningId) ?? null;
     const openingSummary = takeoff.openings.slice(0, 40).map((opening) => {
         const size = [opening.width, opening.height, opening.depth].filter(Boolean).join(' x ');
 
@@ -1771,7 +1964,10 @@ export default function Show({ takeoff, templates, quotations, can, openingTypes
                                                     tool={countTool}
                                                     unsavedIds={Object.keys(drafts).filter((key) => key !== 'new').map((key) => Number(key))}
                                                     newUnsaved={Boolean(drafts.new)}
-                                                    fieldErrors={fieldErrorsFor(creating ? 'new' : String(selectedOpeningId ?? ''))}
+                                                    fieldErrors={{
+                                                        ...fieldErrorsFor(creating ? 'new' : String(selectedOpeningId ?? '')),
+                                                        ...(creating ? newOpeningErrors : {}),
+                                                    }}
                                                     draft={creating ? drafts.new ?? null : selectedOpeningId ? drafts[String(selectedOpeningId)] ?? null : null}
                                                     embedded
                                                     onToolChange={setCountTool}
@@ -1888,11 +2084,14 @@ export default function Show({ takeoff, templates, quotations, can, openingTypes
                                         <ListIcon className="size-4" />
                                         Openings
                                     </h3>
-                                    <p className="text-sm text-muted-foreground">Every opening on this takeoff is one row. Click a row and the drawing card opens its Object inspector tab.</p>
+                                    <p className="text-sm text-muted-foreground">Every opening on this takeoff is one row. Click a row to edit it. Category lists the categories already used, and you can add a new one from that field.</p>
                                 </div>
                                 <div className="grid gap-2 md:grid-cols-2">
                                     <TextInput value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Opening tag" />
-                                    <TextInput value={category} onChange={(event) => setCategory(event.target.value)} placeholder="Category" />
+                                    <select className="h-12 rounded-md border-gray-300 py-2 text-sm leading-6" value={category} onChange={(event) => setCategory(event.target.value)}>
+                                        <option value="">All categories</option>
+                                        {categoryNames.map((name) => <option key={name} value={name}>{name}</option>)}
+                                    </select>
                                     <TextInput value={location} onChange={(event) => setLocation(event.target.value)} placeholder="Location" />
                                     <select className="h-12 rounded-md border-gray-300 py-2 text-sm leading-6" value={scope} onChange={(event) => setScope(event.target.value)}>
                                         <option value="">All scopes</option>
@@ -1916,7 +2115,7 @@ export default function Show({ takeoff, templates, quotations, can, openingTypes
                                         </p>
                                     ) : null}
                                     {editable ? (
-                                        <Button type="button" variant="create" size="sm" className="ml-auto rounded-full px-4" onClick={() => { setCreating(true); setSelectedOpeningId(null); }}>
+                                        <Button type="button" variant="create" size="sm" className="ml-auto rounded-full px-4" onClick={addOpening}>
                                             <PlusIcon data-icon="inline-start" />
                                             Add opening
                                         </Button>
@@ -1929,6 +2128,7 @@ export default function Show({ takeoff, templates, quotations, can, openingTypes
                                                 <th className="bg-[#16324F] px-2 py-2 text-right">#</th>
                                                 <th className="bg-[#16324F] px-2 py-2">Tag</th>
                                                 <th className="bg-[#16324F] px-2 py-2">Type</th>
+                                                <th className="bg-[#16324F] px-2 py-2">Category</th>
                                                 <th className="bg-[#16324F] px-2 py-2">Qty</th>
                                                 <th className="bg-[#16324F] px-2 py-2">Size</th>
                                                 <th className="bg-[#16324F] px-2 py-2">Location</th>
@@ -1940,7 +2140,7 @@ export default function Show({ takeoff, templates, quotations, can, openingTypes
                                         <tbody>
                                             {filtered.length === 0 ? (
                                                 <tr>
-                                                    <td className="px-2 py-4 text-muted-foreground" colSpan={editable ? 9 : 8}>No openings yet. Choose Count door or Count window, then click a door on the sheet.</td>
+                                                    <td className="px-2 py-4 text-muted-foreground" colSpan={editable ? 10 : 9}>No openings yet. Choose Count door or Count window, then click a door on the sheet.</td>
                                                 </tr>
                                             ) : null}
                                             {drafts.new ? (
@@ -1951,6 +2151,7 @@ export default function Show({ takeoff, templates, quotations, can, openingTypes
                                                         <span className="ml-2 rounded bg-red-600 px-1.5 py-0.5 text-[11px] font-semibold text-white">Not saved</span>
                                                     </td>
                                                     <td className="px-2 py-2">{drafts.new.opening_type === 'window' ? 'Window' : drafts.new.opening_type === 'door' ? 'Door' : drafts.new.opening_type}</td>
+                                                    <td className="px-2 py-2">{drafts.new.product_category || '—'}</td>
                                                     <td className="px-2 py-2">{drafts.new.quantity}</td>
                                                     <td className="px-2 py-2">{[drafts.new.width, drafts.new.height, drafts.new.depth].filter(Boolean).join(' x ')} {drafts.new.dimension_unit}</td>
                                                     <td className="px-2 py-2">{drafts.new.location || '—'}</td>
@@ -1969,13 +2170,14 @@ export default function Show({ takeoff, templates, quotations, can, openingTypes
                                                 const kind = draft?.opening_type ?? opening.opening_type;
 
                                                 return (
-                                                <tr key={opening.id} className={`cursor-pointer border-t ${unsaved ? 'border-l-4 border-l-red-600 bg-red-100 text-red-950' : selectedOpeningIds.includes(opening.id) ? 'bg-sky-100' : selectedOpeningId === opening.id ? 'bg-[#3FCF8E]/20' : ''}`} onClick={() => openOpening(opening.id)}>
+                                                <tr key={opening.id} className={`cursor-pointer border-t ${unsaved ? 'border-l-4 border-l-red-600 bg-red-100 text-red-950' : selectedOpeningIds.includes(opening.id) ? 'bg-sky-100' : selectedOpeningId === opening.id ? 'bg-[#3FCF8E]/20' : ''}`} onClick={() => editable ? editOpening(opening.id) : openOpening(opening.id)}>
                                                     <td className="px-2 py-2 text-right font-semibold tabular-nums">{countMark(opening.callout, lineByOpening.get(opening.id) ?? 1)}</td>
                                                     <td className="px-2 py-2">
                                                         {opening.is_bulk ? `Bulk ${tag ?? ''}`.trim() : tag}
                                                         {unsaved ? <span className="ml-2 rounded bg-red-600 px-1.5 py-0.5 text-[11px] font-semibold text-white">Not saved</span> : null}
                                                     </td>
                                                     <td className="px-2 py-2">{kind === 'door' ? (opening.door_type || 'Door') : kind === 'window' ? 'Window' : kind}</td>
+                                                    <td className="px-2 py-2">{draft?.product_category || opening.product_category || '—'}</td>
                                                     <td className="px-2 py-2">{quantity}</td>
                                                     <td className="px-2 py-2">{[width, height, depth].filter(Boolean).join(' x ')} {unit}</td>
                                                     <td className={`px-2 py-2 ${selectedOpeningId === opening.id ? 'font-medium' : ''}`}>{locationText || '—'}</td>
@@ -1983,9 +2185,22 @@ export default function Show({ takeoff, templates, quotations, can, openingTypes
                                                     <td className="px-2 py-2">{opening.flags.length || '—'}</td>
                                                     {editable ? (
                                                         <td className="px-2 py-2">
+                                                            <div className="flex gap-1">
                                                             <Button
                                                                 type="button"
-                                                                size="sm"
+                                                                size="xs"
+                                                                variant="outline"
+                                                                onClick={(event) => {
+                                                                    event.stopPropagation();
+                                                                    editOpening(opening.id);
+                                                                }}
+                                                            >
+                                                                <PencilIcon className="size-3.5" />
+                                                                Edit
+                                                            </Button>
+                                                            <Button
+                                                                type="button"
+                                                                size="xs"
                                                                 variant="outline"
                                                                 onClick={(event) => {
                                                                     event.stopPropagation();
@@ -2005,10 +2220,14 @@ export default function Show({ takeoff, templates, quotations, can, openingTypes
                                                                         return next;
                                                                     });
                                                                     router.delete(route('admin.takeoffs.openings.destroy', [takeoff.uuid, opening.id]), { preserveScroll: true });
+                                                                    if (editingOpeningId === opening.id) {
+                                                                        closeOpeningEditor();
+                                                                    }
                                                                 }}
                                                             >
                                                                 Remove
                                                             </Button>
+                                                            </div>
                                                         </td>
                                                     ) : null}
                                                 </tr>
@@ -2070,6 +2289,29 @@ export default function Show({ takeoff, templates, quotations, can, openingTypes
                                     </form>
                                 ) : null}
                             </div>
+                            {rowForm && editingOpening ? (
+                                <OpeningRowDialog
+                                    open
+                                    title={editingOpening.is_bulk ? `Bulk ${rowForm.tag}`.trim() || editingOpening.label : rowForm.tag || editingOpening.label}
+                                    form={rowForm}
+                                    errors={rowErrors}
+                                    saving={rowSaving}
+                                    onChange={(patch) => {
+                                        setRowForm((current) => current ? { ...current, ...patch } : current);
+                                        setRowErrors((current) => {
+                                            const next = { ...current };
+
+                                            Object.keys(patch).forEach((key) => {
+                                                delete next[key];
+                                            });
+
+                                            return next;
+                                        });
+                                    }}
+                                    onClose={closeOpeningEditor}
+                                    onSave={saveOpeningRow}
+                                />
+                            ) : null}
                             </div>
                     </div>
                 ) : null}

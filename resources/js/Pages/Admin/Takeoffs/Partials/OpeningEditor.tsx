@@ -502,7 +502,7 @@ export default function OpeningEditor({
             return;
         }
 
-        onDraft(String(selectionKey), changed ? form : null);
+        onDraft(String(selectionKey), changed || selectionKey === 'new' ? form : null);
     }, [changed, form, onDraft, selectionKey]);
 
     useEffect(() => {
