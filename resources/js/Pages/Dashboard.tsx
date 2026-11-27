@@ -191,7 +191,7 @@ function ChartCard({
                 </CardTitle>
                 <p className="text-xs text-muted-foreground">{description}</p>
             </CardHeader>
-            <CardContent>
+            <CardContent className="min-w-0">
                 <DashboardChart
                     key={`${chartKey}-${style}-${palette}`}
                     items={items}

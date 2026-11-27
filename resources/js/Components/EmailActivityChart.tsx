@@ -129,7 +129,7 @@ function Shell({
                     )}
                 </div>
             </CardHeader>
-            <CardContent className={cn(loading && 'opacity-60 transition-opacity')}>
+            <CardContent className={cn('min-w-0', loading && 'opacity-60 transition-opacity')}>
                 {children}
             </CardContent>
             {footer}
@@ -156,6 +156,16 @@ export function EmailActivityChart({
 }) {
     const chartConfig = emailChartConfig(palette);
     const [loading, setLoading] = useState(false);
+    const [compact, setCompact] = useState(() => typeof window !== 'undefined' && window.matchMedia('(max-width: 639px)').matches);
+
+    useEffect(() => {
+        const query = window.matchMedia('(max-width: 639px)');
+        const update = () => setCompact(query.matches);
+        update();
+        query.addEventListener('change', update);
+
+        return () => query.removeEventListener('change', update);
+    }, []);
 
     useEffect(() => {
         if (activity.status !== 'loading') {
@@ -276,7 +286,7 @@ export function EmailActivityChart({
                 <ChartContainer
                     key={`${style}-${activity.range}-${activity.refreshedAt}`}
                     config={chartConfig}
-                    className="aspect-auto h-44 w-full text-xs"
+                    className="aspect-auto h-48 w-full min-w-0 max-w-full text-xs sm:h-44"
                 >
                     {style === 'bars' ? (
                         <BarChart
@@ -298,8 +308,8 @@ export function EmailActivityChart({
                                 </defs>
                             ) : null}
                             <CartesianGrid vertical={false} />
-                            <XAxis dataKey="label" tickLine={false} axisLine={false} tickMargin={8} interval={dense ? 'preserveStartEnd' : 0} minTickGap={dense ? 24 : 8} tick={{ fontSize: 10 }} />
-                            <YAxis width={28} allowDecimals={false} tickLine={false} axisLine={false} tick={{ fontSize: 10 }} />
+                            <XAxis dataKey="label" tickLine={false} axisLine={false} tickMargin={8} interval={dense || compact ? 'preserveStartEnd' : 0} minTickGap={dense || compact ? 24 : 8} tick={{ fontSize: compact ? 9 : 10 }} />
+                            <YAxis width={compact ? 28 : 32} allowDecimals={false} tickLine={false} axisLine={false} tick={{ fontSize: 10 }} />
                             <ChartTooltip content={<ChartTooltipContent indicator="dot" />} />
                             <Bar dataKey="received" fill={palette === 'colorful' ? 'url(#email-received)' : 'var(--color-received)'} radius={[4, 4, 0, 0]} />
                             <Bar dataKey="sent" fill={palette === 'colorful' ? 'url(#email-sent)' : 'var(--color-sent)'} radius={[4, 4, 0, 0]} />
@@ -311,8 +321,8 @@ export function EmailActivityChart({
                             margin={{ top: 8, right: 8, left: 0, bottom: 0 }}
                         >
                             <CartesianGrid vertical={false} />
-                            <XAxis dataKey="label" tickLine={false} axisLine={false} tickMargin={8} interval={dense ? 'preserveStartEnd' : 0} minTickGap={dense ? 24 : 8} tick={{ fontSize: 10 }} />
-                            <YAxis width={28} allowDecimals={false} tickLine={false} axisLine={false} tick={{ fontSize: 10 }} />
+                            <XAxis dataKey="label" tickLine={false} axisLine={false} tickMargin={8} interval={dense || compact ? 'preserveStartEnd' : 0} minTickGap={dense || compact ? 24 : 8} tick={{ fontSize: compact ? 9 : 10 }} />
+                            <YAxis width={compact ? 28 : 32} allowDecimals={false} tickLine={false} axisLine={false} tick={{ fontSize: 10 }} />
                             <ChartTooltip content={<ChartTooltipContent indicator="line" />} />
                             <Line type="monotone" dataKey="received" stroke="var(--color-received)" strokeWidth={3} dot={{ r: 3, fill: emailColors[palette].received, strokeWidth: 0 }} activeDot={{ r: 5 }} />
                             <Line type="monotone" dataKey="sent" stroke="var(--color-sent)" strokeWidth={3} dot={{ r: 3, fill: emailColors[palette].sent, strokeWidth: 0 }} activeDot={{ r: 5 }} />

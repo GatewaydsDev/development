@@ -4,7 +4,7 @@ import {
     ChartTooltipContent,
     type ChartConfig,
 } from '@/Components/ui/chart';
-import { type ComponentProps, useId } from 'react';
+import { type ComponentProps, useEffect, useId, useState } from 'react';
 import { Bar, BarChart, CartesianGrid, Cell, Line, LineChart, Pie, PieChart, XAxis, YAxis } from 'recharts';
 import type { BarChartItem } from '@/Components/AnimatedBarChart';
 
@@ -108,6 +108,8 @@ export function DashboardChart({
     hideZeros?: boolean;
 }) {
     const gradientPrefix = useId().replace(/:/g, '');
+    const [frame, setFrame] = useState<HTMLDivElement | null>(null);
+    const [compact, setCompact] = useState(() => typeof window !== 'undefined' && window.matchMedia('(max-width: 639px)').matches);
     const colors = palettes[palette];
     const usedKeys = new Set<string>();
     const series = items
@@ -118,6 +120,19 @@ export function DashboardChart({
             color: item.color ?? colors[index % colors.length],
             amount: item.display ?? item.value.toLocaleString('en-US'),
         }));
+
+    useEffect(() => {
+        if (!frame) {
+            return;
+        }
+
+        const update = () => setCompact(frame.clientWidth < 520);
+        update();
+        const observer = new ResizeObserver(update);
+        observer.observe(frame);
+
+        return () => observer.disconnect();
+    }, [frame]);
 
     if (series.length === 0 || series.every((item) => item.value <= 0)) {
         return (
@@ -155,11 +170,21 @@ export function DashboardChart({
         </ul>
     );
 
+    const axisTick = (value: unknown) => {
+        const text = String(value ?? '');
+
+        if (!compact || text.length <= 12) {
+            return text;
+        }
+
+        return `${text.slice(0, 11)}…`;
+    };
+
     if (style === 'bars') {
         return (
-            <div>
-                <ChartContainer config={chartConfig} className="aspect-auto h-44 w-full text-xs">
-                    <BarChart data={series} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+            <div ref={setFrame} className="min-w-0">
+                <ChartContainer config={chartConfig} className="aspect-auto h-52 w-full min-w-0 max-w-full text-xs sm:h-44">
+                    <BarChart data={series} margin={{ top: 8, right: 8, left: 0, bottom: compact ? 8 : 0 }}>
                         {palette === 'colorful' ? (
                             <defs>
                                 {series.map((item) => (
@@ -171,8 +196,8 @@ export function DashboardChart({
                             </defs>
                         ) : null}
                         <CartesianGrid vertical={false} />
-                        <XAxis dataKey="label" tickLine={false} axisLine={false} interval={0} angle={-24} textAnchor="end" height={52} tick={{ fontSize: 10 }} />
-                        <YAxis width={36} tickLine={false} axisLine={false} tick={{ fontSize: 10 }} />
+                        <XAxis dataKey="label" tickLine={false} axisLine={false} interval={0} angle={compact ? -40 : -24} textAnchor="end" height={compact ? 72 : 52} tick={{ fontSize: compact ? 9 : 10 }} tickFormatter={axisTick} />
+                        <YAxis width={compact ? 32 : 40} tickLine={false} axisLine={false} tick={{ fontSize: 10 }} />
                         <ChartTooltip content={<SliceTooltip />} />
                         <Bar dataKey="value" radius={[6, 6, 0, 0]} maxBarSize={42}>
                             {series.map((item) => (
@@ -188,12 +213,12 @@ export function DashboardChart({
 
     if (style === 'lines') {
         return (
-            <div>
-                <ChartContainer config={chartConfig} className="aspect-auto h-44 w-full text-xs">
-                    <LineChart data={series} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+            <div ref={setFrame} className="min-w-0">
+                <ChartContainer config={chartConfig} className="aspect-auto h-52 w-full min-w-0 max-w-full text-xs sm:h-44">
+                    <LineChart data={series} margin={{ top: 8, right: 12, left: 0, bottom: compact ? 8 : 0 }}>
                         <CartesianGrid vertical={false} />
-                        <XAxis dataKey="label" tickLine={false} axisLine={false} interval={0} angle={-24} textAnchor="end" height={52} tick={{ fontSize: 10 }} />
-                        <YAxis width={36} tickLine={false} axisLine={false} tick={{ fontSize: 10 }} />
+                        <XAxis dataKey="label" tickLine={false} axisLine={false} interval={0} angle={compact ? -40 : -24} textAnchor="end" height={compact ? 72 : 52} tick={{ fontSize: compact ? 9 : 10 }} tickFormatter={axisTick} />
+                        <YAxis width={compact ? 32 : 40} tickLine={false} axisLine={false} tick={{ fontSize: 10 }} />
                         <ChartTooltip content={<SliceTooltip />} />
                         <Line type="monotone" dataKey="value" stroke={palette === 'colorful' ? '#6366f1' : '#2563eb'} strokeWidth={3} dot={{ r: 5, fill: palette === 'colorful' ? '#d946ef' : '#0f766e', strokeWidth: 0 }} activeDot={{ r: 6 }} />
                     </LineChart>
@@ -217,37 +242,41 @@ export function DashboardChart({
         };
     }
 
+    const showPieLabels = !compact && slices.every((item) => item.amount.length <= 8);
+
     return (
-        <div className="flex flex-col items-center gap-3">
+        <div ref={setFrame} className="flex min-w-0 flex-col items-center gap-3">
             <ChartContainer
                 config={pieConfig}
-                className="mx-auto aspect-square w-full max-h-[250px] pb-0 [&_.recharts-pie-label-text]:fill-foreground"
+                className="mx-auto aspect-square w-full max-w-[16.5rem] overflow-hidden pb-0 [&_.recharts-pie-label-text]:fill-foreground [&_.recharts-pie-label-text]:text-[11px]"
             >
-                <PieChart>
+                <PieChart margin={showPieLabels ? { top: 16, right: 28, bottom: 16, left: 28 } : { top: 8, right: 8, bottom: 8, left: 8 }}>
                     <ChartTooltip content={<SliceTooltip />} />
                     <Pie
                         data={slices}
                         dataKey="value"
                         nameKey="configKey"
-                        label={(entry) => {
+                        outerRadius={showPieLabels ? '62%' : '78%'}
+                        label={showPieLabels ? (entry) => {
                             const row = entry as { amount?: string; value?: number };
 
                             return row.amount ?? String(row.value ?? '');
-                        }}
+                        } : false}
                     />
                 </PieChart>
             </ChartContainer>
-            <ul className="flex flex-wrap justify-center gap-x-3 gap-y-1">
+            <ul className="flex w-full flex-wrap justify-center gap-x-3 gap-y-1">
                 {slices.map((item) => (
-                    <li key={item.configKey} className="flex items-center gap-2 text-xs">
+                    <li key={item.configKey} className="flex min-w-0 max-w-full items-center gap-2 text-xs">
                         <span
                             aria-hidden
                             className="size-2 shrink-0 rounded-full"
                             style={{ backgroundColor: item.color }}
                         />
-                        <span className="text-muted-foreground" title={item.label}>
+                        <span className="max-w-[9rem] truncate text-muted-foreground" title={item.label}>
                             {item.label}
                         </span>
+                        <span className="font-medium tabular-nums text-foreground">{item.amount}</span>
                     </li>
                 ))}
             </ul>
