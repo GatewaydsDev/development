@@ -454,6 +454,7 @@ class ProductController extends Controller
                 'max:255',
                 Rule::unique(Product::class, 'abbreviation')->ignore($product?->id),
             ],
+            'sku' => ['nullable', 'string', 'max:100'],
             'product_type_id' => [
                 'required',
                 'integer',
@@ -582,23 +583,26 @@ class ProductController extends Controller
             ? ProductModel::query()->find($validated['product_model_id'])
             : ProductModel::firstOrCreateByName((string) ($validated['name'] ?? ''));
 
+        $taxStateId = $isAssembly
+            ? null
+            : $this->syncTaxState(
+                isset($validated['tax_state_id']) ? (int) $validated['tax_state_id'] : null,
+            );
+
         $attributes = [
             'manufacturer_id' => $validated['manufacturer_id'],
             'product_type_id' => $validated['product_type_id'],
             'product_model_id' => $productModel?->id,
             'name' => $productModel?->name ?? ($validated['name'] ?? null),
             'abbreviation' => $this->nullableString($validated['abbreviation'] ?? null),
+            'sku' => $this->nullableString($validated['sku'] ?? null),
             'description' => $validated['description'] ?? null,
             'notes' => $validated['notes'] ?? null,
             'price' => $isAssembly ? null : ($validated['price'] ?? null),
             'markup_percent' => $isAssembly ? null : ($validated['markup_percent'] ?? null),
             'min_markup_percent' => $isAssembly ? null : ($validated['min_markup_percent'] ?? null),
-            'tax_state_id' => $isAssembly
-                ? null
-                : $this->syncTaxState(
-                    isset($validated['tax_state_id']) ? (int) $validated['tax_state_id'] : null,
-                    $validated['tax_rate'] ?? null,
-                ),
+            'tax_state_id' => $taxStateId,
+            'tax_rate' => $taxStateId ? ($validated['tax_rate'] ?? null) : null,
             'rf_shielding' => $isDoor ? ($this->nullableString($validated['rf_shielding'] ?? null)) : null,
             'stc_rating' => $isWindow && isset($validated['stc_rating']) && $validated['stc_rating'] !== '' && $validated['stc_rating'] !== null
                 ? (string) (int) $validated['stc_rating']
@@ -727,7 +731,7 @@ class ProductController extends Controller
             ->all();
     }
 
-    private function syncTaxState(?int $taxStateId, mixed $rate): ?int
+    private function syncTaxState(?int $taxStateId): ?int
     {
         if (! $taxStateId) {
             return null;
@@ -735,15 +739,14 @@ class ProductController extends Controller
 
         $taxState = TaxState::query()->find($taxStateId);
 
-        if (! $taxState) {
-            return null;
-        }
+        return $taxState?->id;
+    }
 
-        if ($rate !== null && $rate !== '') {
-            $taxState->update(['rate' => $rate]);
-        }
+    private function resolvedTaxRate(mixed $override, mixed $stateRate): ?float
+    {
+        $rate = $override ?? $stateRate;
 
-        return $taxState->id;
+        return $rate === null || $rate === '' ? null : (float) $rate;
     }
 
     /**
@@ -863,7 +866,6 @@ class ProductController extends Controller
         foreach ($statePrices as $row) {
             $taxStateId = $this->syncTaxState(
                 isset($row['tax_state_id']) ? (int) $row['tax_state_id'] : null,
-                $row['tax_rate'] ?? null,
             );
 
             if (! $taxStateId || in_array($taxStateId, $keptStateIds, true)) {
@@ -873,6 +875,7 @@ class ProductController extends Controller
             $product->statePrices()->updateOrCreate(
                 ['tax_state_id' => $taxStateId],
                 [
+                    'tax_rate' => $row['tax_rate'] ?? null,
                     'price' => $row['price'] ?? null,
                     'markup_percent' => $row['markup_percent'] ?? null,
                     'min_markup_percent' => $row['min_markup_percent'] ?? null,
@@ -1016,6 +1019,7 @@ class ProductController extends Controller
                 : null,
             'name' => $product->name,
             'abbreviation' => $product->abbreviation,
+            'sku' => $product->sku,
             'configurations' => $product->relationLoaded('configurations')
                 ? $product->configurations
                     ->map(fn (DoorConfiguration $configuration): array => [
@@ -1070,9 +1074,7 @@ class ProductController extends Controller
                         : (float) $product->taxState->rate,
                 ]
                 : null,
-            'tax_rate' => $product->taxState?->rate === null
-                ? null
-                : (float) $product->taxState->rate,
+            'tax_rate' => $this->resolvedTaxRate($product->tax_rate, $product->taxState?->rate),
             'state_prices' => $product->relationLoaded('statePrices')
                 ? $product->statePrices
                     ->map(fn (ProductStatePrice $statePrice): array => [
@@ -1088,9 +1090,7 @@ class ProductController extends Controller
                                     : (float) $statePrice->taxState->rate,
                             ]
                             : null,
-                        'tax_rate' => $statePrice->taxState?->rate === null
-                            ? null
-                            : (float) $statePrice->taxState->rate,
+                        'tax_rate' => $this->resolvedTaxRate($statePrice->tax_rate, $statePrice->taxState?->rate),
                         'price' => $statePrice->price,
                         'markup_percent' => $statePrice->markup_percent,
                         'min_markup_percent' => $summary ? null : $statePrice->min_markup_percent,

@@ -87,6 +87,7 @@ export default function Index({ filters, takeoffs, projects, can }: Props) {
                                 <th className="px-3 py-2">Project</th>
                                 <th className="px-3 py-2">Revision</th>
                                 <th className="px-3 py-2">Status</th>
+                                <th className="px-3 py-2">Next step</th>
                                 <th className="px-3 py-2">Openings</th>
                                 <th className="px-3 py-2">Estimated selling</th>
                                 <th className="px-3 py-2">Updated</th>
@@ -101,6 +102,9 @@ export default function Index({ filters, takeoffs, projects, can }: Props) {
                                     <td className="px-3 py-2">{takeoff.project?.project_number} {takeoff.project?.name}</td>
                                     <td className="px-3 py-2">{takeoff.revision_number}{takeoff.revision_label ? ` ${takeoff.revision_label}` : ''}</td>
                                     <td className="px-3 py-2"><Badge variant="outline">{statusLabel[takeoff.status] ?? takeoff.status}</Badge></td>
+                                    <td className="px-3 py-2">
+                                        <Link className="font-medium text-emerald-800 dark:text-emerald-200" href={route('admin.takeoffs.show', takeoff.uuid)}>{takeoff.guide?.next ?? 'Open the takeoff'}</Link>
+                                    </td>
                                     <td className="px-3 py-2">{takeoff.opening_count}</td>
                                     <td className="px-3 py-2">
                                         {takeoff.estimate ? (
@@ -113,7 +117,7 @@ export default function Index({ filters, takeoffs, projects, can }: Props) {
                                 </tr>
                             ))}
                             {takeoffs.data.length === 0 ? (
-                                <tr><td className="px-3 py-6 text-muted-foreground" colSpan={7}>No takeoffs yet.</td></tr>
+                                <tr><td className="px-3 py-6 text-muted-foreground" colSpan={8}>No takeoffs yet.</td></tr>
                             ) : null}
                         </tbody>
                     </table>

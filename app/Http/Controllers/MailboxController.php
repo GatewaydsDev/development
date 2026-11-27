@@ -731,7 +731,7 @@ class MailboxController extends Controller
 
         try {
             $graphUnread = $monitor->unreadInboxCount($mailbox);
-            $bounces = $monitor->bounceStats($mailbox);
+            $bounces = $monitor->bounceStats($mailbox, $graphUnread);
         } catch (MicrosoftGraphException $exception) {
             $failed = true;
             report($exception);

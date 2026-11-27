@@ -321,36 +321,159 @@ class MicrosoftGraphMailService
     }
 
     /**
-     * Bounce notices hidden from the inbox, scanned over the latest 100 messages.
+     * Bounce notices hidden from the inbox.
+     *
+     * Unread blocked notices are counted across every unread inbox message so
+     * they can be removed from Microsoft's folder total. The disclosed total
+     * stays the blocked notices in the latest 100 messages.
      *
      * @return array{unread: int, total: int}
      */
-    public function bounceStats(string $mailbox): array
+    public function bounceStats(string $mailbox, int $graphUnread = 0): array
     {
-        $count = function (array $query): int {
-            $response = $this->graph('GET', $this->userUrl($query['mailbox']).'/mailFolders/inbox/messages?'.http_build_query($query['params']), null, false);
+        try {
+            $unread = $this->countInboxMessages(
+                $mailbox,
+                [
+                    '$select' => 'subject,from,isRead',
+                    '$filter' => 'isRead eq false',
+                    '$top' => 100,
+                ],
+                fn (array $item): bool => $this->isUnreadBounce($item),
+                30,
+            );
+        } catch (MicrosoftGraphException) {
+            $unread = $this->countUnreadBouncesByDate($mailbox, $graphUnread);
+        }
+
+        return [
+            'unread' => $unread,
+            'total' => $this->countInboxMessages(
+                $mailbox,
+                [
+                    '$select' => 'subject,from',
+                    '$orderby' => 'receivedDateTime desc',
+                    '$top' => 100,
+                ],
+                fn (array $item): bool => MailBounceFilter::isBounce(
+                    $this->address($item['from'] ?? null),
+                    (string) ($item['subject'] ?? ''),
+                ),
+                1,
+            ),
+        ];
+    }
+
+    /**
+     * @param  array<string, scalar>  $params
+     * @param  callable(array<string, mixed>): bool  $matches
+     */
+    private function countInboxMessages(string $mailbox, array $params, callable $matches, int $maxPages): int
+    {
+        $url = $this->userUrl($mailbox).'/mailFolders/inbox/messages?'.http_build_query($params);
+        $found = 0;
+        $pages = 0;
+
+        while (is_string($url) && $url !== '') {
+            $pages++;
+
+            if ($pages > $maxPages) {
+                break;
+            }
+
+            $response = $this->graph('GET', $url, null, false);
 
             if ($response->failed()) {
                 throw new MicrosoftGraphException($this->failureMessage($response, false));
             }
 
-            $found = 0;
-
             foreach ($response->json('value') ?? [] as $item) {
-                if (is_array($item) && MailBounceFilter::isBounce($this->address($item['from'] ?? null), (string) ($item['subject'] ?? ''))) {
+                if (! is_array($item)) {
+                    continue;
+                }
+
+                if (array_key_exists('$filter', $params) && ($item['isRead'] ?? false) === true) {
+                    throw new MicrosoftGraphException('Microsoft 365 did not apply the unread filter.');
+                }
+
+                if ($matches($item)) {
                     $found++;
                 }
             }
 
-            return $found;
-        };
+            $payload = $response->json();
+            $next = is_array($payload) ? ($payload['@odata.nextLink'] ?? null) : null;
+            $url = is_string($next) && str_starts_with($next, 'https://graph.microsoft.com/') ? $next : null;
+        }
 
-        $select = '$select';
+        return $found;
+    }
 
-        return [
-            'unread' => $count(['mailbox' => $mailbox, 'params' => [$select => 'subject,from', '$filter' => 'isRead eq false', '$top' => 100]]),
-            'total' => $count(['mailbox' => $mailbox, 'params' => [$select => 'subject,from', '$orderby' => 'receivedDateTime desc', '$top' => 100]]),
-        ];
+    private function countUnreadBouncesByDate(string $mailbox, int $graphUnread): int
+    {
+        if ($graphUnread < 1) {
+            return 0;
+        }
+
+        $url = $this->userUrl($mailbox).'/mailFolders/inbox/messages?'.http_build_query([
+            '$select' => 'subject,from,isRead',
+            '$orderby' => 'receivedDateTime desc',
+            '$top' => 100,
+        ]);
+        $blocked = 0;
+        $seenUnread = 0;
+        $pages = 0;
+
+        while (is_string($url) && $url !== '' && $seenUnread < $graphUnread) {
+            $pages++;
+
+            if ($pages > 30) {
+                break;
+            }
+
+            $response = $this->graph('GET', $url, null, false);
+
+            if ($response->failed()) {
+                throw new MicrosoftGraphException($this->failureMessage($response, false));
+            }
+
+            foreach ($response->json('value') ?? [] as $item) {
+                if (! is_array($item) || ($item['isRead'] ?? false) === true) {
+                    continue;
+                }
+
+                $seenUnread++;
+
+                if ($this->isUnreadBounce($item)) {
+                    $blocked++;
+                }
+
+                if ($seenUnread >= $graphUnread) {
+                    break;
+                }
+            }
+
+            $payload = $response->json();
+            $next = is_array($payload) ? ($payload['@odata.nextLink'] ?? null) : null;
+            $url = is_string($next) && str_starts_with($next, 'https://graph.microsoft.com/') ? $next : null;
+        }
+
+        return $blocked;
+    }
+
+    /**
+     * @param  array<string, mixed>  $item
+     */
+    private function isUnreadBounce(array $item): bool
+    {
+        if (($item['isRead'] ?? false) === true) {
+            return false;
+        }
+
+        return MailBounceFilter::isBounce(
+            $this->address($item['from'] ?? null),
+            (string) ($item['subject'] ?? ''),
+        );
     }
 
     /**

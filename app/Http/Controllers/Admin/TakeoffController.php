@@ -11,6 +11,7 @@ use App\Models\Project;
 use App\Models\Quotation;
 use App\Models\Takeoff;
 use App\Models\TakeoffAssemblyTemplate;
+use App\Models\TakeoffOverview;
 use App\Models\TakeoffOpening;
 use App\Models\TakeoffOpeningType;
 use App\Models\User;
@@ -22,12 +23,16 @@ use App\Support\TakeoffCsv;
 use App\Support\TakeoffMoney;
 use App\Support\TakeoffNamer;
 use App\Support\TakeoffPdfScope;
+use App\Support\TakeoffOverviewHydrator;
 use App\Support\TakeoffPresenter;
+use App\Support\TakeoffRelease;
+use App\Support\TakeoffViews;
 use App\Support\TakeoffScopeImporter;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
@@ -81,7 +86,9 @@ class TakeoffController extends Controller
         abort_unless(TakeoffAccess::canCreate($this->takeoffUser($request)), 403);
 
         return Inertia::render('Admin/Takeoffs/Create', [
-            'projects' => Project::query()->orderBy('name')->get(['id', 'name', 'project_number']),
+            'projects' => TakeoffViews::ready()
+                ? TakeoffViews::projects()
+                : Project::query()->orderBy('name')->get(['id', 'name', 'project_number']),
             'projectId' => $request->integer('project_id') ?: null,
         ]);
     }
@@ -132,20 +139,28 @@ class TakeoffController extends Controller
                 $name = TakeoffNamer::projectNameFromFilename($file->getClientOriginalName());
             }
 
-            $createdProject = Project::query()->create([
-                'name' => TakeoffNamer::uniqueProjectName($name),
-                'priority' => 'normal',
-                'site_address_line_1' => $projectInfo['address'] ?? null,
-                'site_city' => $projectInfo['city'] ?? null,
-                'site_state' => $projectInfo['state'] ?? null,
-                'site_postal_code' => $projectInfo['postal_code'] ?? null,
-                'site_country' => filled($projectInfo['city'] ?? null) || filled($projectInfo['state'] ?? null)
-                    ? 'United States'
-                    : null,
-                'internal_notes' => $projectInfo['notes'] ?? null,
-                'created_by' => $user->id,
-            ]);
-            $project = $createdProject;
+            $existingProject = Project::query()
+                ->whereRaw('LOWER(name) = ?', [mb_strtolower($name)])
+                ->first();
+
+            if ($existingProject) {
+                $project = $existingProject;
+            } else {
+                $createdProject = Project::query()->create([
+                    'name' => $name,
+                    'priority' => 'normal',
+                    'site_address_line_1' => $projectInfo['address'] ?? null,
+                    'site_city' => $projectInfo['city'] ?? null,
+                    'site_state' => $projectInfo['state'] ?? null,
+                    'site_postal_code' => $projectInfo['postal_code'] ?? null,
+                    'site_country' => filled($projectInfo['city'] ?? null) || filled($projectInfo['state'] ?? null)
+                        ? 'United States'
+                        : null,
+                    'internal_notes' => $projectInfo['notes'] ?? null,
+                    'created_by' => $user->id,
+                ]);
+                $project = $createdProject;
+            }
         } else {
             throw ValidationException::withMessages([
                 'project_id' => $file
@@ -153,6 +168,18 @@ class TakeoffController extends Controller
                     : 'Select a project, or upload a drawing and a project is created from the file name.',
             ]);
         }
+        $existingTakeoff = Takeoff::query()
+            ->where('project_id', $project->id)
+            ->latest('id')
+            ->first();
+
+        if ($existingTakeoff) {
+            return redirect()->route('admin.takeoffs.show', [
+                'takeoff' => $existingTakeoff,
+                'already' => 1,
+            ]);
+        }
+
         $providedTitle = trim((string) ($data['title'] ?? ''));
         $titleIsProjectName = $createdProject !== null && $providedTitle === '';
         $takeoff = Takeoff::query()->create([
@@ -222,44 +249,71 @@ class TakeoffController extends Controller
         $user = $this->takeoffUser($request);
         abort_unless(TakeoffAccess::canView($user), 403);
 
+        if (TakeoffViews::ready()) {
+            $overview = TakeoffOverview::query()->find($takeoff->id);
+
+            if ($overview) {
+                app(TakeoffOverviewHydrator::class)->apply($takeoff, $overview);
+            }
+        }
+
         $quotations = TakeoffAccess::canConvert($user)
-            ? Quotation::query()
-                ->where('project_id', $takeoff->project_id)
-                ->orderByDesc('id')
-                ->get(['id', 'uuid', 'quotation_number', 'title', 'status'])
+            ? (TakeoffViews::ready()
+                ? collect(TakeoffViews::quotations((int) $takeoff->project_id))
+                : Quotation::query()
+                    ->where('project_id', $takeoff->project_id)
+                    ->orderByDesc('id')
+                    ->get(['id', 'uuid', 'quotation_number', 'title', 'status'])
+                    ->map(fn (Quotation $quotation): array => [
+                        'id' => $quotation->id,
+                        'number' => $quotation->quotation_number,
+                        'title' => $quotation->title,
+                        'status' => $quotation->status,
+                    ]))
             : collect();
+
+        $takeoff->loadMissing('project');
 
         return Inertia::render('Admin/Takeoffs/Show', [
             'takeoff' => TakeoffPresenter::detail($takeoff, $user),
-            'templates' => TakeoffAssemblyTemplate::query()->orderBy('name')->get()->map(fn (TakeoffAssemblyTemplate $template): array => [
-                'id' => $template->id,
-                'name' => $template->name,
-                'opening_type' => $template->opening_type,
-                'product_category' => $template->product_category,
-                'frame_type' => $template->frame_type,
-                'hardware_set' => $template->hardware_set,
-                'glazing' => $template->glazing,
-                'finish' => $template->finish,
-                'manufacturer' => $template->manufacturer,
-                'product_model' => $template->product_model,
-                'default_costs' => $template->default_costs ?? [],
-            ])->values()->all(),
-            'quotations' => $quotations->map(fn (Quotation $quotation): array => [
-                'id' => $quotation->id,
-                'number' => $quotation->quotation_number,
-                'title' => $quotation->title,
-                'status' => $quotation->status,
-            ])->values()->all(),
+            'alreadyExistsMessage' => $request->boolean('already')
+                ? 'A takeoff for “'.($takeoff->project?->name ?: 'this project').'” already exists.'
+                : null,
+            'templates' => TakeoffViews::ready()
+                ? TakeoffViews::templates()
+                : TakeoffAssemblyTemplate::query()->orderBy('name')->get()->map(fn (TakeoffAssemblyTemplate $template): array => [
+                    'id' => $template->id,
+                    'name' => $template->name,
+                    'opening_type' => $template->opening_type,
+                    'product_category' => $template->product_category,
+                    'frame_type' => $template->frame_type,
+                    'hardware_set' => $template->hardware_set,
+                    'glazing' => $template->glazing,
+                    'finish' => $template->finish,
+                    'manufacturer' => $template->manufacturer,
+                    'product_model' => $template->product_model,
+                    'default_costs' => $template->default_costs ?? [],
+                ])->values()->all(),
+            'quotations' => $quotations->values()->all(),
             'can' => $this->abilities($user),
-            'doorTypes' => DoorConfiguration::query()
-                ->orderBy('name')
-                ->get(['id', 'name'])
-                ->map(fn (DoorConfiguration $type): array => [
-                    'id' => $type->id,
-                    'name' => $type->name,
-                ])
-                ->values()
-                ->all(),
+            'costProducts' => TakeoffViews::ready()
+                ? TakeoffViews::products()
+                : Product::query()->orderBy('name')->limit(400)->get(['id', 'name', 'sku'])->map(fn (Product $product): array => [
+                    'id' => $product->id,
+                    'name' => $product->name,
+                    'sku' => $product->sku,
+                ])->values()->all(),
+            'doorTypes' => TakeoffViews::ready()
+                ? TakeoffViews::doorTypes()
+                : DoorConfiguration::query()
+                    ->orderBy('name')
+                    ->get(['id', 'name'])
+                    ->map(fn (DoorConfiguration $type): array => [
+                        'id' => $type->id,
+                        'name' => $type->name,
+                    ])
+                    ->values()
+                    ->all(),
             'openingCategories' => OpeningCategory::choices(),
             'openingTypes' => TakeoffOpeningType::choices(),
         ]);
@@ -279,6 +333,10 @@ class TakeoffController extends Controller
             'pricing_method' => ['nullable', Rule::in(config('takeoffs.pricing_methods'))],
             'markup_percent' => ['nullable', 'numeric', 'min:0', 'max:1000'],
             'margin_percent' => ['nullable', 'numeric', 'min:0', 'max:99.99'],
+            'install_pricing_method' => ['nullable', Rule::in(config('takeoffs.pricing_methods'))],
+            'install_markup_percent' => ['nullable', 'numeric', 'min:0', 'max:1000'],
+            'install_margin_percent' => ['nullable', 'numeric', 'min:0', 'max:99.99'],
+            'transaction_fee_applicable' => ['nullable', 'boolean'],
         ]);
 
         if ($takeoff->status === 'archived' && $data['status'] !== 'draft') {
@@ -343,10 +401,39 @@ class TakeoffController extends Controller
                 $changes['markup_rate'] = TakeoffMoney::rate($data['markup_percent'] ?? 0);
                 $changes['margin_rate'] = null;
             }
+
+            if ($request->filled('install_markup_percent') && $request->filled('install_margin_percent')) {
+                throw ValidationException::withMessages([
+                    'install_pricing_method' => 'Use an install markup or an install margin, not both.',
+                ]);
+            }
+
+            $installMethod = $data['install_pricing_method'] ?? $takeoff->install_pricing_method ?? 'markup';
+            $changes['install_pricing_method'] = $installMethod;
+            $changes['transaction_fee_applicable'] = $request->boolean('transaction_fee_applicable');
+
+            if ($installMethod === 'margin' && $request->filled('install_margin_percent')) {
+                $changes['install_margin_rate'] = TakeoffMoney::rate($data['install_margin_percent']);
+                $changes['install_markup_rate'] = null;
+            } elseif ($request->filled('install_markup_percent')) {
+                $changes['install_markup_rate'] = TakeoffMoney::rate($data['install_markup_percent']);
+                $changes['install_margin_rate'] = null;
+            } else {
+                $changes['install_markup_rate'] = null;
+                $changes['install_margin_rate'] = null;
+            }
         }
 
-        $takeoff->fill($changes)->save();
-        $savedOpenings = app(TakeoffWorkspaceController::class)->storeOpeningDrafts($takeoff, $openingDrafts);
+        $savedOpenings = 0;
+
+        DB::transaction(function () use ($takeoff, $changes, $openingDrafts, &$savedOpenings): void {
+            $takeoff->fill($changes)->save();
+            $savedOpenings = app(TakeoffWorkspaceController::class)->storeOpeningDrafts($takeoff, $openingDrafts);
+
+            if ($takeoff->status === 'approved') {
+                TakeoffRelease::assertReady($takeoff->fresh());
+            }
+        });
         $action = $data['status'] === 'approved' && $takeoff->wasChanged('approved_at')
             ? 'takeoff.approved'
             : 'takeoff.updated';

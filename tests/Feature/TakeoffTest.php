@@ -14,6 +14,7 @@ use App\Models\User;
 use App\Models\UserLevel;
 use App\Support\TakeoffCsv;
 use App\Support\TakeoffPricing;
+use App\Support\TakeoffGuide;
 use App\Support\TakeoffReview;
 use App\Support\TakeoffRevisionCopies;
 use App\Support\TakeoffPdfScope;
@@ -741,7 +742,7 @@ test('the system names a takeoff and reads doors from an uploaded drawing', func
 test('a drawing without a project creates a project from the drawing details', function () {
     Storage::fake('local');
     $admin = takeoffUser();
-    Project::create([
+    $existing = Project::create([
         'name' => 'Shielded Lab',
         'priority' => 'normal',
         'created_by' => $admin->id,
@@ -756,18 +757,47 @@ test('a drawing without a project creates a project from the drawing details', f
         'file' => $file,
     ])->assertRedirect();
 
-    $project = Project::query()->where('name', 'Shielded Lab (2)')->first();
-    $takeoff = Takeoff::query()->where('project_id', $project?->id)->first();
+    $takeoff = Takeoff::query()->where('project_id', $existing->id)->first();
 
-    expect($project)->not->toBeNull()
-        ->and($project->created_by)->toBe($admin->id)
-        ->and($project->site_address_line_1)->toBe('100 Science Drive')
-        ->and($project->site_city)->toBe('Newark')
-        ->and($project->site_state)->toBe('NJ')
-        ->and($project->site_postal_code)->toBe('07102')
-        ->and($project->internal_notes)->toBe('Owner: State University')
+    $existing->refresh();
+
+    expect(Project::query()->where('name', 'Shielded Lab (2)')->exists())->toBeFalse()
+        ->and($existing->site_address_line_1)->toBeNull()
         ->and($takeoff)->not->toBeNull()
-        ->and($takeoff->title)->toBe('Shielded Lab (2)');
+        ->and($takeoff->title)->toBe($existing->project_number.' Shielded Lab — A-601 Door Schedule (3 doors)');
+
+    $before = $takeoff->fresh();
+
+    $this->actingAs($admin)
+        ->from(route('admin.takeoffs.create'))
+        ->post(route('admin.takeoffs.store'), [
+            'file' => $file,
+        ])
+        ->assertRedirect(route('admin.takeoffs.show', ['takeoff' => $takeoff, 'already' => 1]));
+
+    expect($takeoff->fresh()->updated_at?->equalTo($before->updated_at))->toBeTrue()
+        ->and($takeoff->fresh()->title)->toBe($before->title)
+        ->and(Takeoff::query()->where('project_id', $existing->id)->count())->toBe(1)
+        ->and(Project::query()->where('name', 'like', 'Shielded Lab%')->count())->toBe(1);
+
+    $named = UploadedFile::fake()->createWithContent('scan.pdf', takeoffDrawingPdf([
+        'PROJECT: Riverside Lab',
+        'ADDRESS: 100 Science Drive, Newark, NJ 07102',
+        'OWNER: State University',
+    ]));
+
+    $this->actingAs($admin)->post(route('admin.takeoffs.store'), [
+        'file' => $named,
+    ])->assertRedirect();
+
+    $created = Project::query()->where('name', 'Riverside Lab')->first();
+    expect($created)->not->toBeNull()
+        ->and($created->site_address_line_1)->toBe('100 Science Drive')
+        ->and($created->site_city)->toBe('Newark')
+        ->and($created->site_state)->toBe('NJ')
+        ->and($created->site_postal_code)->toBe('07102')
+        ->and($created->internal_notes)->toBe('Owner: State University')
+        ->and(Takeoff::query()->where('project_id', $created->id)->value('title'))->toBe('Riverside Lab');
 
     $plain = UploadedFile::fake()->createWithContent('North_Wing.pdf', takeoffDrawingPdf());
 
@@ -855,6 +885,33 @@ test('reloading a drawing scans every page and records the progress', function (
         ->and((string) $opening->quantity)->toBe('1.00');
 });
 
+test('a new takeoff is not saved when that project already has one', function () {
+    $admin = takeoffUser();
+    $project = takeoffProject($admin);
+    $takeoff = takeoffRecord($admin, $project);
+    $takeoff->forceFill(['title' => 'Lobby package'])->save();
+    $before = $takeoff->fresh();
+
+    $this->actingAs($admin)
+        ->from(route('admin.takeoffs.create'))
+        ->post(route('admin.takeoffs.store'), [
+            'project_id' => $project->id,
+            'title' => 'Another package',
+        ])
+        ->assertRedirect(route('admin.takeoffs.show', ['takeoff' => $takeoff, 'already' => 1]));
+
+    $this->actingAs($admin)
+        ->get(route('admin.takeoffs.show', ['takeoff' => $takeoff, 'already' => 1]))
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->component('Admin/Takeoffs/Show')
+            ->where('alreadyExistsMessage', 'A takeoff for “'.$project->name.'” already exists.'));
+
+    expect(Takeoff::query()->where('project_id', $project->id)->count())->toBe(1)
+        ->and($takeoff->fresh()->title)->toBe('Lobby package')
+        ->and($takeoff->fresh()->updated_at?->equalTo($before->updated_at))->toBeTrue();
+});
+
 test('a blank title is named from the project and a typed title is kept', function () {
     Storage::fake('local');
     $admin = takeoffUser();
@@ -863,26 +920,24 @@ test('a blank title is named from the project and a typed title is kept', functi
 
     $this->actingAs($admin)->post(route('admin.takeoffs.store'), [
         'project_id' => $project->id,
-    ])->assertRedirect();
-    $this->actingAs($admin)->post(route('admin.takeoffs.store'), [
-        'project_id' => $project->id,
-    ])->assertRedirect();
-    $this->actingAs($admin)->post(route('admin.takeoffs.store'), [
-        'project_id' => $project->id,
         'title' => 'Lobby package',
         'file' => UploadedFile::fake()->createWithContent('level-1.pdf', takeoffDrawingPdf()),
     ])->assertRedirect();
 
-    $titles = Takeoff::query()->where('project_id', $project->id)->orderBy('id')->pluck('title')->all();
-
-    expect($titles)->toBe([
-        'GDS-2026-0142 Shielded lab — Takeoff',
-        'GDS-2026-0142 Shielded lab — Takeoff (2)',
-        'Lobby package',
-    ]);
-
     $named = Takeoff::query()->where('title', 'Lobby package')->first();
-    expect($named->openings)->toHaveCount(3);
+    expect($named)->not->toBeNull()
+        ->and($named->documents)->toHaveCount(1)
+        ->and($named->openings)->toHaveCount(0);
+
+    $this->actingAs($admin)
+        ->from(route('admin.takeoffs.create'))
+        ->post(route('admin.takeoffs.store'), [
+            'project_id' => $project->id,
+        ])
+        ->assertRedirect(route('admin.takeoffs.show', ['takeoff' => $named, 'already' => 1]));
+
+    expect(Takeoff::query()->where('project_id', $project->id)->count())->toBe(1)
+        ->and($named->fresh()->title)->toBe('Lobby package');
 });
 
 test('uploading a drawing replaces a generic takeoff name', function () {
@@ -1779,4 +1834,153 @@ test('a door or window section creates the openings it lists', function () {
     expect($takeoff->openings()->where('tag', 'W1-1')->exists())->toBeFalse()
         ->and($takeoff->openings()->where('tag', 'W1-2')->exists())->toBeTrue()
         ->and($takeoff->sections()->whereKey($copied->id)->exists())->toBeFalse();
+});
+
+test('supply and install use separate markups and a fee is not marked up', function () {
+    $admin = takeoffUser();
+    $takeoff = takeoffRecord($admin);
+    $takeoff->update([
+        'markup_rate' => '0.200000',
+        'install_pricing_method' => 'markup',
+        'install_markup_rate' => '0.100000',
+    ]);
+    $opening = $takeoff->openings()->create([
+        'tag' => 'D101',
+        'opening_type' => 'door',
+        'quantity' => '1.00',
+        'dimension_unit' => 'in',
+        'scope' => 'both',
+        'width' => '36.000',
+        'height' => '84.000',
+    ]);
+    $opening->costs()->create([
+        'takeoff_id' => $takeoff->id,
+        'kind' => 'material',
+        'price_scope' => 'supply',
+        'basis' => 'per_unit',
+        'amount' => '500.00',
+    ]);
+    $opening->costs()->create([
+        'takeoff_id' => $takeoff->id,
+        'kind' => 'labor',
+        'price_scope' => 'install',
+        'basis' => 'one_time',
+        'labor_hours' => '2.00',
+        'hourly_rate' => '50.00',
+    ]);
+    $opening->costs()->create([
+        'takeoff_id' => $takeoff->id,
+        'kind' => 'transaction_fee',
+        'price_scope' => 'fee',
+        'basis' => 'one_time',
+        'amount' => '25.00',
+    ]);
+
+    $estimate = TakeoffPricing::opening($takeoff->fresh(), $opening->fresh());
+
+    expect($estimate['cost'])->toBe('625.00')
+        ->and($estimate['selling'])->toBe('710.00')
+        ->and($estimate['profit'])->toBe('85.00');
+
+    $opening->update([
+        'price_override' => '900.00',
+        'price_override_reason' => 'Customer agreed price',
+    ]);
+    $overridden = TakeoffPricing::opening($takeoff->fresh(), $opening->fresh());
+
+    expect($overridden['cost'])->toBe('625.00')
+        ->and($overridden['selling'])->toBe('900.00')
+        ->and($overridden['profit'])->toBe('275.00');
+});
+
+test('a sell price override needs a reason and an incomplete opening cannot be released', function () {
+    $admin = takeoffUser();
+    $takeoff = takeoffRecord($admin);
+    $opening = $takeoff->openings()->create([
+        'tag' => 'D1',
+        'opening_type' => 'door',
+        'quantity' => '1.00',
+        'dimension_unit' => 'in',
+        'scope' => 'both',
+        'disposition' => 'active',
+        'verification_status' => 'recorded',
+    ]);
+    $payload = [
+        'tag' => 'D1',
+        'is_bulk' => false,
+        'opening_type' => 'door',
+        'quantity' => '1',
+        'dimension_unit' => 'in',
+        'scope' => 'both',
+        'disposition' => 'active',
+        'verification_status' => 'recorded',
+        'price_override' => '900',
+        'updated_at' => $opening->updated_at?->toIso8601String(),
+    ];
+
+    $this->actingAs($admin)->patch(route('admin.takeoffs.openings.update', [$takeoff, $opening]), $payload)
+        ->assertSessionHasErrors('price_override_reason');
+
+    $this->actingAs($admin)->patch(route('admin.takeoffs.openings.update', [$takeoff, $opening]), [
+        ...$payload,
+        'price_override_reason' => 'Customer agreed price',
+        'updated_at' => $opening->fresh()->updated_at?->toIso8601String(),
+    ])->assertRedirect()->assertSessionHas('success');
+
+    expect((string) $opening->fresh()->price_override)->toBe('900.00');
+
+    $this->actingAs($admin)->patch(route('admin.takeoffs.update', $takeoff), [
+        'title' => 'Door takeoff',
+        'status' => 'approved',
+        'pricing_method' => 'markup',
+        'markup_percent' => '0',
+    ])->assertSessionHasErrors('status');
+
+    expect($takeoff->fresh()->status)->toBe('draft');
+
+    $contractor = Contractor::query()->create(['name' => 'Harbor Facilities']);
+    $takeoff->project->contractors()->attach($contractor->id);
+
+    $this->actingAs($admin)->post(route('admin.quotations.store'), [
+        'contractor_id' => $contractor->id,
+        'project_id' => $takeoff->project_id,
+        'title' => 'Incomplete opening',
+        'status' => 'sent',
+    ])->assertSessionHasErrors('status');
+
+    expect(Quotation::query()->where('project_id', $takeoff->project_id)->count())->toBe(0);
+
+    $this->actingAs($admin)->post(route('admin.quotations.store'), [
+        'contractor_id' => $contractor->id,
+        'project_id' => $takeoff->project_id,
+        'title' => 'Draft while takeoff is open',
+        'status' => 'draft',
+    ])->assertRedirect();
+
+    expect(Quotation::query()->where('project_id', $takeoff->project_id)->value('status'))->toBe('draft');
+});
+
+test('the takeoff guide points at the next unfinished step', function () {
+    $admin = takeoffUser();
+    $takeoff = takeoffRecord($admin);
+
+    expect(TakeoffGuide::for($takeoff)['next'])->toBe('Record the opening from the drawing');
+
+    $takeoff->openings()->create([
+        'tag' => 'D1',
+        'opening_type' => 'door',
+        'quantity' => '1.00',
+        'width' => '36.000',
+        'height' => '84.000',
+        'dimension_unit' => 'in',
+        'scope' => 'both',
+        'disposition' => 'active',
+        'commercial_status' => 'unverified',
+    ]);
+
+    expect(TakeoffGuide::for($takeoff->fresh())['next'])->toBe('Set commercial status and the two markups');
+
+    $takeoff->openings()->update(['commercial_status' => 'rfq_sent']);
+
+    expect(TakeoffGuide::for($takeoff->fresh())['next'])->toBe('Clear the review before you send');
 });

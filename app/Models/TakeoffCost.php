@@ -11,7 +11,9 @@ class TakeoffCost extends Model
         'takeoff_id',
         'opening_id',
         'group_id',
+        'product_id',
         'kind',
+        'price_scope',
         'basis',
         'description',
         'amount',
@@ -44,5 +46,10 @@ class TakeoffCost extends Model
     public function group(): BelongsTo
     {
         return $this->belongsTo(TakeoffGroup::class, 'group_id');
+    }
+
+    public function product(): BelongsTo
+    {
+        return $this->belongsTo(Product::class);
     }
 }

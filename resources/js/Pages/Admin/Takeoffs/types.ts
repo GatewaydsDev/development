@@ -5,6 +5,20 @@ export type TakeoffEstimate = {
     margin: string | null;
 };
 
+export type TakeoffGuideStep = {
+    key: string;
+    title: string;
+    detail: string;
+    state: 'done' | 'current' | 'later';
+    section: 'workspace' | 'assemblies' | 'review';
+};
+
+export type TakeoffGuide = {
+    ready: boolean;
+    next: string;
+    steps: TakeoffGuideStep[];
+};
+
 export type TakeoffSummary = {
     id: number;
     uuid: string;
@@ -15,6 +29,7 @@ export type TakeoffSummary = {
     opening_count: number;
     project: { id: number; name: string; project_number: string | null } | null;
     estimate: TakeoffEstimate | null;
+    guide: TakeoffGuide;
     updated_at: string | null;
 };
 
@@ -67,6 +82,10 @@ export type TakeoffReference = {
 export type TakeoffCost = {
     id: number;
     kind: string;
+    price_scope: 'supply' | 'install' | 'fee';
+    product_id: number | null;
+    product_name: string | null;
+    product_sku: string | null;
     basis: string;
     description: string | null;
     amount: string | null;
@@ -97,6 +116,8 @@ export type TakeoffOpening = {
     width: string | null;
     height: string | null;
     depth: string | null;
+    scheduled_thickness: string | null;
+    thickness_uncertain: boolean;
     dimension_unit: string;
     frame_type: string | null;
     handing: string | null;
@@ -108,6 +129,9 @@ export type TakeoffOpening = {
     product_id: number | null;
     product_name: string | null;
     scope: 'supply' | 'installation' | 'both';
+    commercial_status: 'unverified' | 'rfq_sent' | 'quoted' | 'approved';
+    price_override: string | null;
+    price_override_reason: string | null;
     notes: string | null;
     exclusions: string | null;
     assumptions: string | null;
@@ -213,6 +237,10 @@ export type TakeoffDetail = {
     pricing_method: 'markup' | 'margin';
     markup_percent: string | null;
     margin_percent: string | null;
+    install_pricing_method: 'markup' | 'margin';
+    install_markup_percent: string | null;
+    install_margin_percent: string | null;
+    transaction_fee_applicable: boolean;
     updated_at: string | null;
     project: { id: number; uuid: string; name: string; project_number: string | null } | null;
     estimate: TakeoffEstimate | null;
@@ -224,6 +252,7 @@ export type TakeoffDetail = {
     groups: TakeoffGroup[];
     supplier_quotes: SupplierQuote[];
     flags: ReviewFlag[];
+    guide: TakeoffGuide;
     previous: {
         uuid: string;
         revision_number: number;

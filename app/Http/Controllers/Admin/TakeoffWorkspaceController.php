@@ -1404,6 +1404,8 @@ class TakeoffWorkspaceController extends Controller
             $opening->costs()->create([
                 'takeoff_id' => $takeoff->id,
                 'kind' => $cost['kind'] ?? 'material',
+                'price_scope' => $cost['price_scope'] ?? (($cost['kind'] ?? 'material') === 'transaction_fee' ? 'fee' : (in_array($cost['kind'] ?? 'material', ['labor', 'equipment', 'contingency'], true) ? 'install' : 'supply')),
+                'product_id' => $cost['product_id'] ?? null,
                 'basis' => $cost['basis'] ?? 'per_unit',
                 'description' => $cost['description'] ?? $template->name,
                 'amount' => isset($cost['amount']) ? TakeoffMoney::money($cost['amount']) : null,
@@ -1593,6 +1595,8 @@ class TakeoffWorkspaceController extends Controller
             'width' => ['nullable', 'numeric', 'min:0'],
             'height' => ['nullable', 'numeric', 'min:0'],
             'depth' => ['nullable', 'numeric', 'min:0'],
+            'scheduled_thickness' => ['nullable', 'string', 'max:50'],
+            'thickness_uncertain' => ['nullable', 'boolean'],
             'dimension_unit' => ['required', Rule::in(config('takeoffs.units'))],
             'frame_type' => ['nullable', 'string', 'max:255'],
             'handing' => ['nullable', 'string', 'max:255'],
@@ -1603,6 +1607,9 @@ class TakeoffWorkspaceController extends Controller
             'product_model' => ['nullable', 'string', 'max:255'],
             'product_id' => ['nullable', 'integer', 'exists:products,id'],
             'scope' => ['required', Rule::in(config('takeoffs.scopes'))],
+            'commercial_status' => ['nullable', Rule::in(config('takeoffs.commercial_statuses'))],
+            'price_override' => ['nullable', 'numeric', 'min:0'],
+            'price_override_reason' => ['nullable', 'string', 'max:2000'],
             'notes' => ['nullable', 'string', 'max:5000'],
             'exclusions' => ['nullable', 'string', 'max:5000'],
             'assumptions' => ['nullable', 'string', 'max:5000'],
@@ -1614,6 +1621,7 @@ class TakeoffWorkspaceController extends Controller
             'waived_checks.technical' => ['nullable', 'string', 'max:500'],
             'waived_checks.hardware' => ['nullable', 'string', 'max:500'],
             'waived_checks.pricing' => ['nullable', 'string', 'max:500'],
+            'waived_checks.handing' => ['nullable', 'string', 'max:500'],
             'acoustic_requirement' => ['nullable', 'string', 'max:5000'],
             'rf_requirement' => ['nullable', 'string', 'max:10000'],
             'fire_requirement' => ['nullable', 'string', 'max:5000'],
@@ -1654,6 +1662,10 @@ class TakeoffWorkspaceController extends Controller
             throw ValidationException::withMessages(['disposition_reason' => 'Enter a reason for an exclusion or not-applicable decision.']);
         }
 
+        if (isset($data['price_override']) && $data['price_override'] !== '' && $data['price_override'] !== null && $this->blank($data['price_override_reason'] ?? null) === null) {
+            throw ValidationException::withMessages(['price_override_reason' => 'Enter a reason for the sell-price override.']);
+        }
+
         if (! empty($data['requirement_document_id'])) {
             $this->ownedDocument($takeoff, $this->document($takeoff, (int) $data['requirement_document_id']));
         }
@@ -1687,7 +1699,7 @@ class TakeoffWorkspaceController extends Controller
 
         $waived = [];
 
-        foreach (['dimensions', 'product', 'technical', 'hardware', 'pricing'] as $check) {
+        foreach (['dimensions', 'product', 'technical', 'hardware', 'pricing', 'handing'] as $check) {
             $reason = $this->blank($data['waived_checks'][$check] ?? null);
 
             if ($reason !== null) {
@@ -1708,6 +1720,8 @@ class TakeoffWorkspaceController extends Controller
             'width' => TakeoffMoney::dimension($data['width'] ?? null),
             'height' => TakeoffMoney::dimension($data['height'] ?? null),
             'depth' => TakeoffMoney::dimension($data['depth'] ?? null),
+            'scheduled_thickness' => $this->blank($data['scheduled_thickness'] ?? null),
+            'thickness_uncertain' => (bool) ($data['thickness_uncertain'] ?? false),
             'dimension_unit' => $data['dimension_unit'],
             'frame_type' => $this->blank($data['frame_type'] ?? null),
             'handing' => $this->blank($data['handing'] ?? null),
@@ -1718,6 +1732,11 @@ class TakeoffWorkspaceController extends Controller
             'product_model' => $this->blank($data['product_model'] ?? null),
             'product_id' => $data['product_id'] ?? null,
             'scope' => $data['scope'],
+            'commercial_status' => $data['commercial_status'] ?? 'unverified',
+            'price_override' => isset($data['price_override']) && $data['price_override'] !== '' && $data['price_override'] !== null
+                ? TakeoffMoney::money($data['price_override'])
+                : null,
+            'price_override_reason' => $this->blank($data['price_override_reason'] ?? null),
             'notes' => $this->blank($data['notes'] ?? null),
             'exclusions' => $this->blank($data['exclusions'] ?? null),
             'assumptions' => $this->blank($data['assumptions'] ?? null),
@@ -1801,7 +1820,9 @@ class TakeoffWorkspaceController extends Controller
         $data = $request->validate([
             'opening_id' => ['nullable', 'integer'],
             'group_id' => ['nullable', 'integer'],
-            'kind' => ['required', Rule::in(['material', 'labor', 'freight', 'equipment', 'subcontract', 'other'])],
+            'kind' => ['required', Rule::in(config('takeoffs.cost_kinds'))],
+            'price_scope' => ['nullable', Rule::in(config('takeoffs.price_scopes'))],
+            'product_id' => ['nullable', 'integer', 'exists:products,id'],
             'basis' => ['required', Rule::in(['per_unit', 'one_time'])],
             'description' => ['nullable', 'string', 'max:255'],
             'amount' => ['nullable', 'numeric', 'min:0'],
@@ -1835,10 +1856,20 @@ class TakeoffWorkspaceController extends Controller
             $data['basis'] = 'per_unit';
         }
 
+        $scope = $data['price_scope'] ?? null;
+
+        if ($data['kind'] === 'transaction_fee') {
+            $scope = 'fee';
+        } elseif ($scope === null || $scope === '') {
+            $scope = in_array($data['kind'], ['labor', 'equipment', 'contingency'], true) ? 'install' : 'supply';
+        }
+
         return [
             'opening_id' => $data['opening_id'] ?? null,
             'group_id' => $data['group_id'] ?? null,
+            'product_id' => $data['product_id'] ?? null,
             'kind' => $data['kind'],
+            'price_scope' => $scope,
             'basis' => $data['basis'],
             'description' => $this->blank($data['description'] ?? null),
             'amount' => isset($data['amount']) && $data['amount'] !== '' ? TakeoffMoney::money($data['amount']) : null,
@@ -1918,7 +1949,9 @@ class TakeoffWorkspaceController extends Controller
             'product_id' => ['nullable', 'integer', 'exists:products,id'],
             'components' => ['nullable', 'array'],
             'default_costs' => ['nullable', 'array'],
-            'default_costs.*.kind' => ['required_with:default_costs', Rule::in(['material', 'labor', 'freight', 'equipment', 'subcontract', 'other'])],
+            'default_costs.*.kind' => ['required_with:default_costs', Rule::in(config('takeoffs.cost_kinds'))],
+            'default_costs.*.price_scope' => ['nullable', Rule::in(config('takeoffs.price_scopes'))],
+            'default_costs.*.product_id' => ['nullable', 'integer', 'exists:products,id'],
             'default_costs.*.basis' => ['required_with:default_costs', Rule::in(['per_unit', 'one_time'])],
             'default_costs.*.amount' => ['nullable', 'numeric', 'min:0'],
             'default_costs.*.labor_hours' => ['nullable', 'numeric', 'min:0'],

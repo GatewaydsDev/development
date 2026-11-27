@@ -190,7 +190,9 @@ test('a door can be saved with a different price per state', function () {
     expect($door->statePrices)->toHaveCount(2);
     expect($door->statePrices->pluck('taxState.name')->all())->toEqualCanonicalizing(['New Jersey', 'New York']);
     expect((float) $door->statePrices->firstWhere('tax_state_id', $newJersey->id)?->price)->toBe(1250.5);
+    expect((float) $door->statePrices->firstWhere('tax_state_id', $newJersey->id)?->tax_rate)->toBe(6.625);
     expect((float) $door->statePrices->firstWhere('tax_state_id', $newYork->id)?->price)->toBe(1325.0);
+    expect((float) $door->statePrices->firstWhere('tax_state_id', $newYork->id)?->tax_rate)->toBe(4.0);
     expect((float) $newJersey->fresh()->rate)->toBe(6.625);
     expect((float) $newYork->fresh()->rate)->toBe(4.0);
 });
@@ -266,10 +268,11 @@ test('a product can be saved with a money price and sell percentages', function 
     expect((float) $product->markup_percent)->toBe(25.0);
     expect((float) $product->min_markup_percent)->toBe(15.0);
     expect($product->tax_state_id)->toBe($newJersey->id);
+    expect((float) $product->tax_rate)->toBe(6.625);
     expect((float) $newJersey->fresh()->rate)->toBe(6.625);
 });
 
-test('state taxes can be created and their percent can be changed', function () {
+test('a product tax percent can differ from the state default', function () {
     $admin = productAdmin();
 
     $this->actingAs($admin)
@@ -306,7 +309,10 @@ test('state taxes can be created and their percent can be changed', function () 
         ])
         ->assertSessionHasNoErrors();
 
-    expect((float) $connecticut->fresh()->rate)->toBe(6.99);
+    $product = Product::query()->where('name', 'Threshold')->firstOrFail();
+
+    expect((float) $product->tax_rate)->toBe(6.99);
+    expect((float) $connecticut->fresh()->rate)->toBe(6.35);
 });
 
 test('product types are limited to door window and part', function () {

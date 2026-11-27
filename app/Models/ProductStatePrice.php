@@ -10,6 +10,7 @@ class ProductStatePrice extends Model
     protected $fillable = [
         'product_id',
         'tax_state_id',
+        'tax_rate',
         'price',
         'markup_percent',
         'min_markup_percent',
@@ -18,6 +19,7 @@ class ProductStatePrice extends Model
     protected function casts(): array
     {
         return [
+            'tax_rate' => 'decimal:3',
             'price' => 'decimal:2',
             'markup_percent' => 'decimal:2',
             'min_markup_percent' => 'decimal:2',

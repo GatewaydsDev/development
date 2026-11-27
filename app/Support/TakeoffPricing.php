@@ -67,7 +67,21 @@ class TakeoffPricing
      */
     public static function opening(Takeoff $takeoff, TakeoffOpening $opening): array
     {
-        return self::fromCosts($takeoff, $opening->costs, (string) $opening->quantity);
+        $estimate = self::fromCosts($takeoff, $opening->costs, (string) $opening->quantity);
+
+        if ($opening->price_override === null || $opening->price_override === '') {
+            return $estimate;
+        }
+
+        $selling = TakeoffMoney::money($opening->price_override);
+        $profit = TakeoffMoney::sub($selling, $estimate['cost']);
+
+        return [
+            'cost' => $estimate['cost'],
+            'selling' => $selling,
+            'profit' => $profit,
+            'margin' => TakeoffMoney::marginRatio($profit, $selling),
+        ];
     }
 
     /**
@@ -130,13 +144,18 @@ class TakeoffPricing
                 ? TakeoffMoney::mul($amount, $quantity)
                 : $amount;
             $costTotal = TakeoffMoney::add($costTotal, $extended);
+
+            if (self::isFee($cost)) {
+                continue;
+            }
+
             $sellingTotal = TakeoffMoney::add(
                 $sellingTotal,
                 TakeoffMoney::selling(
                     $extended,
-                    $takeoff->pricing_method,
-                    $takeoff->markup_rate !== null ? (string) $takeoff->markup_rate : null,
-                    $takeoff->margin_rate !== null ? (string) $takeoff->margin_rate : null,
+                    self::method($takeoff, $cost),
+                    self::markupRate($takeoff, $cost),
+                    self::marginRate($takeoff, $cost),
                 ),
             );
         }
@@ -158,5 +177,42 @@ class TakeoffPricing
         }
 
         return TakeoffMoney::money($cost->amount ?? '0');
+    }
+
+    private static function isFee(TakeoffCost $cost): bool
+    {
+        return $cost->kind === 'transaction_fee' || $cost->price_scope === 'fee';
+    }
+
+    private static function method(Takeoff $takeoff, TakeoffCost $cost): string
+    {
+        if ($cost->price_scope !== 'install') {
+            return (string) $takeoff->pricing_method;
+        }
+
+        $installMethod = $takeoff->install_pricing_method ?: 'markup';
+        $hasInstallRate = $installMethod === 'margin'
+            ? $takeoff->install_margin_rate !== null
+            : $takeoff->install_markup_rate !== null;
+
+        return $hasInstallRate ? (string) $installMethod : (string) $takeoff->pricing_method;
+    }
+
+    private static function markupRate(Takeoff $takeoff, TakeoffCost $cost): ?string
+    {
+        if ($cost->price_scope === 'install' && $takeoff->install_markup_rate !== null) {
+            return (string) $takeoff->install_markup_rate;
+        }
+
+        return $takeoff->markup_rate !== null ? (string) $takeoff->markup_rate : null;
+    }
+
+    private static function marginRate(Takeoff $takeoff, TakeoffCost $cost): ?string
+    {
+        if ($cost->price_scope === 'install' && $takeoff->install_margin_rate !== null) {
+            return (string) $takeoff->install_margin_rate;
+        }
+
+        return $takeoff->margin_rate !== null ? (string) $takeoff->margin_rate : null;
     }
 }

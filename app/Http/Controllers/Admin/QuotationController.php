@@ -38,6 +38,7 @@ use App\Support\QuotationRevisionResponsible;
 use App\Support\QuotationRevisionReviewMail;
 use App\Support\QuotationToBid;
 use App\Support\TakeoffPresenter;
+use App\Support\TakeoffRelease;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -183,6 +184,7 @@ class QuotationController extends Controller
         abort_unless(QuotationAccess::canCreate($request->user()), 403);
 
         $validated = $this->validatedQuotation($request);
+        $this->assertReleasedTakeoff($validated);
 
         $quotation = DB::transaction(function () use ($validated, $request): Quotation {
             $quotation = Quotation::create([
@@ -332,6 +334,7 @@ class QuotationController extends Controller
         abort_unless(QuotationAccess::canUpdate($request->user()), 403);
 
         $validated = $this->validatedQuotation($request, $quotation);
+        $this->assertReleasedTakeoff($validated);
 
         DB::transaction(function () use ($quotation, $validated, $request): void {
             $quotation->update([
@@ -1392,5 +1395,27 @@ class QuotationController extends Controller
     private function quotationListAmount(Quotation $quotation): float
     {
         return (float) ($quotation->project_amount ?? $quotation->total());
+    }
+
+    /**
+     * @param  array<string, mixed>  $validated
+     */
+    private function assertReleasedTakeoff(array $validated): void
+    {
+        if (! in_array($validated['status'] ?? null, ['sent', 'accepted'], true)) {
+            return;
+        }
+
+        $projectId = $validated['project_id'] ?? null;
+
+        if (! $projectId) {
+            return;
+        }
+
+        $project = Project::query()->find($projectId);
+
+        if ($project) {
+            TakeoffRelease::assertProjectReady($project);
+        }
     }
 }

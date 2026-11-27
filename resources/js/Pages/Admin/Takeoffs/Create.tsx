@@ -53,7 +53,12 @@ function projectNameFromFile(file: File | null): string {
 }
 
 export default function Create({ projects, projectId }: { projects: ProjectOption[]; projectId: number | null }) {
-    const canCreateProjects = Boolean(usePage<PageProps>().props.auth?.can?.createProjects);
+    const page = usePage<PageProps>();
+    const canCreateProjects = Boolean(page.props.auth?.can?.createProjects);
+    const takeoffExistsMessage = [page.props.flash?.success, page.props.flash?.error].find(
+        (message): message is string =>
+            typeof message === 'string' && /takeoff/i.test(message) && message.includes('already exists'),
+    ) ?? null;
     const [projectOpen, setProjectOpen] = useState(false);
     const form = useForm<{ project_id: string; title: string; notes: string; file: File | null }>({
         project_id: projectId ? String(projectId) : '',
@@ -63,6 +68,9 @@ export default function Create({ projects, projectId }: { projects: ProjectOptio
     });
     const selected = projects.find((project) => String(project.id) === form.data.project_id);
     const fileProjectName = projectNameFromFile(form.data.file);
+    const existingProject = fileProjectName
+        ? projects.find((project) => project.name.trim().toLowerCase() === fileProjectName.trim().toLowerCase())
+        : undefined;
     const suggested = suggestedTitle(selected);
 
     const submit = (event: FormEvent) => {
@@ -106,6 +114,12 @@ export default function Create({ projects, projectId }: { projects: ProjectOptio
                             </CardDescription>
                         </CardHeader>
                         <CardContent>
+                            {takeoffExistsMessage ? (
+                                <div role="alert" className="mb-6 rounded-xl border border-red-300 bg-red-50 px-4 py-4 text-red-950 dark:border-red-900 dark:bg-red-950/40 dark:text-red-100">
+                                    <p className="text-base font-semibold">{takeoffExistsMessage}</p>
+                                    <p className="mt-1 text-sm">The existing takeoff was not changed.</p>
+                                </div>
+                            ) : null}
                             <form onSubmit={submit} className="flex w-full min-w-0 flex-col gap-6 pb-28">
                                 <FormActionFab
                                     cancelHref={route('admin.takeoffs.index')}
@@ -186,7 +200,13 @@ export default function Create({ projects, projectId }: { projects: ProjectOptio
                                                 value={form.data.project_id}
                                                 onChange={(event) => form.setData('project_id', event.target.value)}
                                             >
-                                                <option value="">{fileProjectName ? `Create “${fileProjectName}”` : 'Select a project'}</option>
+                                                <option value="">
+                                                    {existingProject
+                                                        ? `“${existingProject.name}” already exists`
+                                                        : fileProjectName
+                                                          ? `Create “${fileProjectName}”`
+                                                          : 'Select a project'}
+                                                </option>
                                                 {projects.map((project) => (
                                                     <option key={project.id} value={project.id}>
                                                         {project.project_number ? `${project.project_number} — ` : ''}
@@ -194,7 +214,11 @@ export default function Create({ projects, projectId }: { projects: ProjectOptio
                                                     </option>
                                                 ))}
                                             </select>
-                                            {fileProjectName && !form.data.project_id ? (
+                                            {existingProject && !form.data.project_id ? (
+                                                <p className="text-sm text-muted-foreground">
+                                                    “{existingProject.name}” is already a project. Select it. If it already has a takeoff, that takeoff opens and a new one is not created.
+                                                </p>
+                                            ) : fileProjectName && !form.data.project_id ? (
                                                 <p className="text-sm text-muted-foreground">
                                                     The project name will be “{fileProjectName}”.
                                                 </p>

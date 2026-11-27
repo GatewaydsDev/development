@@ -72,6 +72,10 @@ export default function Authenticated({
 }: PropsWithChildren<{ header?: ReactNode; stickyTitle?: string; fullWidth?: boolean }>) {
     const page = usePage<PageProps>();
     const { auth, session, flash, impersonation } = page.props;
+    const existingTakeoffMessage = [flash?.success, flash?.error].find(
+        (message): message is string =>
+            typeof message === 'string' && /takeoff/i.test(message) && message.includes('already exists'),
+    ) ?? null;
     const user = auth.user;
     const idleTimeoutMinutes = Number(session?.idleTimeoutMinutes ?? 0);
     const canManageExpenses = Boolean(auth.can?.manageExpenses);
@@ -298,15 +302,28 @@ export default function Authenticated({
         };
     }, [page.url, stickyTitle]);
 
+    const [centeredNotice, setCenteredNotice] = useState<string | null>(null);
+
     useEffect(() => {
-        if (flash?.success) {
+        if (flash?.success && flash.success !== existingTakeoffMessage) {
             toast.success(flash.success);
         }
 
-        if (flash?.error) {
+        if (flash?.error && flash.error !== existingTakeoffMessage) {
             toast.error(flash.error);
         }
-    }, [flash?.success, flash?.error]);
+    }, [existingTakeoffMessage, flash?.success, flash?.error]);
+
+    useEffect(() => {
+        if (!existingTakeoffMessage) {
+            return;
+        }
+
+        setCenteredNotice(existingTakeoffMessage);
+        const timer = window.setTimeout(() => setCenteredNotice(null), 8_000);
+
+        return () => window.clearTimeout(timer);
+    }, [existingTakeoffMessage]);
 
     useEffect(() => {
         if (!canManageNotifications) {
@@ -423,6 +440,30 @@ export default function Authenticated({
                 <meta head-key="robots" name="robots" content="noindex, nofollow" />
             </Head>
             {stickyTitle?.trim() && <Head title={stickyTitle.trim()} />}
+            {centeredNotice ? (
+                <div className="fixed inset-0 z-[200] flex items-center justify-center bg-slate-950/55 p-4">
+                    <div
+                        role="alertdialog"
+                        aria-modal="true"
+                        aria-labelledby="existing-takeoff-title"
+                        className="w-full max-w-md rounded-xl border border-border bg-background px-6 py-6 text-center shadow-2xl"
+                    >
+                        <p id="existing-takeoff-title" className="text-lg font-semibold text-foreground">
+                            {centeredNotice}
+                        </p>
+                        <p className="mt-2 text-sm text-muted-foreground">
+                            The existing takeoff was not changed.
+                        </p>
+                        <button
+                            type="button"
+                            className="mt-5 inline-flex h-10 items-center rounded-full bg-emerald-700 px-5 text-sm font-semibold text-white hover:bg-emerald-800"
+                            onClick={() => setCenteredNotice(null)}
+                        >
+                            Close
+                        </button>
+                    </div>
+                </div>
+            ) : null}
             <RevisionAssignmentListener userId={user.id} />
             <TabUnreadBadge />
             {canManageExpenses ? <ExpenseUpdates /> : null}

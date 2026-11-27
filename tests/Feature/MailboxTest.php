@@ -1502,6 +1502,92 @@ test('blocked emails are left out of the unread count and reported separately', 
         ->assertJson(['unread' => 3, 'blocked' => 2]);
 });
 
+test('marking the inbox read does not keep blocked notices in the unread count', function () {
+    $user = mailboxUser('larryd@gateway-ds.com');
+
+    Cache::flush();
+    config([
+        'services.microsoft.tenant_id' => 'tenant-id',
+        'services.microsoft.client_id' => 'client-id',
+        'services.microsoft.client_secret' => 'client-secret',
+    ]);
+
+    $blocked = static fn (int $index): array => [
+        'subject' => 'Undeliverable: notice '.$index,
+        'from' => ['emailAddress' => ['address' => 'postmaster@outlook.com']],
+        'isRead' => false,
+    ];
+    $firstPage = array_map($blocked, range(1, 40));
+    $secondPage = array_map($blocked, range(41, 60));
+    $next = 'https://graph.microsoft.com/v1.0/users/larryd@gateway-ds.com/mailFolders/inbox/messages?$skiptoken=blocked-page-2';
+
+    Http::fake(function ($request) use ($firstPage, $secondPage, $next) {
+        if (str_contains($request->url(), 'login.microsoftonline.com')) {
+            return Http::response(['access_token' => 't', 'expires_in' => 3600]);
+        }
+
+        if (str_contains($request->url(), 'unreadItemCount')) {
+            return Http::response(['unreadItemCount' => 60]);
+        }
+
+        if (str_contains($request->url(), 'blocked-page-2')) {
+            return Http::response(['value' => $secondPage]);
+        }
+
+        if (str_contains($request->url(), 'isRead+eq+false') || str_contains($request->url(), 'isRead%20eq%20false') || str_contains($request->url(), 'isRead eq false')) {
+            return Http::response([
+                'value' => $firstPage,
+                '@odata.nextLink' => $next,
+            ]);
+        }
+
+        return Http::response(['value' => $firstPage]);
+    });
+
+    $this->actingAs($user)
+        ->getJson(route('mailbox.unread'))
+        ->assertOk()
+        ->assertJson(['unread' => 0, 'blocked' => 40]);
+});
+
+test('blocked unread notices are removed when microsoft will not filter unread mail', function () {
+    $user = mailboxUser('larryd@gateway-ds.com');
+
+    Cache::flush();
+    config([
+        'services.microsoft.tenant_id' => 'tenant-id',
+        'services.microsoft.client_id' => 'client-id',
+        'services.microsoft.client_secret' => 'client-secret',
+    ]);
+
+    $blocked = [
+        'subject' => 'Your message was blocked',
+        'from' => ['emailAddress' => ['address' => 'someone@example.com']],
+        'isRead' => false,
+    ];
+
+    Http::fake(function ($request) use ($blocked) {
+        if (str_contains($request->url(), 'login.microsoftonline.com')) {
+            return Http::response(['access_token' => 't', 'expires_in' => 3600]);
+        }
+
+        if (str_contains($request->url(), 'unreadItemCount')) {
+            return Http::response(['unreadItemCount' => 60]);
+        }
+
+        if (str_contains($request->url(), 'isRead+eq+false') || str_contains($request->url(), 'isRead%20eq%20false') || str_contains($request->url(), 'isRead eq false')) {
+            return Http::response(['error' => ['message' => 'InefficientFilter']], 400);
+        }
+
+        return Http::response(['value' => array_fill(0, 60, $blocked)]);
+    });
+
+    $this->actingAs($user)
+        ->getJson(route('mailbox.unread'))
+        ->assertOk()
+        ->assertJson(['unread' => 0, 'blocked' => 60]);
+});
+
 test('unread email count stays at zero when the user has no mailbox', function () {
     $user = mailboxUser(null);
 

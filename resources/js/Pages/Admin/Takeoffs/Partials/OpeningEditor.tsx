@@ -51,6 +51,8 @@ export function openingForm(opening: TakeoffOpening | null, creating: boolean) {
         width: opening.width ?? '',
         height: opening.height ?? '',
         depth: opening.depth ?? '',
+        scheduled_thickness: opening.scheduled_thickness ?? '',
+        thickness_uncertain: opening.thickness_uncertain ?? false,
         dimension_unit: opening.dimension_unit,
         frame_type: opening.frame_type ?? '',
         handing: opening.handing ?? '',
@@ -61,6 +63,9 @@ export function openingForm(opening: TakeoffOpening | null, creating: boolean) {
         product_model: opening.product_model ?? '',
         product_id: opening.product_id ? String(opening.product_id) : '',
         scope: opening.scope,
+        commercial_status: opening.commercial_status ?? 'unverified',
+        price_override: opening.price_override ?? '',
+        price_override_reason: opening.price_override_reason ?? '',
         notes: opening.notes ?? '',
         exclusions: opening.exclusions ?? '',
         assumptions: opening.assumptions ?? '',
@@ -86,6 +91,7 @@ export function openingForm(opening: TakeoffOpening | null, creating: boolean) {
         waive_technical: waived.technical ?? '',
         waive_hardware: waived.hardware ?? '',
         waive_pricing: waived.pricing ?? '',
+        waive_handing: waived.handing ?? '',
     };
 }
 
@@ -100,6 +106,8 @@ export type OpeningForm = {
     width: string;
     height: string;
     depth: string;
+    scheduled_thickness: string;
+    thickness_uncertain: boolean;
     dimension_unit: string;
     frame_type: string;
     handing: string;
@@ -110,6 +118,9 @@ export type OpeningForm = {
     product_model: string;
     product_id: string;
     scope: string;
+    commercial_status: string;
+    price_override: string;
+    price_override_reason: string;
     notes: string;
     exclusions: string;
     assumptions: string;
@@ -135,6 +146,7 @@ export type OpeningForm = {
     waive_technical: string;
     waive_hardware: string;
     waive_pricing: string;
+    waive_handing: string;
 };
 
 export function openingPayload(form: OpeningForm, updatedAt: string | null, marker: PdfPoint | null) {
@@ -154,6 +166,7 @@ export function openingPayload(form: OpeningForm, updatedAt: string | null, mark
             technical: form.waive_technical,
             hardware: form.waive_hardware,
             pricing: form.waive_pricing,
+            handing: form.waive_handing,
         },
         updated_at: updatedAt,
         marker: marker
@@ -178,6 +191,8 @@ const empty: OpeningForm = {
     width: '',
     height: '',
     depth: '',
+    scheduled_thickness: '',
+    thickness_uncertain: false,
     dimension_unit: 'in',
     frame_type: '',
     handing: '',
@@ -188,6 +203,9 @@ const empty: OpeningForm = {
     product_model: '',
     product_id: '',
     scope: 'both',
+    commercial_status: 'unverified',
+    price_override: '',
+    price_override_reason: '',
     notes: '',
     exclusions: '',
     assumptions: '',
@@ -213,6 +231,7 @@ const empty: OpeningForm = {
     waive_technical: '',
     waive_hardware: '',
     waive_pricing: '',
+    waive_handing: '',
 };
 
 const inspectorInput = 'h-6 w-full bg-transparent px-1 text-[13px] text-[#1a3d8f] outline-none focus:bg-[#fff8dc] disabled:text-neutral-500';
@@ -717,6 +736,10 @@ export default function OpeningEditor({
                                     {text('Width', 'width')}
                                     {text('Height', 'height')}
                                     {text('Depth', 'depth')}
+                                    {text('Scheduled thickness', 'scheduled_thickness')}
+                                    <PropertyRow name="Thickness uncertain">
+                                        <InspectorCheck label="Thickness is not confirmed" checked={form.thickness_uncertain} disabled={!canEdit} onChange={(checked) => set('thickness_uncertain', checked)} />
+                                    </PropertyRow>
                                     <PropertyRow name="Unit">
                                         <InspectorSelect aria-label="Unit" className={inspectorSelect} value={form.dimension_unit} disabled={!canEdit} onChange={(event) => set('dimension_unit', event.target.value)}>
                                             <option value="in">Inches</option>
@@ -730,6 +753,16 @@ export default function OpeningEditor({
                                     {text('Frame', 'frame_type')}
                                     {text('Handing', 'handing')}
                                     {text('Hardware set', 'hardware_set')}
+                                    <PropertyRow name="Commercial status">
+                                        <InspectorSelect aria-label="Commercial status" className={inspectorSelect} value={form.commercial_status} disabled={!canEdit} onChange={(event) => set('commercial_status', event.target.value)}>
+                                            <option value="unverified">Unverified</option>
+                                            <option value="rfq_sent">RFQ sent</option>
+                                            <option value="quoted">Quoted</option>
+                                            <option value="approved">Approved</option>
+                                        </InspectorSelect>
+                                    </PropertyRow>
+                                    {text('Sell price override', 'price_override')}
+                                    {text('Override reason', 'price_override_reason')}
                                     {text('Glazing', 'glazing')}
                                     {text('Finish', 'finish')}
                                     {text('Product / model', 'product_model')}
@@ -811,6 +844,7 @@ export default function OpeningEditor({
                                     {text('Waive technical', 'waive_technical')}
                                     {text('Waive hardware', 'waive_hardware')}
                                     {text('Waive pricing', 'waive_pricing')}
+                                    {text('Waive handing', 'waive_handing')}
                                     {area('Notes', 'notes')}
                                     {area('Exclusions', 'exclusions')}
                                     {area('Assumptions', 'assumptions')}

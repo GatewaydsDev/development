@@ -24,6 +24,10 @@ class Takeoff extends Model
         'pricing_method',
         'markup_rate',
         'margin_rate',
+        'install_pricing_method',
+        'install_markup_rate',
+        'install_margin_rate',
+        'transaction_fee_applicable',
         'notes',
         'created_by',
         'updated_by',
@@ -36,6 +40,9 @@ class Takeoff extends Model
         return [
             'markup_rate' => 'decimal:6',
             'margin_rate' => 'decimal:6',
+            'install_markup_rate' => 'decimal:6',
+            'install_margin_rate' => 'decimal:6',
+            'transaction_fee_applicable' => 'boolean',
             'approved_at' => 'datetime',
             'revision_number' => 'integer',
         ];

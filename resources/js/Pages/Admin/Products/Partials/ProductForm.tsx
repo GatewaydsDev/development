@@ -70,6 +70,7 @@ const schema = z.object({
     manufacturer_id: z.string(),
     name: z.string().trim().min(1, 'Enter a name.').max(255),
     abbreviation: z.string().trim().max(255),
+    sku: z.string().trim().max(100),
     description: z.string().trim().max(5000),
     notes: z.string().trim().max(5000),
     rf_shielding: z.string().max(255),
@@ -119,6 +120,23 @@ const schema = z.object({
         }),
     ),
 });
+
+function predefinedTaxPercent(
+    taxStateId: string,
+    option: { rate?: number | string | null } | undefined,
+    taxStates: ProductOptions['taxStates'],
+): string {
+    const stored = taxStates?.find(
+        (state) => String(state.id) === taxStateId,
+    )?.rate;
+    const rate = stored ?? option?.rate;
+
+    if (rate === undefined || rate === null || rate === '') {
+        return '';
+    }
+
+    return String(rate);
+}
 
 function errorMessage(
     errors: FieldErrors<ProductFormData>,
@@ -317,6 +335,7 @@ export default function ProductForm({
                 manufacturer_id: values.manufacturer_id,
                 name: values.name.trim(),
                 abbreviation: values.abbreviation.trim() || null,
+                sku: values.sku.trim() || null,
                 description: isAssembly
                     ? values.description
                     : values.description.trim() || typeName,
@@ -611,6 +630,31 @@ export default function ProductForm({
                                     message={errorMessage(
                                         validationErrors,
                                         'abbreviation',
+                                    )}
+                                />
+                            </div>
+                            <div className="flex flex-col gap-2">
+                                <InputLabel
+                                    htmlFor="product-sku"
+                                    value="SKU"
+                                    className="text-emerald-700 dark:text-emerald-300"
+                                />
+                                <TextInput
+                                    id="product-sku"
+                                    value={data.sku ?? ''}
+                                    className={inputClassName}
+                                    placeholder="Supplier catalog number"
+                                    onChange={(event) =>
+                                        setData('sku', event.target.value)
+                                    }
+                                />
+                                <p className="text-sm text-muted-foreground">
+                                    Supplier catalog number for this model.
+                                </p>
+                                <InputError
+                                    message={errorMessage(
+                                        validationErrors,
+                                        'sku',
                                     )}
                                 />
                             </div>
@@ -1520,8 +1564,8 @@ export default function ProductForm({
                                         </h3>
                                         <p className="text-sm text-muted-foreground">
                                             {isAssembly
-                                                ? 'Add a price for each state. You can create new states anytime, and each state can have its own price, markup, and tax percent.'
-                                                : 'Enter the product price, then the markup we sell it at and the lowest markup we can accept. Choose a state and tax percent to add that sales tax to the sell prices.'}
+                                                ? 'Add a price for each state. The tax percent fills in from that state, and you can change it for this product.'
+                                                : 'Enter the product price, then the markup we sell it at and the lowest markup we can accept. The tax percent fills in from the state you pick, and you can change it for this product.'}
                                         </p>
                                     </div>
                                     {isAssembly ? (
@@ -1664,32 +1708,16 @@ export default function ProductForm({
                                                                         `state_prices.${index}.tax_state_id`,
                                                                         taxStateId,
                                                                     );
-
-                                                                    if (
-                                                                        !taxStateId
-                                                                    ) {
-                                                                        setData(
-                                                                            `state_prices.${index}.tax_rate`,
-                                                                            '',
-                                                                        );
-                                                                        return;
-                                                                    }
-
-                                                                    if (
-                                                                        option?.rate !==
-                                                                            undefined &&
-                                                                        option.rate !==
-                                                                            null &&
-                                                                        option.rate !==
-                                                                            ''
-                                                                    ) {
-                                                                        setData(
-                                                                            `state_prices.${index}.tax_rate`,
-                                                                            String(
-                                                                                option.rate,
-                                                                            ),
-                                                                        );
-                                                                    }
+                                                                    setData(
+                                                                        `state_prices.${index}.tax_rate`,
+                                                                        taxStateId
+                                                                            ? predefinedTaxPercent(
+                                                                                  taxStateId,
+                                                                                  option,
+                                                                                  options.taxStates,
+                                                                              )
+                                                                            : '',
+                                                                    );
                                                                 }}
                                                             />
                                                             <div className="flex flex-col gap-2">
@@ -1959,23 +1987,16 @@ export default function ProductForm({
                                                     'tax_state_id',
                                                     taxStateId,
                                                 );
-
-                                                if (!taxStateId) {
-                                                    setData('tax_rate', '');
-                                                    return;
-                                                }
-
-                                                if (
-                                                    option?.rate !==
-                                                        undefined &&
-                                                    option.rate !== null &&
-                                                    option.rate !== ''
-                                                ) {
-                                                    setData(
-                                                        'tax_rate',
-                                                        String(option.rate),
-                                                    );
-                                                }
+                                                setData(
+                                                    'tax_rate',
+                                                    taxStateId
+                                                        ? predefinedTaxPercent(
+                                                              taxStateId,
+                                                              option,
+                                                              options.taxStates,
+                                                          )
+                                                        : '',
+                                                );
                                             }}
                                         />
                                         <div className="flex flex-col gap-2">

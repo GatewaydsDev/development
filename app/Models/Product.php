@@ -33,6 +33,7 @@ class Product extends Model
         'product_model_id',
         'name',
         'abbreviation',
+        'sku',
         'kind',
         'description',
         'notes',
@@ -51,6 +52,7 @@ class Product extends Model
         'markup_percent',
         'min_markup_percent',
         'tax_state_id',
+        'tax_rate',
     ];
 
     protected function casts(): array
@@ -59,6 +61,7 @@ class Product extends Model
             'price' => 'decimal:2',
             'markup_percent' => 'decimal:2',
             'min_markup_percent' => 'decimal:2',
+            'tax_rate' => 'decimal:3',
             'weight' => 'decimal:2',
         ];
     }

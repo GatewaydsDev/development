@@ -19,6 +19,7 @@ class TakeoffReview
         $tags = [];
 
         foreach ($takeoff->openings as $opening) {
+            $opening->setRelation('takeoff', $takeoff);
             $tag = self::tag($opening->tag);
 
             if ($tag !== '') {
@@ -53,6 +54,14 @@ class TakeoffReview
                 'code' => 'expired_supplier_quote',
                 'message' => 'Supplier quote '.($quote->quote_number ?: $quote->supplier_name).' is expired.',
                 'opening_id' => $quote->opening_id,
+            ];
+        }
+
+        if ($takeoff->transaction_fee_applicable && ! self::hasFee($takeoff)) {
+            $flags[] = [
+                'code' => 'missing_transaction_fee',
+                'message' => 'A transaction fee applies and has not been added to the cost.',
+                'opening_id' => null,
             ];
         }
 
@@ -99,6 +108,22 @@ class TakeoffReview
             $flags[] = self::flag($opening, 'missing_hardware', 'Hardware set is missing for this door.');
         }
 
+        if ($opening->opening_type === 'door' && ! filled($opening->handing) && ! self::waived($waived, 'handing')) {
+            $flags[] = self::flag($opening, 'missing_handing', 'Handing is missing for this door.');
+        }
+
+        if ($opening->thickness_uncertain) {
+            $flags[] = self::flag($opening, 'thickness_uncertain', 'Scheduled thickness is marked uncertain.');
+        }
+
+        if ($opening->commercial_status !== 'approved') {
+            $flags[] = self::flag($opening, 'commercial_not_approved', 'Commercial status is not approved.');
+        }
+
+        if (! filled($opening->price_override) && ! self::acceptedQuote($opening)) {
+            $flags[] = self::flag($opening, 'missing_supplier_quote', 'An accepted supplier quote is missing.');
+        }
+
         $hasPricing = $opening->costs->isNotEmpty() || ($opening->group && $opening->group->costs->isNotEmpty());
 
         if (! $hasPricing && ! self::waived($waived, 'pricing')) {
@@ -143,6 +168,26 @@ class TakeoffReview
     private static function tag(?string $tag): string
     {
         return mb_strtolower(trim((string) $tag));
+    }
+
+    private static function acceptedQuote(TakeoffOpening $opening): bool
+    {
+        $quotes = $opening->takeoff?->supplierQuotes ?? collect();
+
+        return $quotes->contains(function (TakeoffSupplierQuote $quote) use ($opening): bool {
+            return $quote->accepted_at !== null
+                && ! self::expired($quote)
+                && ($quote->opening_id === null || (int) $quote->opening_id === (int) $opening->id);
+        });
+    }
+
+    private static function hasFee(Takeoff $takeoff): bool
+    {
+        $costs = $takeoff->openings
+            ->flatMap(fn (TakeoffOpening $opening) => $opening->costs)
+            ->concat($takeoff->groups->flatMap(fn ($group) => $group->costs));
+
+        return $costs->contains(fn ($cost): bool => $cost->kind === 'transaction_fee' || $cost->price_scope === 'fee');
     }
 
     private static function expired(TakeoffSupplierQuote $quote): bool

@@ -14,8 +14,10 @@ import type { PageProps } from '@/types';
 import { cn } from '@/lib/utils';
 import { BookmarkIcon, CheckIcon, ChevronDownIcon, CopyIcon, DoorOpenIcon, DownloadIcon, DraftingCompassIcon, EyeIcon, ListIcon, PencilIcon, PlusIcon, RefreshCwIcon, Trash2Icon, XIcon } from 'lucide-react';
 import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { countMark } from './pinLabels';
 import OpeningEditor, { openingForm, openingPayload, type OpeningForm } from './Partials/OpeningEditor';
+import TakeoffSteps from './Partials/TakeoffSteps';
 import OpeningReview from './Partials/OpeningReview';
 import PdfWorkspace, { savedCountTool, type CountTool, type PdfPoint } from './Partials/PdfWorkspace';
 import {
@@ -36,6 +38,8 @@ type Props = {
     quotations: { id: number; number: string; title: string; status: string }[];
     can: TakeoffAbilities;
     openingTypes: { id: number; name: string }[];
+    costProducts?: { id: number; name: string; sku: string | null }[];
+    alreadyExistsMessage?: string | null;
 };
 
 function copiedLines(body: string): string[] {
@@ -145,8 +149,21 @@ function openingSpecs(opening: TakeoffDetail['openings'][number]): string {
     ].filter(Boolean).join(' · ') || '—';
 }
 
-export default function Show({ takeoff, templates, quotations, can, openingTypes = [] }: Props) {
+export default function Show({ takeoff, templates, quotations, can, openingTypes = [], costProducts = [], alreadyExistsMessage = null }: Props) {
+    const [existsNotice, setExistsNotice] = useState(alreadyExistsMessage);
     const countedOpeningId = usePage<PageProps>().props.flash?.counted_opening_id;
+
+    useEffect(() => {
+        setExistsNotice(alreadyExistsMessage);
+
+        if (!alreadyExistsMessage) {
+            return;
+        }
+
+        const timer = window.setTimeout(() => setExistsNotice(null), 8_000);
+
+        return () => window.clearTimeout(timer);
+    }, [alreadyExistsMessage]);
     const [section, setSection] = useState<(typeof sections)[number]['id']>('workspace');
     const [scanOpen, setScanOpen] = useState(false);
     const [scanning, setScanning] = useState(false);
@@ -263,6 +280,10 @@ export default function Show({ takeoff, templates, quotations, can, openingTypes
         pricing_method: takeoff.pricing_method,
         markup_percent: takeoff.markup_percent ?? '',
         margin_percent: takeoff.margin_percent ?? '',
+        install_pricing_method: takeoff.install_pricing_method ?? 'markup',
+        install_markup_percent: takeoff.install_markup_percent ?? '',
+        install_margin_percent: takeoff.install_margin_percent ?? '',
+        transaction_fee_applicable: takeoff.transaction_fee_applicable ?? false,
     });
     const selected = takeoff.openings.find((opening) => opening.id === selectedOpeningId) ?? null;
     const unsavedCount = Object.keys(drafts).length;
@@ -1132,6 +1153,18 @@ export default function Show({ takeoff, templates, quotations, can, openingTypes
     return (
         <AuthenticatedLayout header={<h2 className="text-xl font-semibold leading-tight text-emerald-700 dark:text-emerald-300">{takeoff.title}</h2>}>
             <Head title={takeoff.title} />
+            {existsNotice
+                ? createPortal(
+                    <div className="fixed inset-0 z-[300] flex items-center justify-center bg-slate-950/55 p-4">
+                        <div role="alertdialog" aria-modal="true" aria-labelledby="existing-takeoff-title" className="w-full max-w-md rounded-xl border border-border bg-background px-6 py-6 text-center shadow-2xl">
+                            <p id="existing-takeoff-title" className="text-lg font-semibold text-foreground">{existsNotice}</p>
+                            <p className="mt-2 text-sm text-muted-foreground">This takeoff is already here. Nothing new was created.</p>
+                            <button type="button" className="mt-5 inline-flex h-10 items-center rounded-full bg-emerald-700 px-5 text-sm font-semibold text-white hover:bg-emerald-800" onClick={() => setExistsNotice(null)}>Close</button>
+                        </div>
+                    </div>,
+                    window.document.body,
+                )
+                : null}
             <div className="space-y-4 px-4 py-6 pb-28 sm:px-6 lg:px-8">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
@@ -1153,6 +1186,17 @@ export default function Show({ takeoff, templates, quotations, can, openingTypes
                         ) : null}
                     </div>
                 </div>
+                {takeoff.guide ? (
+                    <TakeoffSteps
+                        guide={takeoff.guide}
+                        onOpen={(step) => {
+                            setSection(step.section);
+                            if (step.key === 'commercial') {
+                                document.getElementById('takeoff-pricing')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                            }
+                        }}
+                    />
+                ) : null}
                 {takeoff.show_pricing && takeoff.estimate ? (
                     <div className="grid gap-3 sm:grid-cols-4">
                         <Estimate label="Estimated cost" value={money(takeoff.estimate.cost)} />
@@ -1210,15 +1254,28 @@ export default function Show({ takeoff, templates, quotations, can, openingTypes
                     </label>
                     {can.pricing ? (
                         <>
-                            <label className="text-sm">Pricing method
+                            <label id="takeoff-pricing" className="text-sm">Pricing method
                                 <select className="mt-1 h-12 w-full rounded-md border-gray-300 py-2 text-sm leading-6 shadow-sm" value={details.data.pricing_method} onChange={(event) => details.setData('pricing_method', event.target.value as 'markup' | 'margin')}>
                                     <option value="markup">Markup</option>
                                     <option value="margin">Target gross margin</option>
                                 </select>
                             </label>
                             {details.data.pricing_method === 'markup'
-                                ? <label className="text-sm">Markup percent<TextInput className="mt-1 w-full" value={details.data.markup_percent} onChange={(event) => details.setData('markup_percent', event.target.value)} /></label>
-                                : <label className="text-sm">Target margin percent<TextInput className="mt-1 w-full" value={details.data.margin_percent} onChange={(event) => details.setData('margin_percent', event.target.value)} /></label>}
+                                ? <label className="text-sm">Supply markup percent<TextInput className="mt-1 w-full" value={details.data.markup_percent} onChange={(event) => details.setData('markup_percent', event.target.value)} /></label>
+                                : <label className="text-sm">Supply target margin percent<TextInput className="mt-1 w-full" value={details.data.margin_percent} onChange={(event) => details.setData('margin_percent', event.target.value)} /></label>}
+                            <label className="text-sm">Install pricing
+                                <select className="mt-1 h-12 w-full rounded-md border-gray-300 py-2 text-sm leading-6 shadow-sm" value={details.data.install_pricing_method} onChange={(event) => details.setData('install_pricing_method', event.target.value as 'markup' | 'margin')}>
+                                    <option value="markup">Markup</option>
+                                    <option value="margin">Target gross margin</option>
+                                </select>
+                            </label>
+                            {details.data.install_pricing_method === 'markup'
+                                ? <label className="text-sm">Install markup percent<TextInput className="mt-1 w-full" value={details.data.install_markup_percent} placeholder="Same as supply" onChange={(event) => details.setData('install_markup_percent', event.target.value)} /></label>
+                                : <label className="text-sm">Install target margin percent<TextInput className="mt-1 w-full" value={details.data.install_margin_percent} placeholder="Same as supply" onChange={(event) => details.setData('install_margin_percent', event.target.value)} /></label>}
+                            <label className="flex items-center gap-2 text-sm md:col-span-2">
+                                <input type="checkbox" checked={details.data.transaction_fee_applicable} onChange={(event) => details.setData('transaction_fee_applicable', event.target.checked)} />
+                                A transaction fee applies to this estimate
+                            </label>
                         </>
                     ) : null}
                     <div className="text-sm md:col-span-4">
@@ -1237,7 +1294,9 @@ export default function Show({ takeoff, templates, quotations, can, openingTypes
                     </div>
                     <div className="md:col-span-4 flex gap-2">
                         {details.errors.pricing_method ? <p className="text-sm text-destructive">{details.errors.pricing_method}</p> : null}
+                        {details.errors.install_pricing_method ? <p className="text-sm text-destructive">{details.errors.install_pricing_method}</p> : null}
                         {details.errors.margin_percent ? <p className="text-sm text-destructive">{details.errors.margin_percent}</p> : null}
+                        {details.errors.status ? <p className="text-sm text-destructive">{details.errors.status}</p> : null}
                     </div>
                 </form>
                 <div data-section-stack className="z-20 flex flex-col gap-2 bg-background pb-2 md:sticky md:top-[var(--app-sticky-top,4.75rem)]">
@@ -2106,7 +2165,7 @@ export default function Show({ takeoff, templates, quotations, can, openingTypes
                                                         </div>
                                                     </dl>
                                                 ) : null}
-                                                {can.pricing ? <CostForm takeoffUuid={takeoff.uuid} groupId={group.id} /> : null}
+                                                {can.pricing ? <CostForm takeoffUuid={takeoff.uuid} groupId={group.id} products={costProducts} /> : null}
                                             </div>
                                         ))}
                                     </div>
@@ -2119,7 +2178,7 @@ export default function Show({ takeoff, templates, quotations, can, openingTypes
                             {can.pricing && selected ? (
                                 <>
                                     <p className="text-xs text-muted-foreground">Add a unit cost for {selected.label}. One-time costs stay flat when the quantity changes.</p>
-                                    <CostForm takeoffUuid={takeoff.uuid} openingId={selected.id} />
+                                    <CostForm takeoffUuid={takeoff.uuid} openingId={selected.id} products={costProducts} />
                                 </>
                             ) : (
                                 <p className="mt-1 text-sm text-muted-foreground">Select an opening on the schedule to add its unit costs.</p>
@@ -2317,34 +2376,50 @@ function Estimate({ label, value }: { label: string; value: string }) {
     );
 }
 
-function CostForm({ takeoffUuid, openingId, groupId }: { takeoffUuid: string; openingId?: number; groupId?: number }) {
+function CostForm({ takeoffUuid, openingId, groupId, products = [] }: { takeoffUuid: string; openingId?: number; groupId?: number; products?: { id: number; name: string; sku: string | null }[] }) {
     return (
         <form className="mt-3" onSubmit={(event) => {
             event.preventDefault();
             const data = Object.fromEntries(new FormData(event.currentTarget).entries());
             router.post(route('admin.takeoffs.costs.store', takeoffUuid), {
                 ...data,
+                product_id: data.product_id || null,
                 opening_id: openingId ?? null,
                 group_id: groupId ?? null,
             }, { preserveScroll: true });
             event.currentTarget.reset();
         }}>
-            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
+            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
                 <select name="kind" className="h-12 rounded-md border-gray-300 py-2 text-sm leading-6" defaultValue="material">
                     <option value="material">Material</option>
                     <option value="labor">Labor</option>
                     <option value="freight">Freight</option>
+                    <option value="handling">Handling</option>
                     <option value="equipment">Equipment</option>
                     <option value="subcontract">Subcontract</option>
+                    <option value="contingency">Contingency</option>
+                    <option value="transaction_fee">Transaction fee</option>
                     <option value="other">Other</option>
+                </select>
+                <select name="price_scope" className="h-12 rounded-md border-gray-300 py-2 text-sm leading-6" defaultValue="supply">
+                    <option value="supply">Supply</option>
+                    <option value="install">Install</option>
+                    <option value="fee">Fee, not marked up</option>
                 </select>
                 <select name="basis" className="h-12 rounded-md border-gray-300 py-2 text-sm leading-6" defaultValue="per_unit">
                     <option value="per_unit">Per unit</option>
                     <option value="one_time">One time</option>
                 </select>
+                <select name="product_id" className="h-12 rounded-md border-gray-300 py-2 text-sm leading-6" defaultValue="">
+                    <option value="">No catalog product</option>
+                    {products.map((product) => (
+                        <option key={product.id} value={product.id}>{product.sku ? `${product.sku} · ${product.name}` : product.name}</option>
+                    ))}
+                </select>
                 <TextInput name="amount" placeholder="Amount" className="h-8 text-sm" />
                 <TextInput name="labor_hours" placeholder="Labor hours" className="h-8 text-sm" />
                 <TextInput name="hourly_rate" placeholder="Hourly rate" className="h-8 text-sm" />
+                <TextInput name="description" placeholder="Description" className="h-8 text-sm" />
             </div>
             <div className="mt-2 flex justify-end">
                 <Button type="submit" variant="outline" size="xs">Add cost</Button>

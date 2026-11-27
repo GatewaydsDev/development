@@ -38,30 +38,33 @@ class TakeoffPresenter
                 'profit' => $pricing['profit'],
                 'margin' => $pricing['margin'],
             ] : null,
+            'guide' => TakeoffGuide::for($takeoff),
             'updated_at' => $takeoff->updated_at?->toIso8601String(),
         ];
     }
 
     public static function detail(Takeoff $takeoff, User $user): array
     {
-        $takeoff->load([
-            'project:id,uuid,name,project_number',
-            'documents.uploader:id,name',
-            'openings.markers',
-            'markups',
-            'sections',
-            'openings.references',
-            'openings.costs',
-            'openings.product:id,name',
-            'openings.doorConfiguration:id,name',
-            'openings.verifier:id,name',
-            'openings.group',
-            'groups.openings',
-            'groups.costs',
-            'supplierQuotes',
-            'audits.user:id,name',
-            'source.documents',
-        ]);
+        if (! $takeoff->relationLoaded('openings')) {
+            $takeoff->load([
+                'project:id,uuid,name,project_number',
+                'documents.uploader:id,name',
+                'openings.markers',
+                'markups',
+                'sections',
+                'openings.references',
+                'openings.costs.product:id,name,sku',
+                'openings.product:id,name',
+                'openings.doorConfiguration:id,name',
+                'openings.verifier:id,name',
+                'openings.group',
+                'groups.openings',
+                'groups.costs.product:id,name,sku',
+                'supplierQuotes',
+                'audits.user:id,name',
+                'source.documents',
+            ]);
+        }
 
         $showPricing = TakeoffAccess::canViewPricing($user);
         $pricing = $showPricing ? TakeoffPricing::summarize($takeoff) : null;
@@ -96,6 +99,10 @@ class TakeoffPresenter
             'pricing_method' => $takeoff->pricing_method,
             'markup_percent' => $showPricing ? TakeoffMoney::percent($takeoff->markup_rate) : null,
             'margin_percent' => $showPricing ? TakeoffMoney::percent($takeoff->margin_rate) : null,
+            'install_pricing_method' => $takeoff->install_pricing_method ?: 'markup',
+            'install_markup_percent' => $showPricing ? TakeoffMoney::percent($takeoff->install_markup_rate) : null,
+            'install_margin_percent' => $showPricing ? TakeoffMoney::percent($takeoff->install_margin_rate) : null,
+            'transaction_fee_applicable' => (bool) $takeoff->transaction_fee_applicable,
             'approved_at' => $takeoff->approved_at?->toIso8601String(),
             'updated_at' => $takeoff->updated_at?->toIso8601String(),
             'project' => $takeoff->project ? [
@@ -141,6 +148,7 @@ class TakeoffPresenter
             })->values()->all(),
             'supplier_quotes' => $takeoff->supplierQuotes->map(fn (TakeoffSupplierQuote $quote): array => self::quote($quote, $showPricing))->values()->all(),
             'flags' => $flags,
+            'guide' => TakeoffGuide::for($takeoff),
             'previous' => $previous,
             'audits' => $takeoff->audits->take(50)->map(fn ($audit): array => [
                 'id' => $audit->id,
@@ -194,6 +202,8 @@ class TakeoffPresenter
             'width' => $opening->width !== null ? (string) $opening->width : null,
             'height' => $opening->height !== null ? (string) $opening->height : null,
             'depth' => $opening->depth !== null ? (string) $opening->depth : null,
+            'scheduled_thickness' => $opening->scheduled_thickness,
+            'thickness_uncertain' => (bool) $opening->thickness_uncertain,
             'dimension_unit' => $opening->dimension_unit,
             'frame_type' => $opening->frame_type,
             'handing' => $opening->handing,
@@ -205,6 +215,9 @@ class TakeoffPresenter
             'product_id' => $opening->product_id,
             'product_name' => $opening->product?->name,
             'scope' => $opening->scope,
+            'commercial_status' => $opening->commercial_status ?: 'unverified',
+            'price_override' => $showPricing && $opening->price_override !== null ? (string) $opening->price_override : null,
+            'price_override_reason' => $showPricing ? $opening->price_override_reason : null,
             'notes' => $opening->notes,
             'exclusions' => $opening->exclusions,
             'assumptions' => $opening->assumptions,
@@ -277,6 +290,10 @@ class TakeoffPresenter
         return [
             'id' => $cost->id,
             'kind' => $cost->kind,
+            'price_scope' => $cost->price_scope ?: 'supply',
+            'product_id' => $cost->product_id,
+            'product_name' => $cost->product?->name,
+            'product_sku' => $cost->product?->sku,
             'basis' => $cost->basis,
             'description' => $cost->description,
             'amount' => $cost->amount !== null ? (string) $cost->amount : null,

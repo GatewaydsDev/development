@@ -95,6 +95,7 @@ export type ProductPayload = {
     model?: ProductModelOption | null;
     name: string;
     abbreviation?: string | null;
+    sku?: string | null;
     configurations?: DoorConfigurationOption[];
     handings?: DoorHandingOption[];
     kind: ProductKind;
@@ -138,6 +139,7 @@ export type ProductFormData = {
     manufacturer_id: string;
     name: string;
     abbreviation: string;
+    sku: string;
     description: string;
     notes: string;
     rf_shielding: string;
@@ -293,6 +295,7 @@ export const productToFormData = (
           : '',
     name: product?.model?.name ?? product?.name ?? '',
     abbreviation: product?.abbreviation ?? '',
+    sku: product?.sku ?? '',
     description: product?.description ?? '',
     notes: product?.notes ?? '',
     rf_shielding: product?.rf_shielding ?? '',
