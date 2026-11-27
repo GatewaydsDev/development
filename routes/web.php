@@ -911,6 +911,15 @@ Route::middleware(['auth', 'prevent-back-history'])
         Route::delete('/takeoffs/{takeoff}/costs/{cost}', [TakeoffWorkspaceController::class, 'destroyCost'])
             ->middleware('can:view-takeoff-pricing')
             ->name('takeoffs.costs.destroy');
+        Route::post('/takeoffs/{takeoff}/openings/{opening}/inclusions', [TakeoffWorkspaceController::class, 'storeInclusion'])
+            ->middleware('can:view-takeoff-pricing')
+            ->name('takeoffs.inclusions.store');
+        Route::patch('/takeoffs/{takeoff}/openings/{opening}/inclusions/{inclusion}', [TakeoffWorkspaceController::class, 'updateInclusion'])
+            ->middleware('can:view-takeoff-pricing')
+            ->name('takeoffs.inclusions.update');
+        Route::delete('/takeoffs/{takeoff}/openings/{opening}/inclusions/{inclusion}', [TakeoffWorkspaceController::class, 'destroyInclusion'])
+            ->middleware('can:view-takeoff-pricing')
+            ->name('takeoffs.inclusions.destroy');
         Route::post('/takeoffs/{takeoff}/supplier-quotes', [TakeoffWorkspaceController::class, 'storeQuote'])
             ->middleware('can:view-takeoff-pricing')
             ->name('takeoffs.quotes.store');

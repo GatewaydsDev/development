@@ -4,6 +4,7 @@ namespace App\Support;
 
 use App\Models\Takeoff;
 use App\Models\TakeoffOpening;
+use App\Models\TakeoffOpeningInclusion;
 use App\Models\TakeoffSupplierQuote;
 use Illuminate\Support\Carbon;
 
@@ -14,7 +15,7 @@ class TakeoffReview
      */
     public static function flags(Takeoff $takeoff): array
     {
-        $takeoff->loadMissing(['openings.costs', 'openings.group.costs', 'groups.costs', 'supplierQuotes']);
+        $takeoff->loadMissing(['openings.costs', 'openings.inclusions.product:id,name', 'openings.group.costs', 'groups.costs', 'supplierQuotes']);
         $flags = [];
         $tags = [];
 
@@ -124,6 +125,12 @@ class TakeoffReview
             $flags[] = self::flag($opening, 'missing_supplier_quote', 'An accepted supplier quote is missing.');
         }
 
+        if ($opening->disposition === 'active' && ! self::waived($waived, 'pricing')) {
+            foreach (self::inclusionFlags($opening) as $flag) {
+                $flags[] = $flag;
+            }
+        }
+
         $hasPricing = $opening->costs->isNotEmpty() || ($opening->group && $opening->group->costs->isNotEmpty());
 
         if (! $hasPricing && ! self::waived($waived, 'pricing')) {
@@ -168,6 +175,35 @@ class TakeoffReview
     private static function tag(?string $tag): string
     {
         return mb_strtolower(trim((string) $tag));
+    }
+
+    /**
+     * @return list<array{code: string, message: string, opening_id: int}>
+     */
+    private static function inclusionFlags(TakeoffOpening $opening): array
+    {
+        $rows = $opening->inclusions;
+        $flags = [];
+
+        if ($rows->isEmpty()) {
+            $flags[] = self::flag($opening, 'inclusion_unconfirmed', 'Link the verified products and supplier prices for this opening, then confirm what is included in the bid.');
+
+            return $flags;
+        }
+
+        foreach ($rows as $row) {
+            $name = $row->product?->name ?: 'A product';
+
+            if ($row->inclusion === TakeoffOpeningInclusion::PENDING) {
+                $flags[] = self::flag($opening, 'inclusion_unconfirmed', 'Confirm whether '.$name.' is included on this opening before the bid is sent.');
+            }
+
+            if ($row->inclusion === TakeoffOpeningInclusion::INCLUDED && ($row->unit_price === null || $row->unit_price === '') && ! $row->supplier_quote_id) {
+                $flags[] = self::flag($opening, 'inclusion_missing_price', $name.' is included but has no supplier price.');
+            }
+        }
+
+        return $flags;
     }
 
     private static function acceptedQuote(TakeoffOpening $opening): bool

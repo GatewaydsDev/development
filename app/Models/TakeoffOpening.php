@@ -150,6 +150,11 @@ class TakeoffOpening extends Model
         return $this->hasMany(TakeoffCost::class, 'opening_id')->orderBy('sort_order')->orderBy('id');
     }
 
+    public function inclusions(): HasMany
+    {
+        return $this->hasMany(TakeoffOpeningInclusion::class, 'opening_id')->orderBy('sort_order')->orderBy('id');
+    }
+
     public function label(): string
     {
         if ($this->is_bulk) {

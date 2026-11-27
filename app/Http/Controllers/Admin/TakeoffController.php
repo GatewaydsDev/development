@@ -14,6 +14,7 @@ use App\Models\TakeoffAssemblyTemplate;
 use App\Models\TakeoffOverview;
 use App\Models\TakeoffOpening;
 use App\Models\TakeoffOpeningType;
+use App\Models\TaxState;
 use App\Models\User;
 use App\Support\ProjectAccess;
 use App\Support\ProjectControlTakeoff;
@@ -296,13 +297,13 @@ class TakeoffController extends Controller
                 ])->values()->all(),
             'quotations' => $quotations->values()->all(),
             'can' => $this->abilities($user),
-            'costProducts' => TakeoffViews::ready()
-                ? TakeoffViews::products()
-                : Product::query()->orderBy('name')->limit(400)->get(['id', 'name', 'sku'])->map(fn (Product $product): array => [
-                    'id' => $product->id,
-                    'name' => $product->name,
-                    'sku' => $product->sku,
-                ])->values()->all(),
+            'costProducts' => $this->costProducts(),
+            'priceStates' => TaxState::query()->orderBy('name')->get(['id', 'name'])->map(fn (TaxState $state): array => [
+                'id' => $state->id,
+                'name' => $state->name,
+                'abbreviation' => $state->abbreviation(),
+            ])->values()->all(),
+            'priceStateId' => $this->projectPriceStateId($takeoff),
             'doorTypes' => TakeoffViews::ready()
                 ? TakeoffViews::doorTypes()
                 : DoorConfiguration::query()
@@ -612,6 +613,84 @@ class TakeoffController extends Controller
         TakeoffOpeningType::remember($name);
 
         return back();
+    }
+
+    /**
+     * @return list<array<string, mixed>>
+     */
+    private function costProducts(): array
+    {
+        return Product::query()
+            ->with([
+                'manufacturer:id,name',
+                'statePrices:id,product_id,tax_state_id,price',
+                'configurations:id,name',
+                'handings:id,name',
+                'glassType:id,name',
+                'glazingType:id,name',
+                'seal:id,name',
+            ])
+            ->orderBy('name')
+            ->limit(400)
+            ->get([
+                'id',
+                'name',
+                'sku',
+                'abbreviation',
+                'manufacturer_id',
+                'kind',
+                'fire_label',
+                'stc_rating',
+                'rf_shielding',
+                'thickness',
+                'window_glass_type_id',
+                'window_glazing_type_id',
+                'window_seal_id',
+            ])
+            ->map(fn (Product $product): array => [
+                'id' => $product->id,
+                'name' => $product->name,
+                'sku' => $product->sku,
+                'abbreviation' => $product->abbreviation,
+                'kind' => $product->kind,
+                'supplier_name' => $product->manufacturer?->name,
+                'fire_label' => $product->fire_label,
+                'stc_rating' => $product->stc_rating,
+                'rf_shielding' => $product->rf_shielding,
+                'thickness' => $product->thickness !== null && $product->thickness !== '' ? (string) $product->thickness : null,
+                'glass_type' => $product->glassType?->name,
+                'glazing_type' => $product->glazingType?->name,
+                'seal' => $product->seal?->name,
+                'configurations' => $product->configurations->map(fn ($row): array => [
+                    'id' => $row->id,
+                    'name' => $row->name,
+                ])->values()->all(),
+                'handings' => $product->handings->map(fn ($row): array => [
+                    'id' => $row->id,
+                    'name' => $row->name,
+                ])->values()->all(),
+                'state_prices' => $product->statePrices->map(fn ($row): array => [
+                    'tax_state_id' => (int) $row->tax_state_id,
+                    'unit_price' => $row->price !== null && $row->price !== '' ? (string) $row->price : null,
+                ])->values()->all(),
+            ])
+            ->values()
+            ->all();
+    }
+
+    private function projectPriceStateId(Takeoff $takeoff): ?int
+    {
+        $takeoff->loadMissing('project:id,site_state');
+        $siteState = strtoupper(trim((string) ($takeoff->project?->site_state ?? '')));
+
+        if ($siteState === '') {
+            return null;
+        }
+
+        $stateName = TaxState::ABBREVIATIONS[$siteState] ?? $takeoff->project?->site_state;
+        $stateId = TaxState::query()->where('name', $stateName)->value('id');
+
+        return $stateId ? (int) $stateId : null;
     }
 
     public function products(Request $request): JsonResponse

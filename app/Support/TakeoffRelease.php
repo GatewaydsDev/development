@@ -23,6 +23,8 @@ class TakeoffRelease
         'thickness_uncertain',
         'commercial_not_approved',
         'missing_supplier_quote',
+        'inclusion_unconfirmed',
+        'inclusion_missing_price',
         'missing_transaction_fee',
         'group_mismatch',
     ];

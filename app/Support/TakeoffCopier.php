@@ -7,6 +7,7 @@ use App\Models\TakeoffCost;
 use App\Models\TakeoffDocument;
 use App\Models\TakeoffGroup;
 use App\Models\TakeoffOpening;
+use App\Models\TakeoffOpeningInclusion;
 use App\Models\TakeoffSupplierQuote;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
@@ -24,6 +25,7 @@ class TakeoffCopier
                 'openings.markers',
                 'openings.references',
                 'openings.costs',
+                'openings.inclusions',
                 'groups.costs',
                 'supplierQuotes',
             ]);
@@ -70,6 +72,8 @@ class TakeoffCopier
                 }
             }
 
+            $openingIds = [];
+
             foreach ($source->openings as $opening) {
                 $replica = $opening->replicate(['uuid']);
                 $replica->forceFill([
@@ -81,6 +85,7 @@ class TakeoffCopier
                         ? ($documentIds[$opening->requirement_document_id] ?? null)
                         : null,
                 ])->save();
+                $openingIds[$opening->id] = $replica->id;
 
                 foreach ($opening->markers as $marker) {
                     $replica->markers()->create([
@@ -114,6 +119,31 @@ class TakeoffCopier
             foreach ($source->supplierQuotes as $quote) {
                 $replica = self::copyQuote($quote, $copy, $user);
                 $quoteIds[$quote->id] = $replica->id;
+            }
+
+            foreach ($source->openings as $opening) {
+                $replicaOpeningId = $openingIds[$opening->id] ?? null;
+
+                if (! $replicaOpeningId) {
+                    continue;
+                }
+
+                foreach ($opening->inclusions as $inclusion) {
+                    TakeoffOpeningInclusion::query()->create([
+                        'takeoff_id' => $copy->id,
+                        'opening_id' => $replicaOpeningId,
+                        'product_id' => $inclusion->product_id,
+                        'tax_state_id' => $inclusion->tax_state_id,
+                        'supplier_quote_id' => $inclusion->supplier_quote_id ? ($quoteIds[$inclusion->supplier_quote_id] ?? null) : null,
+                        'supplier_name' => $inclusion->supplier_name,
+                        'unit_price' => $inclusion->unit_price,
+                        'inclusion' => $inclusion->inclusion,
+                        'confirmed_at' => $inclusion->confirmed_at,
+                        'confirmed_by' => $inclusion->confirmed_by,
+                        'notes' => $inclusion->notes,
+                        'sort_order' => $inclusion->sort_order,
+                    ]);
+                }
             }
 
             foreach ($source->supplierQuotes as $quote) {

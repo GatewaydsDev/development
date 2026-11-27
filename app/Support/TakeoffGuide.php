@@ -12,7 +12,7 @@ class TakeoffGuide
      */
     public static function for(Takeoff $takeoff): array
     {
-        $takeoff->loadMissing(['openings.costs', 'groups.costs', 'supplierQuotes']);
+        $takeoff->loadMissing(['openings.costs', 'openings.inclusions', 'groups.costs', 'supplierQuotes']);
 
         $active = $takeoff->openings->filter(
             fn (TakeoffOpening $opening): bool => ! in_array($opening->disposition, ['excluded', 'not_applicable'], true),
@@ -27,6 +27,10 @@ class TakeoffGuide
         $materialMissingProduct = $material->contains(fn ($cost): bool => ! filled($cost->product_id));
         $commercialStarted = $active->isNotEmpty() && $active->every(
             fn (TakeoffOpening $opening): bool => filled($opening->commercial_status) && $opening->commercial_status !== 'unverified',
+        );
+        $inclusionsReady = $active->isNotEmpty() && $active->every(
+            fn (TakeoffOpening $opening): bool => $opening->inclusions->isNotEmpty()
+                && $opening->inclusions->every(fn ($row): bool => $row->inclusion !== 'pending'),
         );
         $blocking = TakeoffRelease::messages($takeoff);
 
@@ -45,6 +49,13 @@ class TakeoffGuide
                     ? 'Leave costs empty until a supplier quote arrives. Then add a separate line for the leaf, the frame, and the hardware, and choose the catalog product. Put the supplier number in the product SKU.'
                     : 'Each material line needs its own catalog product, so the leaf, frame, and hardware stay separate. Put the supplier number in the product SKU.',
                 'state' => $material->isEmpty() ? 'later' : ($materialMissingProduct ? 'open' : 'done'),
+                'section' => 'assemblies',
+            ],
+            [
+                'key' => 'inclusions',
+                'title' => 'Confirm what each opening includes',
+                'detail' => 'For each opening, link the verified catalog products and the supplier price, then mark what is included before the bid is sent.',
+                'state' => $active->isEmpty() ? 'later' : ($inclusionsReady ? 'done' : 'open'),
                 'section' => 'assemblies',
             ],
             [

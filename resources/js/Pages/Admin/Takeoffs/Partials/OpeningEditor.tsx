@@ -6,7 +6,8 @@ import { router, usePage } from '@inertiajs/react';
 import { AppWindowIcon, DoorOpenIcon, HandIcon, MousePointer2Icon, SearchIcon, Trash2Icon } from 'lucide-react';
 import { createContext, ReactNode, useContext, useEffect, useState } from 'react';
 import { countMark } from '../pinLabels';
-import type { TakeoffDocument, TakeoffOpening } from '../types';
+import type { SupplierQuote, TakeoffDocument, TakeoffOpening } from '../types';
+import OpeningInclusions from './OpeningInclusions';
 import type { PdfPoint } from './PdfWorkspace';
 import type { CountTool } from './PdfWorkspace';
 
@@ -30,6 +31,8 @@ type Props = {
     onSelect: (choice: number | 'new' | null) => void;
     panel?: 'basics' | 'size' | 'specs' | 'requirements' | 'notes';
     embedded?: boolean;
+    quotes?: SupplierQuote[];
+    canConfigure?: boolean;
 };
 
 export function openingForm(opening: TakeoffOpening | null, creating: boolean) {
@@ -153,7 +156,7 @@ export function openingPayload(form: OpeningForm, updatedAt: string | null, mark
     return {
         ...form,
         product_id: form.product_id || null,
-        door_configuration_id: form.opening_type === 'door' && form.door_configuration_id ? form.door_configuration_id : null,
+        door_configuration_id: form.opening_type.toLowerCase().includes('door') && form.door_configuration_id ? form.door_configuration_id : null,
         requirement_document_id: form.requirement_document_id || null,
         group_id: form.group_id || null,
         width: form.width || null,
@@ -470,6 +473,8 @@ export default function OpeningEditor({
     onSelect,
     panel,
     embedded = false,
+    quotes = [],
+    canConfigure = false,
 }: Props) {
     const selectionKey = creating ? 'new' : opening?.id ?? null;
     const [form, setForm] = useState<OpeningForm>(() => draft ?? openingForm(opening, creating));
@@ -796,6 +801,17 @@ export default function OpeningEditor({
                                                 {products.map((product) => <option key={product.id} value={product.id}>{product.manufacturer ? `${product.manufacturer} — ` : ''}{product.name}</option>)}
                                             </InspectorSelect>
                                         </PropertyRow>
+                                    ) : null}
+                                    {canConfigure && opening?.id ? (
+                                        <div className="px-1 py-2">
+                                            <OpeningInclusions
+                                                takeoffUuid={takeoffUuid}
+                                                openingId={opening.id}
+                                                inclusions={opening.inclusions ?? []}
+                                                quotes={quotes}
+                                                canEdit={canEdit}
+                                            />
+                                        </div>
                                     ) : null}
                                 </PropertyGroup> : null}
                                 {(!panel || panel === 'requirements') ? <PropertyGroup name="Requirements" summary={form.verification_status} defaultOpen={panel === 'requirements'}>

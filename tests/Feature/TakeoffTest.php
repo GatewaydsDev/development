@@ -3,6 +3,7 @@
 use App\Models\Contractor;
 use App\Models\DoorConfiguration;
 use App\Models\OpeningCategory;
+use App\Models\Product;
 use App\Models\Project;
 use App\Models\Quotation;
 use App\Models\Takeoff;
@@ -1978,9 +1979,105 @@ test('the takeoff guide points at the next unfinished step', function () {
         'commercial_status' => 'unverified',
     ]);
 
+    expect(TakeoffGuide::for($takeoff->fresh())['next'])->toBe('Confirm what each opening includes');
+
+    $product = Product::create(['name' => 'RF door leaf', 'kind' => Product::KIND_DOOR]);
+    $takeoff->openings()->first()->inclusions()->create([
+        'takeoff_id' => $takeoff->id,
+        'product_id' => $product->id,
+        'supplier_name' => 'Krieger',
+        'unit_price' => '1200.00',
+        'inclusion' => 'included',
+        'confirmed_at' => now(),
+    ]);
+
     expect(TakeoffGuide::for($takeoff->fresh())['next'])->toBe('Set commercial status and the two markups');
 
     $takeoff->openings()->update(['commercial_status' => 'rfq_sent']);
 
     expect(TakeoffGuide::for($takeoff->fresh())['next'])->toBe('Clear the review before you send');
+});
+
+test('an opening keeps its verified products and supplier price until they are confirmed for the bid', function () {
+    $admin = takeoffUser();
+    $takeoff = takeoffRecord($admin);
+    $opening = $takeoff->openings()->create([
+        'tag' => 'D1',
+        'opening_type' => 'door',
+        'quantity' => '1.00',
+        'dimension_unit' => 'in',
+        'scope' => 'both',
+        'disposition' => 'active',
+        'verification_status' => 'recorded',
+    ]);
+    $product = Product::create(['name' => 'RF door leaf', 'kind' => Product::KIND_DOOR]);
+    $quote = $takeoff->supplierQuotes()->create([
+        'supplier_name' => 'Krieger',
+        'quote_number' => 'K-100',
+        'opening_id' => $opening->id,
+        'created_by' => $admin->id,
+    ]);
+
+    $this->actingAs($admin)->post(route('admin.takeoffs.inclusions.store', [$takeoff, $opening]), [
+        'product_id' => $product->id,
+        'supplier_quote_id' => $quote->id,
+        'unit_price' => '1500.00',
+        'notes' => 'Leaf only',
+    ])->assertRedirect()->assertSessionHas('success');
+
+    $inclusion = $opening->inclusions()->first();
+    expect($inclusion)->not->toBeNull()
+        ->and($inclusion->inclusion)->toBe('pending')
+        ->and((string) $inclusion->unit_price)->toBe('1500.00')
+        ->and($inclusion->supplier_quote_id)->toBe($quote->id);
+
+    expect(collect(TakeoffReview::flags($takeoff->fresh()))->pluck('code'))->toContain('inclusion_unconfirmed');
+
+    $this->actingAs($admin)->patch(route('admin.takeoffs.inclusions.update', [$takeoff, $opening, $inclusion]), [
+        'inclusion' => 'included',
+    ])->assertRedirect()->assertSessionHas('success');
+
+    expect($inclusion->fresh()->inclusion)->toBe('included')
+        ->and(collect(TakeoffReview::flags($takeoff->fresh()))->pluck('code'))->not->toContain('inclusion_unconfirmed');
+});
+
+test('saving an opening keeps the verified product selected on it', function () {
+    $admin = takeoffUser();
+    $takeoff = takeoffRecord($admin);
+    $opening = $takeoff->openings()->create([
+        'tag' => 'D1',
+        'opening_type' => 'door',
+        'quantity' => '1.00',
+        'dimension_unit' => 'in',
+        'scope' => 'both',
+        'disposition' => 'active',
+        'verification_status' => 'recorded',
+    ]);
+    $product = Product::create(['name' => 'RF door leaf', 'kind' => Product::KIND_DOOR]);
+
+    $this->actingAs($admin)->patch(route('admin.takeoffs.openings.update', [$takeoff, $opening]), [
+        'tag' => 'D2',
+        'is_bulk' => false,
+        'opening_type' => 'door',
+        'quantity' => '2',
+        'dimension_unit' => 'in',
+        'scope' => 'both',
+        'disposition' => 'active',
+        'verification_status' => 'recorded',
+        'inclusion' => [
+            'product_id' => $product->id,
+            'supplier_name' => 'Krieger',
+            'unit_price' => '1,500.00',
+        ],
+    ])->assertRedirect()->assertSessionHas('success');
+
+    $saved = $opening->fresh();
+    $inclusion = $saved->inclusions()->first();
+
+    expect($saved->tag)->toBe('D2')
+        ->and($inclusion)->not->toBeNull()
+        ->and($inclusion->product_id)->toBe($product->id)
+        ->and($inclusion->supplier_name)->toBe('Krieger')
+        ->and((string) $inclusion->unit_price)->toBe('1500.00')
+        ->and($inclusion->inclusion)->toBe('pending');
 });

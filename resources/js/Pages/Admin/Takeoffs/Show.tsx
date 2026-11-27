@@ -18,6 +18,7 @@ import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 're
 import { createPortal } from 'react-dom';
 import { countMark } from './pinLabels';
 import OpeningEditor, { openingForm, openingPayload, type OpeningForm } from './Partials/OpeningEditor';
+import OpeningInclusions, { type InclusionDraft } from './Partials/OpeningInclusions';
 import OpeningRowDialog from './Partials/OpeningRowDialog';
 import TakeoffSteps from './Partials/TakeoffSteps';
 import OpeningReview from './Partials/OpeningReview';
@@ -26,6 +27,7 @@ import {
     marginLabel,
     money,
     statusLabel,
+    type OpeningInclusion,
     type OpeningProposal,
     type AssemblyTemplate,
     type ConversionLine,
@@ -40,7 +42,9 @@ type Props = {
     quotations: { id: number; number: string; title: string; status: string }[];
     can: TakeoffAbilities;
     openingTypes: { id: number; name: string }[];
-    costProducts?: { id: number; name: string; sku: string | null }[];
+    costProducts?: { id: number; name: string; sku: string | null; supplier_name?: string | null; state_prices?: { tax_state_id: number; unit_price: string | null }[] }[];
+    priceStates?: { id: number; name: string; abbreviation: string | null }[];
+    priceStateId?: number | null;
     alreadyExistsMessage?: string | null;
 };
 
@@ -136,6 +140,53 @@ const sections = [
     { id: 'convert', label: 'Convert' },
     { id: 'history', label: 'History' },
 ] as const;
+
+function inclusionStatus(status: OpeningInclusion['inclusion']): { label: string; className: string } {
+    if (status === 'included') {
+        return { label: 'Included', className: 'bg-emerald-100 text-emerald-800' };
+    }
+
+    if (status === 'excluded') {
+        return { label: 'Left out', className: 'bg-slate-200 text-slate-700' };
+    }
+
+    return { label: 'Not confirmed', className: 'bg-amber-100 text-amber-900' };
+}
+
+function OpeningProducts({ inclusions, configuration, handing }: { inclusions: OpeningInclusion[]; configuration?: string | null; handing?: string | null }) {
+    const doorInfo = [configuration ? `Configuration ${configuration}` : null, handing ? `Handing ${handing}` : null].filter(Boolean).join(' · ');
+
+    if (inclusions.length === 0) {
+        return (
+            <div className="grid min-w-56 gap-1">
+                {doorInfo ? <p className="text-xs text-foreground">{doorInfo}</p> : null}
+                <span className="text-xs text-muted-foreground">No product yet</span>
+            </div>
+        );
+    }
+
+    return (
+        <ul className="grid min-w-56 gap-1.5">
+            {inclusions.map((item) => {
+                const status = inclusionStatus(item.inclusion);
+                const detail = [item.supplier_name, item.state_name, item.quote_number].filter(Boolean).join(' · ');
+
+                return (
+                    <li key={item.id} className="rounded-md border border-border bg-background px-2 py-1.5">
+                        <div className="flex items-start justify-between gap-2">
+                            <p className="min-w-0 truncate text-sm font-medium text-foreground">{item.product_name || 'Product removed'}</p>
+                            <span className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] font-semibold ${status.className}`}>{status.label}</span>
+                        </div>
+                        {doorInfo ? <p className="mt-0.5 text-xs text-foreground">{doorInfo}</p> : null}
+                        <p className="mt-0.5 truncate text-xs text-muted-foreground">{detail || 'No supplier'}</p>
+                        {item.unit_price ? <p className="mt-0.5 text-xs font-semibold tabular-nums text-foreground">{money(item.unit_price)}</p> : null}
+                        {item.notes ? <p className="mt-0.5 truncate text-xs text-muted-foreground">{item.notes}</p> : null}
+                    </li>
+                );
+            })}
+        </ul>
+    );
+}
 
 function openingSpecs(opening: TakeoffDetail['openings'][number]): string {
     return [
@@ -445,6 +496,72 @@ export default function Show({ takeoff, templates, quotations, can, openingTypes
 
         return !review || review === 'flagged' || review === 'clear' || opening.disposition === review;
     }), [takeoff.openings, query, category, location, scope, review]);
+    const openingTotals = useMemo(() => {
+        const amount = (value: string | number | null | undefined) => {
+            const parsed = Number(String(value ?? '').replace(/,/g, ''));
+
+            return Number.isFinite(parsed) ? parsed : 0;
+        };
+        const format = (value: number) => value.toLocaleString('en-US', { maximumFractionDigits: 2 });
+        let doors = 0;
+        let windows = 0;
+        let all = 0;
+
+        filtered.forEach((opening) => {
+            const draft = drafts[String(opening.id)];
+            const kind = (draft?.opening_type ?? opening.opening_type ?? '').trim().toLowerCase();
+            const quantity = amount(draft?.quantity ?? opening.quantity);
+
+            all += quantity;
+
+            if (kind.includes('window')) {
+                windows += quantity;
+            } else if (kind.includes('door')) {
+                doors += quantity;
+            }
+        });
+
+        return {
+            doors: format(doors),
+            windows: format(windows),
+            total: format(all),
+            openings: String(filtered.length),
+        };
+    }, [drafts, filtered]);
+    const doorPricesByState = useMemo(() => {
+        const groups = new Map<string, number>();
+
+        filtered.forEach((opening) => {
+            const draft = drafts[String(opening.id)];
+            const kind = (draft?.opening_type ?? opening.opening_type ?? '').trim().toLowerCase();
+
+            if (kind.includes('window') || !kind.includes('door')) {
+                return;
+            }
+
+            const quantity = Number(String(draft?.quantity ?? opening.quantity ?? '').replace(/,/g, ''));
+            const doors = Number.isFinite(quantity) ? quantity : 0;
+
+            (opening.inclusions ?? []).forEach((item) => {
+                if (item.inclusion === 'excluded' || item.unit_price === null || item.unit_price === '') {
+                    return;
+                }
+
+                const price = Number(String(item.unit_price).replace(/,/g, ''));
+
+                if (!Number.isFinite(price)) {
+                    return;
+                }
+
+                const state = item.state_name || 'No state';
+                groups.set(state, (groups.get(state) ?? 0) + (price * doors));
+            });
+        });
+
+        return [...groups.entries()]
+            .map(([state, total]) => ({ state, total }))
+            .sort((left, right) => left.state.localeCompare(right.state));
+    }, [drafts, filtered]);
 
     const openOpening = (id: number) => {
         const opening = takeoff.openings.find((item) => item.id === id);
@@ -1275,7 +1392,7 @@ export default function Show({ takeoff, templates, quotations, can, openingTypes
         setRowErrors({});
     };
 
-    const saveOpeningRow = () => {
+    const saveOpeningRow = (inclusion?: InclusionDraft | null) => {
         if (editingOpeningId === null || rowForm === null) {
             return;
         }
@@ -1296,7 +1413,19 @@ export default function Show({ takeoff, templates, quotations, can, openingTypes
         }
 
         setRowSaving(true);
-        router.patch(route('admin.takeoffs.openings.update', [takeoff.uuid, opening.id]), openingPayload(rowForm, opening.updated_at, null), {
+        router.patch(route('admin.takeoffs.openings.update', [takeoff.uuid, opening.id]), {
+            ...openingPayload(rowForm, opening.updated_at, null),
+            ...(inclusion?.product_id ? {
+                inclusion: {
+                    product_id: Number(inclusion.product_id),
+                    tax_state_id: inclusion.tax_state_id ? Number(inclusion.tax_state_id) : null,
+                    supplier_quote_id: inclusion.supplier_quote_id ? Number(inclusion.supplier_quote_id) : null,
+                    supplier_name: inclusion.supplier_name,
+                    unit_price: inclusion.unit_price,
+                    notes: inclusion.notes,
+                },
+            } : {}),
+        }, {
             preserveScroll: true,
             onSuccess: () => {
                 setEditingOpeningId(null);
@@ -1969,6 +2098,8 @@ export default function Show({ takeoff, templates, quotations, can, openingTypes
                                                         ...(creating ? newOpeningErrors : {}),
                                                     }}
                                                     draft={creating ? drafts.new ?? null : selectedOpeningId ? drafts[String(selectedOpeningId)] ?? null : null}
+                                                    quotes={takeoff.supplier_quotes}
+                                                    canConfigure={editable && can.pricing}
                                                     embedded
                                                     onToolChange={setCountTool}
                                                     onDraft={rememberDraft}
@@ -2084,7 +2215,7 @@ export default function Show({ takeoff, templates, quotations, can, openingTypes
                                         <ListIcon className="size-4" />
                                         Openings
                                     </h3>
-                                    <p className="text-sm text-muted-foreground">Every opening on this takeoff is one row. Click a row to edit it. Category lists the categories already used, and you can add a new one from that field.</p>
+                                    <p className="text-sm text-muted-foreground">Every opening on this takeoff is one row. Click a row to edit it. Products lists the verified product, supplier, state, and price for that opening.</p>
                                 </div>
                                 <div className="grid gap-2 md:grid-cols-2">
                                     <TextInput value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Opening tag" />
@@ -2133,6 +2264,7 @@ export default function Show({ takeoff, templates, quotations, can, openingTypes
                                                 <th className="bg-[#16324F] px-2 py-2">Size</th>
                                                 <th className="bg-[#16324F] px-2 py-2">Location</th>
                                                 <th className="bg-[#16324F] px-2 py-2">Specs</th>
+                                                <th className="bg-[#16324F] px-2 py-2">Products</th>
                                                 <th className="bg-[#16324F] px-2 py-2">Flags</th>
                                                 {editable ? <th className="bg-[#16324F] px-2 py-2"> </th> : null}
                                             </tr>
@@ -2140,7 +2272,7 @@ export default function Show({ takeoff, templates, quotations, can, openingTypes
                                         <tbody>
                                             {filtered.length === 0 ? (
                                                 <tr>
-                                                    <td className="px-2 py-4 text-muted-foreground" colSpan={editable ? 10 : 9}>No openings yet. Choose Count door or Count window, then click a door on the sheet.</td>
+                                                    <td className="px-2 py-4 text-muted-foreground" colSpan={editable ? 11 : 10}>No openings yet. Choose Count door or Count window, then click a door on the sheet.</td>
                                                 </tr>
                                             ) : null}
                                             {drafts.new ? (
@@ -2170,7 +2302,7 @@ export default function Show({ takeoff, templates, quotations, can, openingTypes
                                                 const kind = draft?.opening_type ?? opening.opening_type;
 
                                                 return (
-                                                <tr key={opening.id} className={`cursor-pointer border-t ${unsaved ? 'border-l-4 border-l-red-600 bg-red-100 text-red-950' : selectedOpeningIds.includes(opening.id) ? 'bg-sky-100' : selectedOpeningId === opening.id ? 'bg-[#3FCF8E]/20' : ''}`} onClick={() => editable ? editOpening(opening.id) : openOpening(opening.id)}>
+                                                <tr key={opening.id} className={`cursor-pointer border-t align-top ${unsaved ? 'border-l-4 border-l-red-600 bg-red-100 text-red-950' : selectedOpeningIds.includes(opening.id) ? 'bg-sky-100' : selectedOpeningId === opening.id ? 'bg-[#3FCF8E]/20' : ''}`} onClick={() => editable ? editOpening(opening.id) : openOpening(opening.id)}>
                                                     <td className="px-2 py-2 text-right font-semibold tabular-nums">{countMark(opening.callout, lineByOpening.get(opening.id) ?? 1)}</td>
                                                     <td className="px-2 py-2">
                                                         {opening.is_bulk ? `Bulk ${tag ?? ''}`.trim() : tag}
@@ -2182,6 +2314,7 @@ export default function Show({ takeoff, templates, quotations, can, openingTypes
                                                     <td className="px-2 py-2">{[width, height, depth].filter(Boolean).join(' x ')} {unit}</td>
                                                     <td className={`px-2 py-2 ${selectedOpeningId === opening.id ? 'font-medium' : ''}`}>{locationText || '—'}</td>
                                                     <td className="px-2 py-2">{openingSpecs(opening)}</td>
+                                                    <td className="px-2 py-2"><OpeningProducts inclusions={opening.inclusions ?? []} configuration={opening.door_type} handing={opening.handing} /></td>
                                                     <td className="px-2 py-2">{opening.flags.length || '—'}</td>
                                                     {editable ? (
                                                         <td className="px-2 py-2">
@@ -2238,10 +2371,10 @@ export default function Show({ takeoff, templates, quotations, can, openingTypes
                                 </div>
                                 <dl className="grid grid-cols-2 rounded-md border bg-muted/40 px-2 py-3 lg:grid-cols-4">
                                     {([
-                                        ['Openings', String(filtered.length)],
-                                        ['Total quantity', filtered.reduce((sum, opening) => sum + Number(opening.quantity || 0), 0).toLocaleString('en-US', { maximumFractionDigits: 2 })],
-                                        ['Doors', String(filtered.filter((opening) => opening.opening_type !== 'window').length)],
-                                        ['Windows', String(filtered.filter((opening) => opening.opening_type === 'window').length)],
+                                        ['Total doors', openingTotals.doors],
+                                        ['Total windows', openingTotals.windows],
+                                        ['Total quantity', openingTotals.total],
+                                        ['Openings', openingTotals.openings],
                                     ] as const).map(([label, value]) => (
                                         <div key={label} className="px-4 even:border-l even:border-border lg:[&:nth-child(4n+3)]:border-l lg:[&:nth-child(4n+3)]:border-border lg:[&:nth-child(4n+1)]:border-l-0">
                                             <dt className="text-xs uppercase tracking-wide text-muted-foreground">{label}</dt>
@@ -2249,6 +2382,23 @@ export default function Show({ takeoff, templates, quotations, can, openingTypes
                                         </div>
                                     ))}
                                 </dl>
+                                {can.pricing ? (
+                                    <div className="rounded-md border bg-muted/40 px-4 py-3">
+                                        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Door prices by state</p>
+                                        {doorPricesByState.length === 0 ? (
+                                            <p className="mt-2 text-sm text-muted-foreground">No door prices selected yet.</p>
+                                        ) : (
+                                            <ul className="mt-2 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                                                {doorPricesByState.map((row) => (
+                                                    <li key={row.state} className="flex items-baseline justify-between gap-3">
+                                                        <span className="text-sm font-medium text-foreground">{row.state}</span>
+                                                        <span className="text-lg font-semibold tabular-nums">{money(row.total.toFixed(2))}</span>
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                        )}
+                                    </div>
+                                ) : null}
                                 {editable ? (
                                     <form className="space-y-2 rounded-md border p-3" onSubmit={previewImport}>
                                         <p className="text-sm font-medium">Spreadsheet import</p>
@@ -2310,6 +2460,11 @@ export default function Show({ takeoff, templates, quotations, can, openingTypes
                                     }}
                                     onClose={closeOpeningEditor}
                                     onSave={saveOpeningRow}
+                                    takeoffUuid={takeoff.uuid}
+                                    openingId={editingOpening.id}
+                                    inclusions={editingOpening.inclusions ?? []}
+                                    quotes={takeoff.supplier_quotes}
+                                    canConfigure={editable && can.pricing}
                                 />
                             ) : null}
                             </div>
@@ -2429,6 +2584,15 @@ export default function Show({ takeoff, templates, quotations, can, openingTypes
                                 <>
                                     <p className="text-xs text-muted-foreground">Add a unit cost for {selected.label}. One-time costs stay flat when the quantity changes.</p>
                                     <CostForm takeoffUuid={takeoff.uuid} openingId={selected.id} products={costProducts} />
+                                    <div className="mt-4">
+                                        <OpeningInclusions
+                                            takeoffUuid={takeoff.uuid}
+                                            openingId={selected.id}
+                                            inclusions={selected.inclusions ?? []}
+                                            quotes={takeoff.supplier_quotes}
+                                            canEdit={editable}
+                                        />
+                                    </div>
                                 </>
                             ) : (
                                 <p className="mt-1 text-sm text-muted-foreground">Select an opening on the schedule to add its unit costs.</p>
@@ -2486,7 +2650,7 @@ export default function Show({ takeoff, templates, quotations, can, openingTypes
                         {can.pricing ? (
                             <section className="rounded-xl border p-4">
                                 <h3 className="font-medium">Supplier quotes</h3>
-                                <p className="text-sm text-muted-foreground">Save a supplier price, then accept the quote you want to use.</p>
+                                <p className="text-sm text-muted-foreground">Save a supplier price for one opening, or for the whole takeoff, then accept the quote you want to use.</p>
                                 <form className="mt-3" onSubmit={(event) => {
                                     event.preventDefault();
                                     const data = new FormData(event.currentTarget);
@@ -2502,7 +2666,7 @@ export default function Show({ takeoff, templates, quotations, can, openingTypes
                                         <TextInput name="quote_date" type="date" className="h-8 text-sm" />
                                         <TextInput name="expires_at" type="date" className="h-8 text-sm" />
                                         <select name="opening_id" className="h-12 rounded-md border-gray-300 py-2 text-sm leading-6" defaultValue={selected?.id ?? ''}>
-                                            <option value="">Opening</option>
+                                            <option value="">Whole takeoff</option>
                                             {takeoff.openings.map((opening) => <option key={opening.id} value={opening.id}>{opening.label}</option>)}
                                         </select>
                                         <textarea name="included_scope" className="rounded-md border-gray-300 text-sm" placeholder="Included scope" rows={2} />
@@ -2522,7 +2686,7 @@ export default function Show({ takeoff, templates, quotations, can, openingTypes
                                             <li key={quote.id} className="flex items-start justify-between gap-3 rounded-lg border bg-background p-3">
                                                 <div className="min-w-0">
                                                     <p className="font-medium">{quote.supplier_name} {quote.quote_number}</p>
-                                                    <p className="text-xs text-muted-foreground">{quote.revision_label || 'No revision'}</p>
+                                                    <p className="text-xs text-muted-foreground">{quote.opening_label ? `Opening ${quote.opening_label}` : 'Whole takeoff'} · {quote.revision_label || 'No revision'}</p>
                                                     <div className="mt-1 flex flex-wrap gap-1">
                                                         {quote.expired ? <Badge variant="outline">Expired</Badge> : null}
                                                         {quote.accepted_at ? <Badge variant="outline">Accepted</Badge> : null}

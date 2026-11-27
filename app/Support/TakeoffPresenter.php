@@ -4,6 +4,7 @@ namespace App\Support;
 
 use App\Models\Takeoff;
 use App\Models\TakeoffCost;
+use App\Models\TakeoffOpeningInclusion;
 use App\Models\TakeoffDocument;
 use App\Models\TakeoffGroup;
 use App\Models\TakeoffMarkup;
@@ -54,6 +55,9 @@ class TakeoffPresenter
                 'sections',
                 'openings.references',
                 'openings.costs.product:id,name,sku',
+                'openings.inclusions.product:id,name,sku',
+                'openings.inclusions.supplierQuote:id,supplier_name,quote_number',
+                'openings.inclusions.taxState:id,name',
                 'openings.product:id,name',
                 'openings.doorConfiguration:id,name',
                 'openings.verifier:id,name',
@@ -66,6 +70,12 @@ class TakeoffPresenter
             ]);
         }
 
+        $takeoff->loadMissing([
+            'openings.inclusions.product:id,name,sku',
+            'openings.inclusions.supplierQuote:id,supplier_name,quote_number',
+            'openings.inclusions.taxState:id,name',
+            'supplierQuotes.opening:id,tag,is_bulk,opening_type',
+        ]);
         $showPricing = TakeoffAccess::canViewPricing($user);
         $pricing = $showPricing ? TakeoffPricing::summarize($takeoff) : null;
         $flags = TakeoffReview::flags($takeoff);
@@ -263,6 +273,7 @@ class TakeoffPresenter
                 'note' => $reference->note,
             ])->values()->all(),
             'costs' => $showPricing ? $opening->costs->map(fn (TakeoffCost $cost): array => self::cost($cost))->values()->all() : [],
+            'inclusions' => $opening->inclusions->map(fn (TakeoffOpeningInclusion $inclusion): array => self::inclusion($inclusion, $showPricing))->values()->all(),
             'estimate' => $showPricing ? $estimate : null,
             'flags' => $flags,
         ];
@@ -282,6 +293,28 @@ class TakeoffPresenter
             'opening_ids' => $group->openings->pluck('id')->values()->all(),
             'costs' => $showPricing ? $group->costs->map(fn (TakeoffCost $cost): array => self::cost($cost))->values()->all() : [],
             'estimate' => $showPricing ? $estimate : null,
+        ];
+    }
+
+    /**
+     * @return array{id: int, product_id: ?int, product_name: ?string, product_sku: ?string, supplier_quote_id: ?int, supplier_name: ?string, quote_number: ?string, unit_price: ?string, inclusion: string, notes: ?string, confirmed_at: ?string}
+     */
+    private static function inclusion(TakeoffOpeningInclusion $inclusion, bool $showPricing): array
+    {
+        return [
+            'id' => $inclusion->id,
+            'product_id' => $inclusion->product_id,
+            'product_name' => $inclusion->product?->name,
+            'product_sku' => $inclusion->product?->sku,
+            'supplier_quote_id' => $inclusion->supplier_quote_id,
+            'supplier_name' => $inclusion->supplier_name ?: $inclusion->supplierQuote?->supplier_name,
+            'quote_number' => $inclusion->supplierQuote?->quote_number,
+            'tax_state_id' => $inclusion->tax_state_id,
+            'state_name' => $inclusion->taxState?->abbreviation() ?: $inclusion->taxState?->name,
+            'unit_price' => $showPricing && $inclusion->unit_price !== null ? (string) $inclusion->unit_price : null,
+            'inclusion' => $inclusion->inclusion ?: TakeoffOpeningInclusion::PENDING,
+            'notes' => $inclusion->notes,
+            'confirmed_at' => $inclusion->confirmed_at?->toIso8601String(),
         ];
     }
 
@@ -317,6 +350,7 @@ class TakeoffPresenter
             'expires_at' => $quote->expires_at?->toDateString(),
             'expired' => $expired,
             'opening_id' => $quote->opening_id,
+            'opening_label' => $quote->opening?->label(),
             'group_id' => $quote->group_id,
             'supersedes_id' => $quote->supersedes_id,
             'included_scope' => $quote->included_scope,

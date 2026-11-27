@@ -13,6 +13,7 @@ use App\Models\TakeoffGroup;
 use App\Models\TakeoffMarker;
 use App\Models\TakeoffMarkup;
 use App\Models\TakeoffOpening;
+use App\Models\TakeoffOpeningInclusion;
 use App\Models\TakeoffReference;
 use App\Models\TakeoffOpeningType;
 use App\Models\TakeoffSection;
@@ -1074,6 +1075,7 @@ class TakeoffWorkspaceController extends Controller
         $this->ownedOpening($takeoff, $opening);
         $this->guardFresh($request, $opening);
         $data = $this->validatedOpening($request, $takeoff);
+        $inclusion = $this->pendingInclusion($request, $takeoff, $opening);
         $attributes = $this->openingAttributes($data, $user, $opening);
 
         if (($attributes['tag'] ?? null) !== $opening->tag) {
@@ -1081,6 +1083,16 @@ class TakeoffWorkspaceController extends Controller
         }
 
         $opening->update($attributes);
+
+        if ($inclusion !== null) {
+            $opening->inclusions()->create([
+                ...$inclusion,
+                'takeoff_id' => $takeoff->id,
+                'inclusion' => TakeoffOpeningInclusion::PENDING,
+                'sort_order' => (int) $opening->inclusions()->max('sort_order') + 1,
+            ]);
+            $takeoff->record($user, 'inclusion.created', 'Linked a product to '.$opening->label().'.');
+        }
 
         if ($opening->group_id) {
             $this->refreshMismatch($opening->group);
@@ -1313,6 +1325,64 @@ class TakeoffWorkspaceController extends Controller
         $takeoff->record($user, 'pricing.updated', 'Removed a cost.');
 
         return back()->with('success', 'Cost removed.');
+    }
+
+    public function storeInclusion(Request $request, Takeoff $takeoff, TakeoffOpening $opening): RedirectResponse
+    {
+        $user = $this->ensurePriced($request, $takeoff);
+        $this->ownedOpening($takeoff, $opening);
+        $data = $this->inclusionFrom($request->all(), $takeoff, $opening);
+        $opening->inclusions()->create([
+            ...$data,
+            'takeoff_id' => $takeoff->id,
+            'inclusion' => TakeoffOpeningInclusion::PENDING,
+            'sort_order' => (int) $opening->inclusions()->max('sort_order') + 1,
+        ]);
+        $this->clearApproval($takeoff, $user);
+        $takeoff->record($user, 'inclusion.created', 'Linked a product to '.$opening->label().'.');
+
+        return back()->with('success', 'Product linked to this opening.');
+    }
+
+    public function updateInclusion(Request $request, Takeoff $takeoff, TakeoffOpening $opening, TakeoffOpeningInclusion $inclusion): RedirectResponse
+    {
+        $user = $this->ensurePriced($request, $takeoff);
+        $this->ownedOpening($takeoff, $opening);
+        abort_unless((int) $inclusion->opening_id === (int) $opening->id && (int) $inclusion->takeoff_id === (int) $takeoff->id, 404);
+        $data = $request->validate([
+            'inclusion' => ['required', Rule::in([TakeoffOpeningInclusion::PENDING, TakeoffOpeningInclusion::INCLUDED, TakeoffOpeningInclusion::EXCLUDED])],
+        ]);
+        $status = $data['inclusion'];
+        $price = $inclusion->unit_price;
+        $quoteId = $inclusion->supplier_quote_id;
+
+        if ($status === TakeoffOpeningInclusion::INCLUDED && ($price === null || $price === '') && ! $quoteId) {
+            throw ValidationException::withMessages([
+                'unit_price' => 'An included product needs a supplier price or a supplier quote.',
+            ]);
+        }
+
+        $inclusion->update([
+            'inclusion' => $status,
+            'confirmed_at' => $status === TakeoffOpeningInclusion::PENDING ? null : now(),
+            'confirmed_by' => $status === TakeoffOpeningInclusion::PENDING ? null : $user->id,
+        ]);
+        $this->clearApproval($takeoff, $user);
+        $takeoff->record($user, 'inclusion.updated', 'Updated what is included on '.$opening->label().'.');
+
+        return back()->with('success', 'Included items updated.');
+    }
+
+    public function destroyInclusion(Request $request, Takeoff $takeoff, TakeoffOpening $opening, TakeoffOpeningInclusion $inclusion): RedirectResponse
+    {
+        $user = $this->ensurePriced($request, $takeoff);
+        $this->ownedOpening($takeoff, $opening);
+        abort_unless((int) $inclusion->opening_id === (int) $opening->id && (int) $inclusion->takeoff_id === (int) $takeoff->id, 404);
+        $inclusion->delete();
+        $this->clearApproval($takeoff, $user);
+        $takeoff->record($user, 'inclusion.removed', 'Removed a product from '.$opening->label().'.');
+
+        return back()->with('success', 'Product removed from this opening.');
     }
 
     public function storeQuote(Request $request, Takeoff $takeoff): RedirectResponse
@@ -1713,7 +1783,7 @@ class TakeoffWorkspaceController extends Controller
             'tag' => $this->blank($data['tag'] ?? null),
             'is_bulk' => (bool) $data['is_bulk'],
             'opening_type' => $openingType,
-            'door_configuration_id' => $openingType === 'door' ? ($data['door_configuration_id'] ?? null) : null,
+            'door_configuration_id' => str_contains(mb_strtolower($openingType), 'door') ? ($data['door_configuration_id'] ?? null) : null,
             'location' => $this->blank($data['location'] ?? null),
             'quantity' => TakeoffMoney::money($data['quantity']),
             'product_category' => OpeningCategory::remember($data['product_category'] ?? null),
@@ -1815,6 +1885,79 @@ class TakeoffWorkspaceController extends Controller
     /**
      * @return array<string, mixed>
      */
+    /**
+     * @return array{product_id: int, tax_state_id: ?int, supplier_quote_id: ?int, supplier_name: ?string, unit_price: ?string, notes: ?string}|null
+     */
+    private function pendingInclusion(Request $request, Takeoff $takeoff, TakeoffOpening $opening): ?array
+    {
+        $input = $request->input('inclusion');
+
+        if (! is_array($input) || blank($input['product_id'] ?? null)) {
+            return null;
+        }
+
+        return $this->inclusionFrom($input, $takeoff, $opening, 'inclusion.');
+    }
+
+    /**
+     * @param  array<string, mixed>  $input
+     * @return array{product_id: int, tax_state_id: ?int, supplier_quote_id: ?int, supplier_name: ?string, unit_price: ?string, notes: ?string}
+     */
+    private function inclusionFrom(array $input, Takeoff $takeoff, TakeoffOpening $opening, string $errorPrefix = ''): array
+    {
+        if (isset($input['unit_price']) && is_string($input['unit_price'])) {
+            $input['unit_price'] = str_replace([',', '$', ' '], '', $input['unit_price']);
+        }
+
+        $validator = Validator::make($input, [
+            'product_id' => ['required', 'integer', 'exists:products,id'],
+            'tax_state_id' => ['nullable', 'integer', 'exists:tax_states,id'],
+            'supplier_quote_id' => ['nullable', 'integer'],
+            'supplier_name' => ['nullable', 'string', 'max:255'],
+            'unit_price' => ['nullable', 'numeric', 'min:0', 'max:999999999.99'],
+            'notes' => ['nullable', 'string', 'max:2000'],
+        ]);
+
+        if ($validator->fails()) {
+            $messages = [];
+
+            foreach ($validator->errors()->messages() as $field => $errors) {
+                $messages[$errorPrefix.$field] = $errors[0] ?? 'Check this field.';
+            }
+
+            throw ValidationException::withMessages($messages);
+        }
+
+        $data = $validator->validated();
+        $quoteId = filled($data['supplier_quote_id'] ?? null) ? (int) $data['supplier_quote_id'] : null;
+        $quote = null;
+
+        if ($quoteId) {
+            $quote = TakeoffSupplierQuote::query()->where('takeoff_id', $takeoff->id)->find($quoteId);
+
+            if (! $quote || ($quote->opening_id && (int) $quote->opening_id !== (int) $opening->id)) {
+                throw ValidationException::withMessages([
+                    $errorPrefix.'supplier_quote_id' => 'Choose a supplier quote for this opening.',
+                ]);
+            }
+        }
+
+        $supplier = trim((string) ($data['supplier_name'] ?? ''));
+
+        if ($supplier === '' && $quote) {
+            $supplier = $quote->supplier_name;
+        }
+
+        return [
+            'product_id' => (int) $data['product_id'],
+            'tax_state_id' => filled($data['tax_state_id'] ?? null) ? (int) $data['tax_state_id'] : null,
+            'supplier_quote_id' => $quote?->id,
+            'supplier_name' => $supplier !== '' ? $supplier : null,
+            'unit_price' => ($data['unit_price'] ?? null) === null || $data['unit_price'] === '' ? null : $data['unit_price'],
+            'notes' => filled($data['notes'] ?? null) ? trim((string) $data['notes']) : null,
+        ];
+    }
+
     private function validatedCost(Request $request, Takeoff $takeoff): array
     {
         $data = $request->validate([

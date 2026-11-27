@@ -159,6 +159,7 @@ export type TakeoffOpening = {
     markers: TakeoffMarker[];
     references: TakeoffReference[];
     costs: TakeoffCost[];
+    inclusions?: OpeningInclusion[];
     estimate: TakeoffEstimate | null;
     flags: ReviewFlag[];
 };
@@ -173,6 +174,22 @@ export type TakeoffGroup = {
     estimate: (TakeoffEstimate & { quantity: string }) | null;
 };
 
+export type OpeningInclusion = {
+    id: number;
+    product_id: number | null;
+    product_name: string | null;
+    product_sku: string | null;
+    supplier_quote_id: number | null;
+    tax_state_id?: number | null;
+    state_name?: string | null;
+    supplier_name: string | null;
+    quote_number: string | null;
+    unit_price: string | null;
+    inclusion: 'pending' | 'included' | 'excluded';
+    notes: string | null;
+    confirmed_at: string | null;
+};
+
 export type SupplierQuote = {
     id: number;
     supplier_name: string;
@@ -182,6 +199,7 @@ export type SupplierQuote = {
     expires_at: string | null;
     expired: boolean;
     opening_id: number | null;
+    opening_label: string | null;
     group_id: number | null;
     included_scope: string | null;
     exclusions: string | null;
