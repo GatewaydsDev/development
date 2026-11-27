@@ -7,6 +7,7 @@ import { AppWindowIcon, DoorOpenIcon, HandIcon, MousePointer2Icon, SearchIcon, T
 import { createContext, ReactNode, useContext, useEffect, useState } from 'react';
 import { countMark } from '../pinLabels';
 import type { SupplierQuote, TakeoffDocument, TakeoffOpening } from '../types';
+import DrawingSpecFields from './DrawingSpecFields';
 import OpeningInclusions from './OpeningInclusions';
 import type { PdfPoint } from './PdfWorkspace';
 import type { CountTool } from './PdfWorkspace';
@@ -49,6 +50,7 @@ export function openingForm(opening: TakeoffOpening | null, creating: boolean) {
         opening_type: opening.opening_type,
         door_configuration_id: opening.door_configuration_id ? String(opening.door_configuration_id) : '',
         location: opening.location ?? '',
+        building_name: opening.building_name ?? '',
         quantity: opening.quantity,
         product_category: opening.product_category ?? '',
         width: opening.width ?? '',
@@ -58,6 +60,9 @@ export function openingForm(opening: TakeoffOpening | null, creating: boolean) {
         thickness_uncertain: opening.thickness_uncertain ?? false,
         dimension_unit: opening.dimension_unit,
         frame_type: opening.frame_type ?? '',
+        frame_width: opening.frame_width ?? '',
+        frame_height: opening.frame_height ?? '',
+        frame_depth: opening.frame_depth ?? '',
         handing: opening.handing ?? '',
         hardware_set: opening.hardware_set ?? '',
         glazing: opening.glazing ?? '',
@@ -104,6 +109,7 @@ export type OpeningForm = {
     opening_type: string;
     door_configuration_id: string;
     location: string;
+    building_name: string;
     quantity: string;
     product_category: string;
     width: string;
@@ -113,6 +119,9 @@ export type OpeningForm = {
     thickness_uncertain: boolean;
     dimension_unit: string;
     frame_type: string;
+    frame_width: string;
+    frame_height: string;
+    frame_depth: string;
     handing: string;
     hardware_set: string;
     glazing: string;
@@ -189,6 +198,7 @@ const empty: OpeningForm = {
     opening_type: 'door',
     door_configuration_id: '',
     location: '',
+    building_name: '',
     quantity: '1',
     product_category: '',
     width: '',
@@ -198,6 +208,9 @@ const empty: OpeningForm = {
     thickness_uncertain: false,
     dimension_unit: 'in',
     frame_type: '',
+    frame_width: '',
+    frame_height: '',
+    frame_depth: '',
     handing: '',
     hardware_set: '',
     glazing: '',
@@ -740,8 +753,6 @@ export default function OpeningEditor({
                                 {(!panel || panel === 'size') ? <PropertyGroup name="Size" summary={sizeSummary ? `${sizeSummary} ${form.dimension_unit}` : form.dimension_unit} defaultOpen={panel === 'size' || !panel}>
                                     {text('Width', 'width')}
                                     {text('Height', 'height')}
-                                    {text('Depth', 'depth')}
-                                    {text('Scheduled thickness', 'scheduled_thickness')}
                                     <PropertyRow name="Thickness uncertain">
                                         <InspectorCheck label="Thickness is not confirmed" checked={form.thickness_uncertain} disabled={!canEdit} onChange={(checked) => set('thickness_uncertain', checked)} />
                                     </PropertyRow>
@@ -755,9 +766,18 @@ export default function OpeningEditor({
                                     </PropertyRow>
                                 </PropertyGroup> : null}
                                 {(!panel || panel === 'specs') ? <PropertyGroup name="Specs" summary={form.product_model || form.frame_type} defaultOpen={panel === 'specs'}>
-                                    {text('Frame', 'frame_type')}
+                                    <div className="px-1 py-2">
+                                        <DrawingSpecFields
+                                            takeoffUuid={takeoffUuid}
+                                            form={form}
+                                            errors={fieldErrors}
+                                            canEdit={canEdit}
+                                            onChange={(patch) => {
+                                                Object.entries(patch).forEach(([key, value]) => set(key as keyof OpeningForm, value as never));
+                                            }}
+                                        />
+                                    </div>
                                     {text('Handing', 'handing')}
-                                    {text('Hardware set', 'hardware_set')}
                                     <PropertyRow name="Commercial status">
                                         <InspectorSelect aria-label="Commercial status" className={inspectorSelect} value={form.commercial_status} disabled={!canEdit} onChange={(event) => set('commercial_status', event.target.value)}>
                                             <option value="unverified">Unverified</option>
@@ -768,8 +788,6 @@ export default function OpeningEditor({
                                     </PropertyRow>
                                     {text('Sell price override', 'price_override')}
                                     {text('Override reason', 'price_override_reason')}
-                                    {text('Glazing', 'glazing')}
-                                    {text('Finish', 'finish')}
                                     {text('Product / model', 'product_model')}
                                     <PropertyRow name="Manufacturer">
                                         <input
@@ -815,10 +833,6 @@ export default function OpeningEditor({
                                     ) : null}
                                 </PropertyGroup> : null}
                                 {(!panel || panel === 'requirements') ? <PropertyGroup name="Requirements" summary={form.verification_status} defaultOpen={panel === 'requirements'}>
-                                    {area('Acoustic / STC', 'acoustic_requirement')}
-                                    {area('RF shielding', 'rf_requirement')}
-                                    {area('Fire rating', 'fire_requirement')}
-                                    {area('Ballistic', 'ballistic_requirement')}
                                     {area('Other', 'other_requirements')}
                                     <PropertyRow name="Source document">
                                         <InspectorSelect aria-label="Source document" className={inspectorSelect} value={form.requirement_document_id} disabled={!canEdit} onChange={(event) => set('requirement_document_id', event.target.value)}>

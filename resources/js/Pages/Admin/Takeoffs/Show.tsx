@@ -190,9 +190,12 @@ function OpeningProducts({ inclusions, configuration, handing }: { inclusions: O
 
 function openingSpecs(opening: TakeoffDetail['openings'][number]): string {
     return [
+        opening.building_name ? `Bldg ${opening.building_name}` : null,
         opening.door_type,
         opening.product_category,
         opening.frame_type ? `Frame ${opening.frame_type}` : null,
+        [opening.frame_width, opening.frame_height, opening.frame_depth].filter(Boolean).join(' × ') || null,
+        opening.scheduled_thickness ? `Thk ${opening.scheduled_thickness}` : null,
         opening.handing ? `Hand ${opening.handing}` : null,
         opening.hardware_set ? `Hardware ${opening.hardware_set}` : null,
         opening.finish,
@@ -2257,7 +2260,7 @@ export default function Show({ takeoff, templates, quotations, can, openingTypes
                                         <thead className="sticky top-0 text-left text-white">
                                             <tr>
                                                 <th className="bg-[#16324F] px-2 py-2 text-right">#</th>
-                                                <th className="bg-[#16324F] px-2 py-2">Tag</th>
+                                                <th className="bg-[#16324F] px-2 py-2">No.</th>
                                                 <th className="bg-[#16324F] px-2 py-2">Type</th>
                                                 <th className="bg-[#16324F] px-2 py-2">Category</th>
                                                 <th className="bg-[#16324F] px-2 py-2">Qty</th>

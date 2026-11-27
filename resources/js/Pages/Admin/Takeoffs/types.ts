@@ -111,6 +111,7 @@ export type TakeoffOpening = {
     door_configuration_id: number | null;
     door_type: string | null;
     location: string | null;
+    building_name: string | null;
     quantity: string;
     product_category: string | null;
     width: string | null;
@@ -120,6 +121,9 @@ export type TakeoffOpening = {
     thickness_uncertain: boolean;
     dimension_unit: string;
     frame_type: string | null;
+    frame_width: string | null;
+    frame_height: string | null;
+    frame_depth: string | null;
     handing: string | null;
     hardware_set: string | null;
     glazing: string | null;
@@ -252,6 +256,7 @@ export type TakeoffDetail = {
     revision_number: number;
     revision_label: string | null;
     notes: string | null;
+    spec_fields: string[];
     pricing_method: 'markup' | 'margin';
     markup_percent: string | null;
     margin_percent: string | null;

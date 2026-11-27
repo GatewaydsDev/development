@@ -358,13 +358,6 @@ export default function Index({
                                                     {project.project_number ||
                                                         'No project number'}
                                                 </p>
-                                                {(project.addendums_count ?? 0) > 0 && (
-                                                    <p className="text-sm text-muted-foreground">
-                                                        {project.addendums_count === 1
-                                                            ? '1 addendum'
-                                                            : `${project.addendums_count} addendums`}
-                                                    </p>
-                                                )}
                                             </div>
                                             <div className="min-w-0 text-sm text-muted-foreground">
                                                 <DirectoryFieldLabel hideFrom="xl">
@@ -405,7 +398,7 @@ export default function Index({
                                             </div>
                                             <div className="min-w-0">
                                                 <DirectoryFieldLabel hideFrom="xl">
-                                                    Quotation, bid, takeoff, schedule
+                                                    Quotation, bid, takeoff, schedule, addendums
                                                 </DirectoryFieldLabel>
                                                 <div className="grid grid-cols-2 gap-1.5 xl:grid-cols-4">
                                                 <LinkedRecord
@@ -456,6 +449,22 @@ export default function Index({
                                                     }
                                                     className="border-emerald-600 bg-emerald-100 text-emerald-950 dark:border-emerald-400 dark:bg-emerald-950 dark:text-emerald-50"
                                                 />
+                                                {project.addendums && project.addendums.length > 0 ? (
+                                                    <div className="col-span-2 flex flex-col gap-1 rounded-md border-2 border-violet-600 bg-violet-100 px-2 py-1.5 text-violet-950 dark:border-violet-400 dark:bg-violet-950 dark:text-violet-50 xl:col-span-4">
+                                                        <span className="text-[10px] font-bold uppercase leading-tight tracking-wide">
+                                                            Addendums
+                                                        </span>
+                                                        <ul className="flex flex-col gap-0.5">
+                                                            {project.addendums.map((addendum) => (
+                                                                <li key={addendum.id ?? addendum.number} className="text-xs font-medium leading-tight">
+                                                                    No. {addendum.number}
+                                                                    {' · '}
+                                                                    {isoToMaskedDate(addendum.issued_on ?? '') || 'No date'}
+                                                                </li>
+                                                            ))}
+                                                        </ul>
+                                                    </div>
+                                                ) : null}
                                                 </div>
                                             </div>
                                             <div className="min-w-0">

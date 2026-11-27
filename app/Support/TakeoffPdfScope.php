@@ -555,6 +555,7 @@ class TakeoffPdfScope
         }
 
         $size = self::pullSectionSize($rest);
+        $frameSize = self::pullSectionSize($rest);
         $handing = null;
 
         if (preg_match('/\b(LHRA|RHRA|LHR|RHR|LH|RH|RR|LR)\b/i', $rest, $handMatch) === 1) {
@@ -595,6 +596,13 @@ class TakeoffPdfScope
         if (preg_match('/\b(tempered|laminated|insulated|obscure|frosted|wire\s+glass|spandrel|igu)\b/i', $rest, $glazingMatch) === 1) {
             $glazing = ucwords(strtolower($glazingMatch[1]));
             $rest = self::cut($rest, $glazingMatch[0]);
+        }
+
+        $building = null;
+
+        if (preg_match('/\b(?:building|bldg|bld)\.?\s+([A-Z0-9][A-Z0-9-]*)\b/i', $rest, $buildingMatch) === 1) {
+            $building = strtoupper($buildingMatch[1]);
+            $rest = self::cut($rest, $buildingMatch[0]);
         }
 
         $finish = null;
@@ -655,6 +663,10 @@ class TakeoffPdfScope
         $opening['height'] = $size['height'] ?? null;
         $opening['depth'] = $size['depth'] ?? null;
         $opening['dimension_unit'] = $size['unit'] ?? 'in';
+        $opening['building_name'] = $building;
+        $opening['frame_width'] = is_array($frameSize) ? $frameSize['width'] : null;
+        $opening['frame_height'] = is_array($frameSize) ? $frameSize['height'] : null;
+        $opening['frame_depth'] = is_array($frameSize) ? ($frameSize['depth'] ?? null) : null;
         $opening['frame_type'] = $frame ?? $defaultFrame;
         $opening['handing'] = $handing;
         $opening['hardware_set'] = $hardware;
@@ -1438,6 +1450,14 @@ class TakeoffPdfScope
             preg_match('/^(location|room|loc)\b/', $text) === 1 => 'location',
             preg_match('/^(handing|hand|swing)\b/', $text) === 1 => 'handing',
             preg_match('/^(hardware set|hardware|hdwr|hw)\b/', $text) === 1 => 'hardware',
+            preg_match('/^(building|bldg|bld)\b/', $text) === 1 => 'building',
+            preg_match('/^(fire rating|fire label|fire)\b/', $text) === 1 => 'fire',
+            preg_match('/^(glazing|glass|vision|lite)\b/', $text) === 1 => 'glazing',
+            preg_match('/^(frame width)\b/', $text) === 1 => 'frame_width',
+            preg_match('/^(frame height|frame ht)\b/', $text) === 1 => 'frame_height',
+            preg_match('/^(frame depth|jamb depth|throat)\b/', $text) === 1 => 'frame_depth',
+            preg_match('/^(frame size)\b/', $text) === 1 => 'frame_size',
+            preg_match('/^(thickness|thk|thick)\b/', $text) === 1 => 'thickness',
             preg_match('/^(frame type|frame|type)\b/', $text) === 1 => 'frame',
             default => null,
         };
@@ -1496,7 +1516,24 @@ class TakeoffPdfScope
         $opening['width'] = $width['value'] ?? null;
         $opening['height'] = $height['value'] ?? null;
         $opening['dimension_unit'] = self::unit($width, $height);
+        $frameSize = self::parseSize($values['frame_size'] ?? '');
+        $frameWidth = self::parseLength($values['frame_width'] ?? '');
+        $frameHeight = self::parseLength($values['frame_height'] ?? '');
+        $frameDepth = self::parseLength($values['frame_depth'] ?? '');
+
+        if ($frameSize !== null) {
+            $frameWidth ??= ['value' => $frameSize['width'], 'unit' => $frameSize['unit']];
+            $frameHeight ??= ['value' => $frameSize['height'], 'unit' => $frameSize['unit']];
+        }
+
+        $opening['building_name'] = self::shortText($values['building'] ?? null);
+        $opening['fire_requirement'] = self::shortText($values['fire'] ?? null);
+        $opening['glazing'] = self::shortText($values['glazing'] ?? null);
+        $opening['scheduled_thickness'] = self::shortText($values['thickness'] ?? null);
         $opening['frame_type'] = self::frame($values['frame'] ?? null);
+        $opening['frame_width'] = $frameWidth['value'] ?? null;
+        $opening['frame_height'] = $frameHeight['value'] ?? null;
+        $opening['frame_depth'] = $frameDepth['value'] ?? null;
         $opening['handing'] = self::handing($values['handing'] ?? null);
         $opening['hardware_set'] = self::shortText($values['hardware'] ?? null);
         $opening['requirement_page'] = $page;
@@ -1552,6 +1589,7 @@ class TakeoffPdfScope
             'tag' => $tag,
             'opening_type' => self::typeFromTag($tag, $pageKind),
             'location' => null,
+            'building_name' => null,
             'quantity' => null,
             'width' => null,
             'height' => null,
@@ -1562,6 +1600,10 @@ class TakeoffPdfScope
             'acoustic_requirement' => null,
             'notes' => null,
             'frame_type' => null,
+            'frame_width' => null,
+            'frame_height' => null,
+            'frame_depth' => null,
+            'scheduled_thickness' => null,
             'handing' => null,
             'hardware_set' => null,
             'plan_markers' => [],
@@ -1585,7 +1627,7 @@ class TakeoffPdfScope
             return;
         }
 
-        foreach (['location', 'width', 'height', 'depth', 'frame_type', 'handing', 'hardware_set', 'glazing', 'finish', 'acoustic_requirement', 'fire_requirement', 'product_category', 'notes', 'quantity', 'requirement_section', 'fallback'] as $field) {
+        foreach (['location', 'building_name', 'width', 'height', 'depth', 'frame_type', 'frame_width', 'frame_height', 'frame_depth', 'scheduled_thickness', 'handing', 'hardware_set', 'glazing', 'finish', 'acoustic_requirement', 'fire_requirement', 'product_category', 'notes', 'quantity', 'requirement_section', 'fallback'] as $field) {
             if (($openings[$tag][$field] ?? null) === null && ($opening[$field] ?? null) !== null) {
                 $openings[$tag][$field] = $opening[$field];
             }

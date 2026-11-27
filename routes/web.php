@@ -872,6 +872,9 @@ Route::middleware(['auth', 'prevent-back-history'])
         Route::patch('/takeoffs/{takeoff}/openings/{opening}', [TakeoffWorkspaceController::class, 'updateOpening'])
             ->middleware('can:update-takeoffs')
             ->name('takeoffs.openings.update');
+        Route::patch('/takeoffs/{takeoff}/spec-fields', [TakeoffWorkspaceController::class, 'updateSpecFields'])
+            ->middleware('can:update-takeoffs')
+            ->name('takeoffs.spec-fields.update');
         Route::patch('/takeoffs/{takeoff}/openings/{opening}/callout', [TakeoffWorkspaceController::class, 'updateCallout'])
             ->middleware('can:update-takeoffs')
             ->name('takeoffs.openings.callout');
@@ -1036,6 +1039,8 @@ Route::middleware(['auth', 'prevent-back-history'])
             ->name('project-priorities.store');
         Route::post('/project-scope-types', [ProjectController::class, 'storeScopeType'])
             ->name('project-scope-types.store');
+        Route::post('/projects/addendums/read', [ProjectController::class, 'readAddendum'])
+            ->name('projects.addendums.read');
         Route::post('/projects', [ProjectController::class, 'store'])
             ->middleware('can:create-projects')
             ->name('projects.store');

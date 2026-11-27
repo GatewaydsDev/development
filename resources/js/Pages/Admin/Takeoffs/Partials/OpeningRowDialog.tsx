@@ -9,6 +9,7 @@ import { usePage } from '@inertiajs/react';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import type { OpeningForm } from './OpeningEditor';
+import DrawingSpecFields from './DrawingSpecFields';
 import OpeningInclusions, { type CatalogProduct, type InclusionDraft } from './OpeningInclusions';
 import type { OpeningInclusion, SupplierQuote } from '../types';
 
@@ -139,8 +140,18 @@ const shownErrors = new Set([
     'depth',
     'dimension_unit',
     'location',
+    'building_name',
     'product_category',
     'scope',
+    'scheduled_thickness',
+    'frame_type',
+    'frame_width',
+    'frame_height',
+    'frame_depth',
+    'fire_requirement',
+    'glazing',
+    'hardware_set',
+    'finish',
 ]);
 
 export default function OpeningRowDialog({
@@ -378,8 +389,8 @@ export default function OpeningRowDialog({
                         </Section>
                         <Section title="Opening">
                             <div className="grid gap-5 sm:grid-cols-2">
-                                <Field label="Opening tag" className="sm:col-span-2" error={errors.tag}>
-                                    <TextInput className="h-10" value={form.tag} onChange={(event) => onChange({ tag: event.target.value })} placeholder="Tag" />
+                                <Field label={form.opening_type.toLowerCase().includes('window') ? 'Window number' : 'Door number'} className="sm:col-span-2" error={errors.tag}>
+                                    <TextInput className="h-10" value={form.tag} onChange={(event) => onChange({ tag: event.target.value })} placeholder="101 or W1" />
                                 </Field>
                                 <label className="flex items-center gap-3 rounded-md border border-border bg-background px-3 py-2 text-sm sm:col-span-2">
                                     <input
@@ -436,16 +447,13 @@ export default function OpeningRowDialog({
                                 </Field>
                             </div>
                         </Section>
-                        <Section title="Size">
+                        <Section title={form.opening_type.toLowerCase().includes('window') ? 'Window size' : 'Door size'}>
                             <div className="grid gap-5 sm:grid-cols-2">
                                 <Field label="Width" error={errors.width}>
                                     <TextInput className="h-10" value={form.width} onChange={(event) => onChange({ width: event.target.value })} />
                                 </Field>
                                 <Field label="Height" error={errors.height}>
                                     <TextInput className="h-10" value={form.height} onChange={(event) => onChange({ height: event.target.value })} />
-                                </Field>
-                                <Field label="Depth" error={errors.depth}>
-                                    <TextInput className="h-10" value={form.depth} onChange={(event) => onChange({ depth: event.target.value })} />
                                 </Field>
                                 <Field label="Unit" error={errors.dimension_unit}>
                                     <select className={controlClass} value={form.dimension_unit} onChange={(event) => onChange({ dimension_unit: event.target.value })}>
@@ -456,6 +464,9 @@ export default function OpeningRowDialog({
                                     </select>
                                 </Field>
                             </div>
+                        </Section>
+                        <Section title="Drawing specifications">
+                            <DrawingSpecFields takeoffUuid={takeoffUuid} form={form} errors={errors} canEdit onChange={onChange} />
                         </Section>
                         <Section title="Classification">
                             <div className="grid gap-5 sm:grid-cols-2">

@@ -8,6 +8,7 @@ import FormActionFab from '@/Components/FormActionFab';
 import MaskedDecimalInput from '@/Components/MaskedDecimalInput';
 import RichTextEditor from '@/Components/RichTextEditor';
 import TextInput from '@/Components/TextInput';
+import { addendumPdfText } from '@/lib/addendumPdfText';
 import { notesToHtml } from '@/lib/notesHtml';
 import { isEmptyHtml } from '@/Pages/Admin/Bids/bidText';
 import { Button } from '@/Components/ui/button';
@@ -31,7 +32,7 @@ import {
     stateInitialsInputClassName,
 } from '@/lib/stateInitials';
 import { cn } from '@/lib/utils';
-import { PlusIcon, Trash2Icon } from 'lucide-react';
+import { LoaderCircleIcon, PlusIcon, Trash2Icon } from 'lucide-react';
 import { FormEventHandler, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import {
@@ -290,6 +291,27 @@ function projectSchema(options: ProjectOptions, canEditCoreFields: boolean) {
                 return;
             }
 
+            const seenCompanies = new Map<string, number>();
+            values.company_uuids.forEach((uuid, index) => {
+                const companyUuid = uuid.trim();
+
+                if (companyUuid === '') {
+                    return;
+                }
+
+                const firstIndex = seenCompanies.get(companyUuid);
+
+                if (firstIndex !== undefined) {
+                    context.addIssue({
+                        code: 'custom',
+                        path: ['company_uuids', index],
+                        message: 'This company is already added.',
+                    });
+                } else {
+                    seenCompanies.set(companyUuid, index);
+                }
+            });
+
             const seenContractors = new Map<string, number>();
             values.contractors.forEach((contractor, index) => {
                 const contractorId = contractor.contractor_id.trim();
@@ -465,6 +487,13 @@ export default function ProjectForm({
     const { auth } = usePage<PageProps>().props;
     const currentUserId = auth.user?.id ? String(auth.user.id) : '';
     const [processing, setProcessing] = useState(false);
+    const [addendumReadNote, setAddendumReadNote] = useState<Record<string, string>>({});
+    const [readingAddendum, setReadingAddendum] = useState<Record<string, boolean>>({});
+    const addendumReadRequest = useRef<Record<string, number>>({});
+    const addendumCardRefs = useRef<Array<HTMLDivElement | null>>([]);
+    const companyRowRefs = useRef<Array<HTMLDivElement | null>>([]);
+    const [companyFocusIndex, setCompanyFocusIndex] = useState<number | null>(null);
+    const scrollToAddendum = useRef<number | null>(null);
     const [checkingName, setCheckingName] = useState(false);
     const [nameTaken, setNameTaken] = useState(false);
     const nameCheckRequest = useRef(0);
@@ -481,6 +510,7 @@ export default function ProjectForm({
         setError,
         clearErrors,
         setValue,
+        getValues,
         watch,
         formState: { errors: validationErrors },
     } = useForm<ProjectFormData>({
@@ -643,7 +673,7 @@ export default function ProjectForm({
                           })),
                   }
                 : {}),
-            company_uuids: values.company_uuids ?? [],
+            company_uuids: (values.company_uuids ?? []).filter((uuid) => uuid.trim() !== ''),
             contractors: (values.contractors ?? []).filter(
                 (contractor) =>
                     contractor.contractor_id.trim() !== '' ||
@@ -810,6 +840,145 @@ export default function ProjectForm({
             value as PathValue<ProjectFormData, FieldPath<ProjectFormData>>,
         );
     };
+    const readAddendumFile = async (index: number, fieldId: string, file: File) => {
+        const requestId = (addendumReadRequest.current[fieldId] ?? 0) + 1;
+        addendumReadRequest.current[fieldId] = requestId;
+        setReadingAddendum((current) => ({ ...current, [fieldId]: true }));
+        setAddendumReadNote((notes) => ({ ...notes, [fieldId]: '' }));
+
+        try {
+            const token = decodeURIComponent(
+                window.document.cookie.split('; ').find((row) => row.startsWith('XSRF-TOKEN='))?.split('=')[1] ?? '',
+            );
+            const body = new FormData();
+            const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
+
+            if (isPdf) {
+                body.append('text', await addendumPdfText(file));
+                body.append('filename', file.name);
+            } else {
+                body.append('document', file);
+            }
+
+            const response = await fetch(route('admin.projects.addendums.read'), {
+                method: 'POST',
+                headers: {
+                    Accept: 'application/json',
+                    'X-XSRF-TOKEN': token,
+                    'X-Requested-With': 'XMLHttpRequest',
+                },
+                credentials: 'same-origin',
+                body,
+                signal: AbortSignal.timeout(15000),
+            });
+            const json = await response.json().catch(() => ({}));
+
+            if (addendumReadRequest.current[fieldId] !== requestId) {
+                return;
+            }
+
+            if (!response.ok) {
+                const raw = String(json.errors?.document?.[0] ?? json.message ?? '');
+                const message = /maximum execution time/i.test(raw)
+                    ? 'Reading this addendum took too long. Try again, or type the details by hand.'
+                    : (raw || 'This document could not be read. Fill the addendum by hand.');
+                setAddendumReadNote((notes) => ({ ...notes, [fieldId]: message }));
+
+                return;
+            }
+
+            const current = getValues(`addendums.${index}`);
+            const filled: string[] = [];
+
+            if (json.number && current.number.trim() === '') {
+                setAddendumData(index, 'number', String(json.number));
+                filled.push(`addendum ${json.number}`);
+            }
+
+            if (json.issued_on && (current.issued_on ?? '') !== String(json.issued_on)) {
+                setAddendumData(index, 'issued_on', String(json.issued_on));
+                filled.push(`issued ${json.issued_on}`);
+            }
+
+            if (json.notes && isEmptyHtml(current.notes)) {
+                setAddendumData(index, 'notes', String(json.notes));
+                filled.push('notes');
+            }
+
+            let bidMessage = '';
+
+            if (
+                json.bid_date &&
+                !getValues('bid_dates').some((row) => row.bid_date === json.bid_date)
+            ) {
+                prependBidDate({
+                    ...blankBidDate(currentUserId, auth.user?.name ?? ''),
+                    bid_date: String(json.bid_date),
+                    bid_time: json.bid_time ? String(json.bid_time) : '',
+                    notes: json.number ? `Moved by addendum ${json.number}` : 'Moved by an addendum',
+                });
+                bidMessage = ` The revised bid date ${json.bid_date} was added under Bid dates.`;
+            }
+
+            const summary = filled.length > 0
+                ? `Filled ${filled.join(', ')} from the document.${bidMessage}`
+                : json.readable
+                    ? `Nothing new to fill from this document.${bidMessage}`.trim()
+                    : 'No text was found in this file. If it is a scan or a picture, type the addendum details.';
+
+            setAddendumReadNote((notes) => ({
+                ...notes,
+                [fieldId]: summary,
+            }));
+        } catch (error) {
+            if (addendumReadRequest.current[fieldId] !== requestId) {
+                return;
+            }
+
+            const timedOut = error instanceof DOMException && (error.name === 'TimeoutError' || error.name === 'AbortError');
+
+            setAddendumReadNote((notes) => ({
+                ...notes,
+                [fieldId]: timedOut
+                    ? 'This file is too large to read without freezing the page. Type the addendum date by hand.'
+                    : 'This document could not be read. Fill the addendum by hand.',
+            }));
+        } finally {
+            if (addendumReadRequest.current[fieldId] === requestId) {
+                setReadingAddendum((current) => ({ ...current, [fieldId]: false }));
+            }
+        }
+    };
+
+    useEffect(() => {
+        const index = scrollToAddendum.current;
+
+        if (index === null) {
+            return;
+        }
+
+        const card = addendumCardRefs.current[index];
+
+        if (!card) {
+            return;
+        }
+
+        scrollToAddendum.current = null;
+        card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        window.setTimeout(() => {
+            window.document.getElementById(`project-addendum-document-${index}`)?.focus();
+        }, 350);
+    }, [addendumFields.length]);
+    useEffect(() => {
+        if (companyFocusIndex === null) {
+            return;
+        }
+
+        companyRowRefs.current[companyFocusIndex]?.scrollIntoView({
+            behavior: 'smooth',
+            block: 'center',
+        });
+    }, [companyFocusIndex, data.company_uuids.length]);
     const currentBidDate = data.bid_dates
         .map((bidDate) => bidDate.bid_date)
         .filter((bidDate) => bidDate !== '')
@@ -1088,33 +1257,73 @@ export default function ProjectForm({
                             </div>
                         )}
 
+                        <div className="grid items-start gap-5 sm:grid-cols-2 xl:grid-cols-3">
+                            <div className="flex flex-col gap-2">
+                                <InputLabel
+                                    htmlFor="estimated-start-date"
+                                    value="Estimated start"
+                                    className={labelClassName}
+                                />
+                                <TextInput
+                                    id="estimated-start-date"
+                                    type="date"
+                                    value={data.estimated_start_date}
+                                    className={inputClassName}
+                                    onChange={(event) =>
+                                        setData(
+                                            'estimated_start_date',
+                                            event.target.value,
+                                        )
+                                    }
+                                />
+                            </div>
+                            <div className="flex flex-col gap-2">
+                                <InputLabel
+                                    htmlFor="estimated-end-date"
+                                    value="Estimated end"
+                                    className={labelClassName}
+                                />
+                                <TextInput
+                                    id="estimated-end-date"
+                                    type="date"
+                                    value={data.estimated_end_date}
+                                    className={inputClassName}
+                                    onChange={(event) =>
+                                        setData(
+                                            'estimated_end_date',
+                                            event.target.value,
+                                        )
+                                    }
+                                />
+                            </div>
+                            <div className="flex flex-col gap-2">
+                                <InputLabel
+                                    htmlFor="completed-at"
+                                    value="Completed at"
+                                    className={labelClassName}
+                                />
+                                <TextInput
+                                    id="completed-at"
+                                    type="date"
+                                    value={data.completed_at}
+                                    className={inputClassName}
+                                    onChange={(event) =>
+                                        setData('completed_at', event.target.value)
+                                    }
+                                />
+                            </div>
+                        </div>
+                    </section>
+
                         {canEditCoreFields && (
-                            <div className="flex flex-col gap-4 rounded-lg border border-orange-200 bg-orange-50/70 p-4 dark:border-orange-900 dark:bg-orange-950/30">
-                                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                                    <div>
-                                        <h3 className="text-base font-semibold text-foreground">
-                                            Bid dates
-                                        </h3>
-                                        <p className="text-sm text-muted-foreground">
-                                            Keep every bid date. When the date changes, add the new date here. The latest date stays the current bid date, and the days left update as you type the date. Opens at is the time the bid opens.
-                                        </p>
-                                    </div>
-                                    <Button
-                                        type="button"
-                                        variant="outline"
-                                        onClick={() =>
-                                            prependBidDate(
-                                                blankBidDate(
-                                                    currentUserId,
-                                                    auth.user?.name ?? '',
-                                                ),
-                                            )
-                                        }
-                                        className={`w-full sm:w-auto ${addButtonClassName}`}
-                                    >
-                                        <PlusIcon className="size-4" />
-                                        Add bid date
-                                    </Button>
+                            <section className="flex flex-col gap-4 rounded-xl border border-orange-200 bg-orange-50/70 p-5 dark:border-orange-900 dark:bg-orange-950/30">
+                                <div>
+                                    <h3 className="text-base font-semibold text-foreground">
+                                        Bid dates
+                                    </h3>
+                                    <p className="text-sm text-muted-foreground">
+                                        Keep every bid date. When the date changes, add the new date here. The latest date stays the current bid date, and the days left update as you type the date. Opens at is the time the bid opens.
+                                    </p>
                                 </div>
 
                                 {bidDateFields.length === 0 ? (
@@ -1255,36 +1464,34 @@ export default function ProjectForm({
                                         })}
                                     </div>
                                 )}
-                            </div>
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    onClick={() =>
+                                        prependBidDate(
+                                            blankBidDate(
+                                                currentUserId,
+                                                auth.user?.name ?? '',
+                                            ),
+                                        )
+                                    }
+                                    className={`ml-auto h-8 w-auto px-3 text-xs ${addButtonClassName}`}
+                                >
+                                    <PlusIcon className="size-3.5" />
+                                    Add bid date
+                                </Button>
+                            </section>
                         )}
 
                         {canEditCoreFields && (
-                            <div className="flex flex-col gap-4 rounded-lg border border-violet-200 bg-violet-50/70 p-4 dark:border-violet-900 dark:bg-violet-950/30">
-                                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                                    <div>
-                                        <h3 className="text-base font-semibold text-foreground">
-                                            Addendums
-                                        </h3>
-                                        <p className="text-sm text-muted-foreground">
-                                            Record each addendum issued for this project and keep its document here. When an addendum moves the bid, add the new date in Bid dates.
-                                        </p>
-                                    </div>
-                                    <Button
-                                        type="button"
-                                        variant="outline"
-                                        onClick={() =>
-                                            appendAddendum(
-                                                blankAddendum(
-                                                    currentUserId,
-                                                    auth.user?.name ?? '',
-                                                ),
-                                            )
-                                        }
-                                        className={`w-full sm:w-auto ${addButtonClassName}`}
-                                    >
-                                        <PlusIcon className="size-4" />
-                                        Add addendum
-                                    </Button>
+                            <section className="flex flex-col gap-4 rounded-xl border border-violet-200 bg-violet-50/70 p-5 dark:border-violet-900 dark:bg-violet-950/30">
+                                <div>
+                                    <h3 className="text-base font-semibold text-foreground">
+                                        Addendums
+                                    </h3>
+                                    <p className="text-sm text-muted-foreground">
+                                        Choose the addendum file first. The number, issued date, and notes are filled from the document, and a revised bid date is added when the file states one.
+                                    </p>
                                 </div>
 
                                 {addendumFields.length === 0 ? (
@@ -1299,8 +1506,154 @@ export default function ProjectForm({
                                             return (
                                                 <div
                                                     key={field.id}
-                                                    className="grid min-w-0 items-start gap-4 rounded-lg border border-border bg-muted/10 p-4 md:grid-cols-2 xl:grid-cols-[minmax(8rem,0.7fr)_minmax(10rem,0.9fr)_minmax(0,1fr)_auto]"
+                                                    ref={(node) => {
+                                                        addendumCardRefs.current[index] = node;
+                                                    }}
+                                                    className="flex min-w-0 flex-col gap-4 rounded-lg border border-border bg-muted/10 p-4"
                                                 >
+                                                    <div className="flex flex-col gap-2">
+                                                        <InputLabel
+                                                            htmlFor={`project-addendum-document-${index}`}
+                                                            value="Choose file"
+                                                            className={labelClassName}
+                                                        />
+                                                        <input
+                                                            id={`project-addendum-document-${index}`}
+                                                            type="file"
+                                                            disabled={readingAddendum[field.id] === true}
+                                                            accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,.png,.jpg,.jpeg,.webp,.txt,application/pdf"
+                                                            className="block w-full text-sm text-muted-foreground file:mr-4 file:rounded-md file:border-0 file:bg-emerald-600 file:px-3 file:py-2 file:text-sm file:font-medium file:text-white hover:file:bg-emerald-700"
+                                                            onChange={(event) => {
+                                                                const file = event.target.files?.[0] ?? null;
+                                                                const extension = file?.name.split('.').pop()?.toLowerCase() ?? '';
+
+                                                                if (
+                                                                    file &&
+                                                                    (!addendumDocumentExtensions.includes(extension) ||
+                                                                        file.size > 20 * 1024 * 1024)
+                                                                ) {
+                                                                    event.target.value = '';
+                                                                    setValue(
+                                                                        `addendums.${index}.document`,
+                                                                        null,
+                                                                        { shouldDirty: true },
+                                                                    );
+                                                                    setError(
+                                                                        `addendums.${index}.document`,
+                                                                        {
+                                                                            type: 'manual',
+                                                                            message: file.size > 20 * 1024 * 1024
+                                                                                ? 'Document must be 20 MB or less.'
+                                                                                : 'Use a PDF, Word, Excel, image, or text file.',
+                                                                        },
+                                                                    );
+                                                                    return;
+                                                                }
+
+                                                                clearErrors(`addendums.${index}.document`);
+                                                                setValue(
+                                                                    `addendums.${index}.document`,
+                                                                    file,
+                                                                    { shouldDirty: true },
+                                                                );
+                                                                setValue(
+                                                                    `addendums.${index}.remove_document`,
+                                                                    false,
+                                                                    { shouldDirty: true },
+                                                                );
+
+                                                                if (file) {
+                                                                    void readAddendumFile(index, field.id, file);
+                                                                }
+                                                            }}
+                                                        />
+                                                        <InputError
+                                                            message={errorMessage(
+                                                                validationErrors,
+                                                                `addendums.${index}.document`,
+                                                            )}
+                                                        />
+                                                        {readingAddendum[field.id] ? (
+                                                            <p className="flex items-center gap-2 text-sm font-medium text-emerald-800 dark:text-emerald-200">
+                                                                <LoaderCircleIcon className="size-4 animate-spin" />
+                                                                Reading the addendum. Please wait.
+                                                            </p>
+                                                        ) : addendumReadNote[field.id] ? (
+                                                            <p className="text-sm text-muted-foreground">{addendumReadNote[field.id]}</p>
+                                                        ) : null}
+                                                        {addendum?.document ? (
+                                                            <div className="flex flex-col gap-2 text-sm">
+                                                                <div className="flex flex-wrap items-center gap-3">
+                                                                    <span className="font-medium text-foreground">
+                                                                        {addendum.document.name}
+                                                                    </span>
+                                                                    <Button
+                                                                        type="button"
+                                                                        variant="outline"
+                                                                        className="h-9"
+                                                                        onClick={() => {
+                                                                            const input = window.document.getElementById(
+                                                                                `project-addendum-document-${index}`,
+                                                                            ) as HTMLInputElement | null;
+                                                                            if (input) {
+                                                                                input.value = '';
+                                                                            }
+                                                                            setValue(
+                                                                                `addendums.${index}.document`,
+                                                                                null,
+                                                                                { shouldDirty: true },
+                                                                            );
+                                                                            setAddendumReadNote((notes) => {
+                                                                                const next = { ...notes };
+                                                                                delete next[field.id];
+
+                                                                                return next;
+                                                                            });
+                                                                        }}
+                                                                    >
+                                                                        Clear selected file
+                                                                    </Button>
+                                                                </div>
+                                                                {addendum.document_url && !addendum.remove_document ? (
+                                                                    <p className="text-muted-foreground">
+                                                                        This file replaces {addendum.document_name || 'the saved document'} when you save.
+                                                                    </p>
+                                                                ) : null}
+                                                            </div>
+                                                        ) : null}
+                                                        {addendum?.document_url && !addendum.remove_document && !addendum.document ? (
+                                                            <div className="flex flex-wrap items-center gap-3 text-sm">
+                                                                <a
+                                                                    href={addendum.document_url}
+                                                                    target="_blank"
+                                                                    rel="noreferrer"
+                                                                    className="font-medium text-emerald-800 underline dark:text-emerald-200"
+                                                                >
+                                                                    {addendum.document_name || 'Open document'}
+                                                                </a>
+                                                                <Button
+                                                                    type="button"
+                                                                    variant="outline"
+                                                                    className="h-9"
+                                                                    onClick={() =>
+                                                                        setValue(
+                                                                            `addendums.${index}.remove_document`,
+                                                                            true,
+                                                                            { shouldDirty: true },
+                                                                        )
+                                                                    }
+                                                                >
+                                                                    Remove saved document
+                                                                </Button>
+                                                            </div>
+                                                        ) : null}
+                                                        {addendum?.remove_document ? (
+                                                            <p className="text-sm text-muted-foreground">
+                                                                The saved document will be removed when you save the project.
+                                                            </p>
+                                                        ) : null}
+                                                    </div>
+                                                    <div className="grid min-w-0 items-start gap-4 md:grid-cols-2 xl:grid-cols-[minmax(8rem,0.7fr)_minmax(10rem,0.9fr)_minmax(0,1fr)_auto]">
                                                     <div className="flex flex-col gap-2">
                                                         <InputLabel
                                                             htmlFor={`project-addendum-number-${index}`}
@@ -1373,7 +1726,8 @@ export default function ProjectForm({
                                                             Remove
                                                         </Button>
                                                     </div>
-                                                    <div className="flex min-w-0 flex-col gap-2 md:col-span-2 xl:col-span-full">
+                                                    </div>
+                                                    <div className="flex min-w-0 flex-col gap-2">
                                                         <InputLabel
                                                             htmlFor={`project-addendum-notes-${index}`}
                                                             value="Notes"
@@ -1401,233 +1755,122 @@ export default function ProjectForm({
                                                             )}
                                                         />
                                                     </div>
-                                                    <div className="flex flex-col gap-2 md:col-span-2 xl:col-span-full">
-                                                        <InputLabel
-                                                            htmlFor={`project-addendum-document-${index}`}
-                                                            value="Document"
-                                                            className={labelClassName}
-                                                        />
-                                                        <input
-                                                            id={`project-addendum-document-${index}`}
-                                                            type="file"
-                                                            accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,.png,.jpg,.jpeg,.webp,.txt,application/pdf"
-                                                            className="block w-full text-sm text-muted-foreground file:mr-4 file:rounded-md file:border-0 file:bg-emerald-600 file:px-3 file:py-2 file:text-sm file:font-medium file:text-white hover:file:bg-emerald-700"
-                                                            onChange={(event) => {
-                                                                const file = event.target.files?.[0] ?? null;
-                                                                const extension = file?.name.split('.').pop()?.toLowerCase() ?? '';
-
-                                                                if (
-                                                                    file &&
-                                                                    (!addendumDocumentExtensions.includes(extension) ||
-                                                                        file.size > 20 * 1024 * 1024)
-                                                                ) {
-                                                                    event.target.value = '';
-                                                                    setValue(
-                                                                        `addendums.${index}.document`,
-                                                                        null,
-                                                                        { shouldDirty: true },
-                                                                    );
-                                                                    setError(
-                                                                        `addendums.${index}.document`,
-                                                                        {
-                                                                            type: 'manual',
-                                                                            message: file.size > 20 * 1024 * 1024
-                                                                                ? 'Document must be 20 MB or less.'
-                                                                                : 'Use a PDF, Word, Excel, image, or text file.',
-                                                                        },
-                                                                    );
-                                                                    return;
-                                                                }
-
-                                                                clearErrors(`addendums.${index}.document`);
-                                                                setValue(
-                                                                    `addendums.${index}.document`,
-                                                                    file,
-                                                                    { shouldDirty: true },
-                                                                );
-                                                                setValue(
-                                                                    `addendums.${index}.remove_document`,
-                                                                    false,
-                                                                    { shouldDirty: true },
-                                                                );
-                                                            }}
-                                                        />
-                                                        <InputError
-                                                            message={errorMessage(
-                                                                validationErrors,
-                                                                `addendums.${index}.document`,
-                                                            )}
-                                                        />
-                                                        {addendum?.document ? (
-                                                            <div className="flex flex-col gap-2 text-sm">
-                                                                <div className="flex flex-wrap items-center gap-3">
-                                                                    <span className="font-medium text-foreground">
-                                                                        {addendum.document.name}
-                                                                    </span>
-                                                                    <Button
-                                                                        type="button"
-                                                                        variant="outline"
-                                                                        className="h-9"
-                                                                        onClick={() => {
-                                                                            const input = window.document.getElementById(
-                                                                                `project-addendum-document-${index}`,
-                                                                            ) as HTMLInputElement | null;
-                                                                            if (input) {
-                                                                                input.value = '';
-                                                                            }
-                                                                            setValue(
-                                                                                `addendums.${index}.document`,
-                                                                                null,
-                                                                                { shouldDirty: true },
-                                                                            );
-                                                                        }}
-                                                                    >
-                                                                        Clear selected file
-                                                                    </Button>
-                                                                </div>
-                                                                {addendum.document_url && !addendum.remove_document ? (
-                                                                    <p className="text-muted-foreground">
-                                                                        This file replaces {addendum.document_name || 'the saved document'} when you save.
-                                                                    </p>
-                                                                ) : null}
-                                                            </div>
-                                                        ) : null}
-                                                        {addendum?.document_url && !addendum.remove_document && !addendum.document ? (
-                                                            <div className="flex flex-wrap items-center gap-3 text-sm">
-                                                                <a
-                                                                    href={addendum.document_url}
-                                                                    target="_blank"
-                                                                    rel="noreferrer"
-                                                                    className="font-medium text-emerald-800 underline dark:text-emerald-200"
-                                                                >
-                                                                    {addendum.document_name || 'Open document'}
-                                                                </a>
-                                                                <Button
-                                                                    type="button"
-                                                                    variant="outline"
-                                                                    className="h-9"
-                                                                    onClick={() =>
-                                                                        setValue(
-                                                                            `addendums.${index}.remove_document`,
-                                                                            true,
-                                                                            { shouldDirty: true },
-                                                                        )
-                                                                    }
-                                                                >
-                                                                    Remove saved document
-                                                                </Button>
-                                                            </div>
-                                                        ) : null}
-                                                        {addendum?.remove_document ? (
-                                                            <p className="text-sm text-muted-foreground">
-                                                                The saved document will be removed when you save the project.
-                                                            </p>
-                                                        ) : null}
-                                                    </div>
                                                 </div>
                                             );
                                         })}
                                     </div>
                                 )}
-                            </div>
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    onClick={() => {
+                                        scrollToAddendum.current = addendumFields.length;
+                                        appendAddendum(
+                                            blankAddendum(
+                                                currentUserId,
+                                                auth.user?.name ?? '',
+                                            ),
+                                        );
+                                    }}
+                                    className={`ml-auto h-8 w-auto px-3 text-xs ${addButtonClassName}`}
+                                >
+                                    <PlusIcon className="size-3.5" />
+                                    Add addendum
+                                </Button>
+                            </section>
                         )}
 
-
-                        <div className="grid items-start gap-5 sm:grid-cols-2 xl:grid-cols-3">
-                            <div className="flex flex-col gap-2">
-                                <InputLabel
-                                    htmlFor="estimated-start-date"
-                                    value="Estimated start"
-                                    className={labelClassName}
-                                />
-                                <TextInput
-                                    id="estimated-start-date"
-                                    type="date"
-                                    value={data.estimated_start_date}
-                                    className={inputClassName}
-                                    onChange={(event) =>
-                                        setData(
-                                            'estimated_start_date',
-                                            event.target.value,
-                                        )
-                                    }
-                                />
-                            </div>
-                            <div className="flex flex-col gap-2">
-                                <InputLabel
-                                    htmlFor="estimated-end-date"
-                                    value="Estimated end"
-                                    className={labelClassName}
-                                />
-                                <TextInput
-                                    id="estimated-end-date"
-                                    type="date"
-                                    value={data.estimated_end_date}
-                                    className={inputClassName}
-                                    onChange={(event) =>
-                                        setData(
-                                            'estimated_end_date',
-                                            event.target.value,
-                                        )
-                                    }
-                                />
-                            </div>
-                            <div className="flex flex-col gap-2">
-                                <InputLabel
-                                    htmlFor="completed-at"
-                                    value="Completed at"
-                                    className={labelClassName}
-                                />
-                                <TextInput
-                                    id="completed-at"
-                                    type="date"
-                                    value={data.completed_at}
-                                    className={inputClassName}
-                                    onChange={(event) =>
-                                        setData('completed_at', event.target.value)
-                                    }
-                                />
-                            </div>
-                        </div>
-                    </section>
-
                         {canEditCoreFields && (
-                            <section className="flex flex-col gap-3 rounded-xl border p-5 border-emerald-200 bg-emerald-50/70 dark:border-emerald-900 dark:bg-emerald-950/30">
+                            <section className="flex flex-col gap-4 rounded-xl border p-5 border-emerald-200 bg-emerald-50/70 dark:border-emerald-900 dark:bg-emerald-950/30">
                                 <div>
                                     <h3 className="text-base font-semibold text-foreground">
                                         Companies
                                     </h3>
                                     <p className="text-sm text-muted-foreground">
-                                        Select every company executing this job.
+                                        Add each company on this job. Choose one company per row.
                                     </p>
                                 </div>
                                 {options.companies.length === 0 ? (
                                     <p className="text-sm text-muted-foreground">
                                         No companies yet. Add them in the Contact Directory.
                                     </p>
+                                ) : data.company_uuids.length === 0 ? (
+                                    <div className="rounded-lg border border-dashed border-border bg-background/60 p-4 text-sm text-muted-foreground">
+                                        No companies added yet.
+                                    </div>
                                 ) : (
-                                    <div className="grid max-h-56 gap-2 overflow-y-auto rounded-lg border border-border bg-background/60 p-3 sm:grid-cols-2 lg:grid-cols-3">
-                                        {options.companies.map((company) => (
-                                            <label
-                                                key={company.uuid}
-                                                className="flex items-center gap-2 text-sm text-foreground"
+                                    <div className="flex flex-col gap-4">
+                                        {data.company_uuids.map((uuid, index) => (
+                                            <div
+                                                key={`project-company-row-${index}`}
+                                                ref={(node) => {
+                                                    companyRowRefs.current[index] = node;
+                                                }}
+                                                className="grid items-start gap-4 rounded-lg border border-border bg-background p-4 md:grid-cols-[minmax(0,1fr)_auto]"
                                             >
-                                                <input
-                                                    type="checkbox"
-                                                    checked={data.company_uuids.includes(company.uuid)}
-                                                    onChange={(event) =>
-                                                        setData(
-                                                            'company_uuids',
-                                                            event.target.checked
-                                                                ? [...data.company_uuids, company.uuid]
-                                                                : data.company_uuids.filter((uuid) => uuid !== company.uuid),
-                                                        )
-                                                    }
+                                                <CreatableSelect
+                                                    id={`project-company-${index}`}
+                                                    label="Company"
+                                                    compact
+                                                    allowCreate={false}
+                                                    autoFocus={companyFocusIndex === index}
+                                                    value={uuid}
+                                                    options={options.companies.map((company) => ({
+                                                        id: company.uuid,
+                                                        name: company.name,
+                                                    }))}
+                                                    disabledIds={data.company_uuids.filter(
+                                                        (selected, selectedIndex) =>
+                                                            selectedIndex !== index && selected !== '',
+                                                    )}
+                                                    placeholder="Select a company"
+                                                    error={errorMessage(
+                                                        validationErrors,
+                                                        `company_uuids.${index}`,
+                                                    )}
+                                                    onChange={(companyUuid) => {
+                                                        const next = [...data.company_uuids];
+                                                        next[index] = companyUuid;
+                                                        setData('company_uuids', next);
+                                                    }}
                                                 />
-                                                {company.name}
-                                            </label>
+                                                <div className="flex items-start md:pt-7">
+                                                    <Button
+                                                        type="button"
+                                                        variant="outline"
+                                                        className={removeButtonClassName}
+                                                        onClick={() =>
+                                                            setData(
+                                                                'company_uuids',
+                                                                data.company_uuids.filter(
+                                                                    (_selected, selectedIndex) =>
+                                                                        selectedIndex !== index,
+                                                                ),
+                                                            )
+                                                        }
+                                                        aria-label={`Remove company ${index + 1}`}
+                                                    >
+                                                        <Trash2Icon className="size-4" />
+                                                        Remove
+                                                    </Button>
+                                                </div>
+                                            </div>
                                         ))}
                                     </div>
+                                )}
+                                {options.companies.length > 0 && (
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        onClick={() => {
+                                            setCompanyFocusIndex(data.company_uuids.length);
+                                            setData('company_uuids', [...data.company_uuids, '']);
+                                        }}
+                                        className={`ml-auto h-8 w-auto px-3 text-xs ${addButtonClassName}`}
+                                    >
+                                        <PlusIcon className="size-3.5" />
+                                        Add company
+                                    </Button>
                                 )}
                             </section>
                         )}

@@ -1384,6 +1384,10 @@ test('a project keeps every bid date and each addendum', function () {
             ->where('projects.data.0.bid_dates.0.notes', 'Addendum 2 moved the bid')
             ->where('projects.data.0.bid_dates.1.bid_date', '2026-11-02')
             ->where('projects.data.0.bid_dates.1.notes', 'Original bid')
+            ->where('projects.data.0.addendums.0.number', '1')
+            ->where('projects.data.0.addendums.0.issued_on', '2026-10-28')
+            ->where('projects.data.0.addendums.1.number', '2')
+            ->where('projects.data.0.addendums.1.issued_on', '2026-11-12')
         );
 
     $current = $project->bidDates->first();
@@ -1512,4 +1516,24 @@ test('formatted addendum notes are kept and an empty editor is stored blank', fu
     expect($formatted?->notes)->toContain('<strong>revised</strong>')
         ->and($formatted?->notes)->not->toContain('script')
         ->and($empty?->notes)->toBeNull();
+});
+
+test('an addendum file fills its number, issued date, notes, and revised bid date', function () {
+    $admin = projectAdmin();
+    $file = UploadedFile::fake()->createWithContent('notice.txt', <<<'TXT'
+ADDENDUM NO. 02
+Issued: March 12, 2026
+Subject: Hardware specification revised
+
+The bid date is now April 2, 2026 at 2:00 PM.
+TXT);
+
+    $this->actingAs($admin)
+        ->post(route('admin.projects.addendums.read'), ['document' => $file], ['Accept' => 'application/json'])
+        ->assertOk()
+        ->assertJsonPath('number', '2')
+        ->assertJsonPath('issued_on', '2026-03-12')
+        ->assertJsonPath('bid_date', '2026-04-02')
+        ->assertJsonPath('bid_time', '14:00')
+        ->assertJsonPath('notes', '<p>Hardware specification revised</p>');
 });

@@ -25,6 +25,7 @@ use App\Support\TakeoffGrouping;
 use App\Support\TakeoffMoney;
 use App\Support\TakeoffNamer;
 use App\Support\TakeoffPdfScope;
+use App\Support\TakeoffSpecFields;
 use App\Support\TakeoffScopeImporter;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -1006,12 +1007,17 @@ class TakeoffWorkspaceController extends Controller
             'is_bulk' => false,
             'opening_type' => $type,
             'location' => $specs['location'] ?? null,
+            'building_name' => $specs['building_name'] ?? null,
             'quantity' => TakeoffMoney::money(1),
             'width' => TakeoffMoney::dimension($specs['width'] ?? null),
             'height' => TakeoffMoney::dimension($specs['height'] ?? null),
             'depth' => TakeoffMoney::dimension($specs['depth'] ?? null),
+            'scheduled_thickness' => $specs['scheduled_thickness'] ?? null,
             'dimension_unit' => in_array($unit, config('takeoffs.units'), true) ? $unit : 'in',
             'frame_type' => $specs['frame_type'] ?? null,
+            'frame_width' => TakeoffMoney::dimension($specs['frame_width'] ?? null),
+            'frame_height' => TakeoffMoney::dimension($specs['frame_height'] ?? null),
+            'frame_depth' => TakeoffMoney::dimension($specs['frame_depth'] ?? null),
             'handing' => $specs['handing'] ?? null,
             'hardware_set' => $specs['hardware_set'] ?? null,
             'glazing' => $specs['glazing'] ?? null,
@@ -1043,6 +1049,7 @@ class TakeoffWorkspaceController extends Controller
         ]);
         $this->clearApproval($takeoff, $user);
         app(ProjectControlTakeoff::class)->connectTakeoff($takeoff);
+        TakeoffSpecFields::sync($takeoff);
         $takeoff->record($user, 'opening.counted', 'Counted '.$tag.' on the drawing.');
 
         return back()
@@ -1064,9 +1071,22 @@ class TakeoffWorkspaceController extends Controller
 
         $this->clearApproval($takeoff, $user);
         app(ProjectControlTakeoff::class)->connectTakeoff($takeoff);
+        TakeoffSpecFields::sync($takeoff);
         $takeoff->record($user, 'opening.created', 'Added opening '.$opening->label().'.');
 
         return back()->with('success', 'Opening saved.');
+    }
+
+    public function updateSpecFields(Request $request, Takeoff $takeoff): RedirectResponse
+    {
+        $this->ensureEditable($request, $takeoff);
+        $data = $request->validate([
+            'spec_fields' => ['present', 'array'],
+            'spec_fields.*' => ['string', Rule::in(TakeoffSpecFields::keys())],
+        ]);
+        TakeoffSpecFields::sync($takeoff, $data['spec_fields']);
+
+        return back();
     }
 
     public function updateOpening(Request $request, Takeoff $takeoff, TakeoffOpening $opening): RedirectResponse
@@ -1100,6 +1120,7 @@ class TakeoffWorkspaceController extends Controller
 
         $this->clearApproval($takeoff, $user);
         app(ProjectControlTakeoff::class)->reflectOpening($opening->fresh() ?? $opening);
+        TakeoffSpecFields::sync($takeoff);
         $takeoff->record($user, 'opening.updated', 'Updated opening '.$opening->label().'.');
 
         return back()->with('success', 'Opening saved.');
@@ -1112,6 +1133,8 @@ class TakeoffWorkspaceController extends Controller
         $label = $opening->label();
         $opening->delete();
         $takeoff->resequenceCounts();
+        $takeoff->unsetRelation('openings');
+        TakeoffSpecFields::sync($takeoff, TakeoffSpecFields::filledKeys($takeoff));
         $this->clearApproval($takeoff, $user);
         $takeoff->record($user, 'opening.deleted', 'Removed opening '.$label.'.');
 
@@ -1544,6 +1567,8 @@ class TakeoffWorkspaceController extends Controller
         });
 
         app(ProjectControlTakeoff::class)->connectTakeoff($takeoff->fresh() ?? $takeoff);
+        $takeoff->unsetRelation('openings');
+        TakeoffSpecFields::sync($takeoff);
 
         return count($prepared);
     }
@@ -1660,6 +1685,7 @@ class TakeoffWorkspaceController extends Controller
             'opening_type' => ['required', 'string', 'max:80'],
             'door_configuration_id' => ['nullable', 'integer', 'exists:door_configurations,id'],
             'location' => ['nullable', 'string', 'max:255'],
+            'building_name' => ['nullable', 'string', 'max:255'],
             'quantity' => ['required', 'numeric', 'gt:0', 'max:999999'],
             'product_category' => ['nullable', 'string', 'max:255'],
             'width' => ['nullable', 'numeric', 'min:0'],
@@ -1669,6 +1695,9 @@ class TakeoffWorkspaceController extends Controller
             'thickness_uncertain' => ['nullable', 'boolean'],
             'dimension_unit' => ['required', Rule::in(config('takeoffs.units'))],
             'frame_type' => ['nullable', 'string', 'max:255'],
+            'frame_width' => ['nullable', 'numeric', 'min:0'],
+            'frame_height' => ['nullable', 'numeric', 'min:0'],
+            'frame_depth' => ['nullable', 'numeric', 'min:0'],
             'handing' => ['nullable', 'string', 'max:255'],
             'hardware_set' => ['nullable', 'string', 'max:255'],
             'glazing' => ['nullable', 'string', 'max:255'],
@@ -1785,6 +1814,7 @@ class TakeoffWorkspaceController extends Controller
             'opening_type' => $openingType,
             'door_configuration_id' => str_contains(mb_strtolower($openingType), 'door') ? ($data['door_configuration_id'] ?? null) : null,
             'location' => $this->blank($data['location'] ?? null),
+            'building_name' => $this->blank($data['building_name'] ?? null),
             'quantity' => TakeoffMoney::money($data['quantity']),
             'product_category' => OpeningCategory::remember($data['product_category'] ?? null),
             'width' => TakeoffMoney::dimension($data['width'] ?? null),
@@ -1794,6 +1824,9 @@ class TakeoffWorkspaceController extends Controller
             'thickness_uncertain' => (bool) ($data['thickness_uncertain'] ?? false),
             'dimension_unit' => $data['dimension_unit'],
             'frame_type' => $this->blank($data['frame_type'] ?? null),
+            'frame_width' => TakeoffMoney::dimension($data['frame_width'] ?? null),
+            'frame_height' => TakeoffMoney::dimension($data['frame_height'] ?? null),
+            'frame_depth' => TakeoffMoney::dimension($data['frame_depth'] ?? null),
             'handing' => $this->blank($data['handing'] ?? null),
             'hardware_set' => $this->blank($data['hardware_set'] ?? null),
             'glazing' => $this->blank($data['glazing'] ?? null),

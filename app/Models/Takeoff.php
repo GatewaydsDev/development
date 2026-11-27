@@ -29,6 +29,7 @@ class Takeoff extends Model
         'install_margin_rate',
         'transaction_fee_applicable',
         'notes',
+        'spec_fields',
         'created_by',
         'updated_by',
         'approved_by',
@@ -44,6 +45,7 @@ class Takeoff extends Model
             'install_margin_rate' => 'decimal:6',
             'transaction_fee_applicable' => 'boolean',
             'approved_at' => 'datetime',
+            'spec_fields' => 'array',
             'revision_number' => 'integer',
         ];
     }

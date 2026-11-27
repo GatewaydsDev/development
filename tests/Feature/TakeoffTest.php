@@ -13,6 +13,7 @@ use App\Models\TakeoffOpeningType;
 use App\Models\TakeoffQuotationLine;
 use App\Models\User;
 use App\Models\UserLevel;
+use App\Support\TakeoffSpecFields;
 use App\Support\TakeoffCsv;
 use App\Support\TakeoffPricing;
 use App\Support\TakeoffGuide;
@@ -2080,4 +2081,50 @@ test('saving an opening keeps the verified product selected on it', function () 
         ->and($inclusion->supplier_name)->toBe('Krieger')
         ->and((string) $inclusion->unit_price)->toBe('1500.00')
         ->and($inclusion->inclusion)->toBe('pending');
+});
+
+test('a schedule line keeps the door number, sizes, fire rating, glazing, and building', function () {
+    $rows = TakeoffPdfScope::openingsFromSection(
+        'Door Schedule',
+        '201 LOBBY 3\'-0" x 7\'-0" 3\'-2" x 7\'-2" 90 min tempered BLDG A',
+        1,
+    );
+
+    expect($rows)->toHaveCount(1)
+        ->and($rows[0]['tag'])->toBe('201')
+        ->and($rows[0]['width'])->not->toBeNull()
+        ->and($rows[0]['height'])->not->toBeNull()
+        ->and($rows[0]['frame_width'])->not->toBeNull()
+        ->and($rows[0]['frame_height'])->not->toBeNull()
+        ->and($rows[0]['fire_requirement'])->toBe('90 min')
+        ->and($rows[0]['glazing'])->toBe('Tempered')
+        ->and($rows[0]['building_name'])->toBe('A')
+        ->and($rows[0]['location'])->toContain('LOBBY');
+});
+
+test('drawing specifications appear only for fields this takeoff actually uses', function () {
+    $admin = takeoffUser();
+    $takeoff = takeoffRecord($admin);
+    $takeoff->openings()->create([
+        'tag' => 'D1',
+        'opening_type' => 'door',
+        'quantity' => '1.00',
+        'dimension_unit' => 'in',
+        'scope' => 'both',
+        'fire_requirement' => '90 min',
+    ]);
+
+    expect(TakeoffSpecFields::visible($takeoff))->toBe(['fire_requirement']);
+
+    $this->actingAs($admin)->patch(route('admin.takeoffs.spec-fields.update', $takeoff), [
+        'spec_fields' => ['fire_requirement', 'building_name'],
+    ])->assertRedirect();
+
+    expect($takeoff->fresh()->spec_fields)->toBe(['building_name', 'fire_requirement']);
+
+    $this->actingAs($admin)->patch(route('admin.takeoffs.spec-fields.update', $takeoff), [
+        'spec_fields' => [],
+    ])->assertRedirect();
+
+    expect($takeoff->fresh()->spec_fields)->toBe(['fire_requirement']);
 });

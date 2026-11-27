@@ -22,6 +22,7 @@ use App\Models\Quotation;
 use App\Models\Service;
 use App\Models\User;
 use App\Models\UserLevel;
+use App\Support\AddendumDocumentReader;
 use App\Support\BidAccess;
 use App\Support\BidApplicationText;
 use App\Support\PostalCode;
@@ -358,6 +359,33 @@ class ProjectController extends Controller
         return redirect()
             ->route('admin.projects.index')
             ->with('success', 'Project removed successfully.');
+    }
+
+    public function readAddendum(Request $request): JsonResponse
+    {
+        abort_unless(
+            ProjectAccess::canCreate($request->user()) || ProjectAccess::canUpdate($request->user()),
+            403,
+        );
+
+        if ($request->exists('text')) {
+            $data = $request->validate([
+                'text' => ['present', 'string', 'max:20000'],
+                'filename' => ['nullable', 'string', 'max:255'],
+            ]);
+            $text = $data['text'];
+
+            return response()->json([
+                ...AddendumDocumentReader::fromText($text, (string) ($data['filename'] ?? '')),
+                'readable' => trim($text) !== '',
+            ]);
+        }
+
+        $request->validate([
+            'document' => ['required', 'file', 'mimes:pdf,doc,docx,xls,xlsx,csv,png,jpg,jpeg,webp,txt', 'max:20480'],
+        ]);
+
+        return response()->json(AddendumDocumentReader::read($request->file('document')));
     }
 
     public function addendumDocument(Request $request, Project $project, string $addendum): BinaryFileResponse|\Symfony\Component\HttpFoundation\StreamedResponse
@@ -1478,10 +1506,15 @@ class ProjectController extends Controller
                 ])
                 ->values()
                 ->all(),
-            'addendums' => $summary
-                ? []
-                : $project->addendums
-                    ->map(fn (ProjectAddendum $addendum): array => [
+            'addendums' => $project->addendums
+                ->map(fn (ProjectAddendum $addendum): array => $summary
+                    ? [
+                        'id' => $addendum->id,
+                        'number' => $addendum->number,
+                        'issued_on' => $addendum->issued_on?->toDateString(),
+                        'notes' => null,
+                    ]
+                    : [
                         'id' => $addendum->id,
                         'number' => $addendum->number,
                         'issued_on' => $addendum->issued_on?->toDateString(),
@@ -1500,8 +1533,8 @@ class ProjectController extends Controller
                             ]
                             : null,
                     ])
-                    ->values()
-                    ->all(),
+                ->values()
+                ->all(),
             'assigned_to' => $project->assigned_to,
             'assignee' => $project->assignee
                 ? [

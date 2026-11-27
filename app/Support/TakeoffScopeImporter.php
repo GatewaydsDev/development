@@ -182,7 +182,9 @@ class TakeoffScopeImporter
 
             foreach ([
                 'location',
+                'building_name',
                 'frame_type',
+                'scheduled_thickness',
                 'handing',
                 'hardware_set',
                 'glazing',
@@ -199,7 +201,7 @@ class TakeoffScopeImporter
                 }
             }
 
-            foreach (['width', 'height', 'depth'] as $field) {
+            foreach (['width', 'height', 'depth', 'frame_width', 'frame_height', 'frame_depth'] as $field) {
                 $value = TakeoffMoney::dimension($row[$field] ?? null);
 
                 if ($value !== null) {
@@ -348,12 +350,17 @@ class TakeoffScopeImporter
             'tag' => trim((string) ($row['tag'] ?? '')),
             'opening_type' => $type,
             'location' => self::text($row['location'] ?? null),
+            'building_name' => self::text($row['building_name'] ?? null),
             'quantity' => self::text($row['quantity'] ?? null),
             'width' => self::text($row['width'] ?? null),
             'height' => self::text($row['height'] ?? null),
             'depth' => self::text($row['depth'] ?? null),
             'dimension_unit' => self::text($row['dimension_unit'] ?? null) ?? 'in',
             'frame_type' => self::text($row['frame_type'] ?? null),
+            'frame_width' => self::text($row['frame_width'] ?? null),
+            'frame_height' => self::text($row['frame_height'] ?? null),
+            'frame_depth' => self::text($row['frame_depth'] ?? null),
+            'scheduled_thickness' => self::text($row['scheduled_thickness'] ?? null),
             'handing' => self::text($row['handing'] ?? null),
             'hardware_set' => self::text($row['hardware_set'] ?? null),
             'glazing' => self::text($row['glazing'] ?? null),
@@ -405,12 +412,17 @@ class TakeoffScopeImporter
                     'is_bulk' => false,
                     'opening_type' => trim((string) ($row['opening_type'] ?? '')) !== '' ? trim((string) $row['opening_type']) : 'door',
                     'location' => $row['location'] ?? null,
+                    'building_name' => $row['building_name'] ?? null,
+                    'scheduled_thickness' => $row['scheduled_thickness'] ?? null,
                     'quantity' => TakeoffMoney::money($row['quantity'] ?? 1),
                     'width' => TakeoffMoney::dimension($row['width'] ?? null),
                     'height' => TakeoffMoney::dimension($row['height'] ?? null),
                     'depth' => TakeoffMoney::dimension($row['depth'] ?? null),
                     'dimension_unit' => in_array($row['dimension_unit'] ?? 'in', config('takeoffs.units'), true) ? $row['dimension_unit'] : 'in',
                     'frame_type' => $row['frame_type'] ?? null,
+                    'frame_width' => TakeoffMoney::dimension($row['frame_width'] ?? null),
+                    'frame_height' => TakeoffMoney::dimension($row['frame_height'] ?? null),
+                    'frame_depth' => TakeoffMoney::dimension($row['frame_depth'] ?? null),
                     'handing' => $row['handing'] ?? null,
                     'hardware_set' => $row['hardware_set'] ?? null,
                     'glazing' => $row['glazing'] ?? null,
@@ -466,6 +478,9 @@ class TakeoffScopeImporter
 
             $markersAdded += self::markers($opening, $document, $row['markers'] ?? []);
         }
+
+        $takeoff->unsetRelation('openings');
+        TakeoffSpecFields::sync($takeoff);
 
         return [
             'created' => $created,
@@ -541,7 +556,9 @@ class TakeoffScopeImporter
 
             foreach ([
                 'location',
+                'building_name',
                 'frame_type',
+                'scheduled_thickness',
                 'handing',
                 'hardware_set',
                 'glazing',
@@ -564,7 +581,7 @@ class TakeoffScopeImporter
                 $changes['product_category'] = $category;
             }
 
-            foreach (['width', 'height', 'depth'] as $field) {
+            foreach (['width', 'height', 'depth', 'frame_width', 'frame_height', 'frame_depth'] as $field) {
                 $value = TakeoffMoney::dimension($row[$field] ?? null);
 
                 if ($value !== null && $opening->{$field} === null) {
