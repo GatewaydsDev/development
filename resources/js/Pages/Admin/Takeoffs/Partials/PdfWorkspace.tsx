@@ -133,10 +133,16 @@ export function savedCountTool(): CountTool {
 
 const drawingToolsKey = 'gateway.takeoff-drawing-tools';
 
+type SavedSheetScroll = {
+    x: number;
+    y: number;
+};
+
 type SavedDocumentView = {
     page: number;
     rotation: number;
     zoom?: number;
+    scroll?: Record<string, SavedSheetScroll>;
 };
 
 type SavedDrawingTools = {
@@ -162,10 +168,27 @@ function readDrawingTools(): SavedDrawingTools {
                 }
 
                 const savedZoom = Number(view.zoom);
+                const scroll: Record<string, SavedSheetScroll> = {};
+
+                if (view.scroll && typeof view.scroll === 'object') {
+                    Object.entries(view.scroll).forEach(([sheet, point]) => {
+                        const x = Number(point?.x);
+                        const y = Number(point?.y);
+
+                        if (Number.isFinite(x) && Number.isFinite(y)) {
+                            scroll[sheet] = {
+                                x: Math.min(1, Math.max(0, x)),
+                                y: Math.min(1, Math.max(0, y)),
+                            };
+                        }
+                    });
+                }
+
                 byDocument[id] = {
                     page: Number(view.page) >= 1 ? Number(view.page) : 1,
                     rotation: [0, 90, 180, 270].includes(Number(view.rotation)) ? Number(view.rotation) : 0,
                     zoom: Number.isFinite(savedZoom) && savedZoom >= 0.05 && savedZoom <= 8 ? savedZoom : undefined,
+                    scroll,
                 };
             });
         }
@@ -186,6 +209,27 @@ function writeDrawingTools(tools: SavedDrawingTools) {
     } catch {
         // Private browsing can reject storage. The tools still work for this visit.
     }
+}
+
+function sheetScrollRatio(scroller: HTMLElement): SavedSheetScroll {
+    const maxX = Math.max(0, scroller.scrollWidth - scroller.clientWidth);
+    const maxY = Math.max(0, scroller.scrollHeight - scroller.clientHeight);
+
+    return {
+        x: maxX > 0 ? Math.min(1, Math.max(0, scroller.scrollLeft / maxX)) : 0,
+        y: maxY > 0 ? Math.min(1, Math.max(0, scroller.scrollTop / maxY)) : 0,
+    };
+}
+
+function applySheetScroll(scroller: HTMLElement, scroll: SavedSheetScroll | undefined) {
+    if (!scroll) {
+        return;
+    }
+
+    const maxX = Math.max(0, scroller.scrollWidth - scroller.clientWidth);
+    const maxY = Math.max(0, scroller.scrollHeight - scroller.clientHeight);
+    scroller.scrollLeft = scroll.x * maxX;
+    scroller.scrollTop = scroll.y * maxY;
 }
 
 type Props = {
@@ -308,6 +352,8 @@ export default function PdfWorkspace({
     const [positions, setPositions] = useState<Record<number, PinPosition>>({});
     const positionsRef = useRef(positions);
     const draggingRef = useRef(false);
+    const rememberScrollRef = useRef<() => void>(() => {});
+    const scrollSaveTimer = useRef<number | null>(null);
     const skipRename = useRef(false);
     const [renamingId, setRenamingId] = useState<number | null>(null);
     const [renameDraft, setRenameDraft] = useState('');
@@ -367,6 +413,12 @@ export default function PdfWorkspace({
     useEffect(() => {
         zoomRef.current = zoom;
     }, [zoom]);
+
+    useEffect(() => () => {
+        if (scrollSaveTimer.current !== null) {
+            window.clearTimeout(scrollSaveTimer.current);
+        }
+    }, []);
 
     useEffect(() => {
         const keys = new Set(markups.map(markupKey));
@@ -445,6 +497,7 @@ export default function PdfWorkspace({
                 page,
                 rotation,
                 zoom: zoomLocked.current ? zoom : savedView?.zoom,
+                scroll: savedView?.scroll,
             };
         }
 
@@ -510,6 +563,15 @@ export default function PdfWorkspace({
                     zoomAnchor.current = null;
                     scroller.scrollLeft = anchor.contentX * anchor.scale - anchor.viewX;
                     scroller.scrollTop = anchor.contentY * anchor.scale - anchor.viewY;
+                } else if (scroller) {
+                    const savedScroll = readDrawingTools().byDocument[String(document.id)]?.scroll?.[String(page)];
+
+                    if (savedScroll) {
+                        window.requestAnimationFrame(() => {
+                            applySheetScroll(scroller, savedScroll);
+                            rememberScrollRef.current();
+                        });
+                    }
                 }
 
                 const anchors: PinAnchor[] = [];
@@ -773,6 +835,7 @@ export default function PdfWorkspace({
                     page: savedView?.page ?? page,
                     rotation: savedView?.rotation ?? rotation,
                     zoom: clamped,
+                    scroll: savedView?.scroll,
                 };
                 writeDrawingTools({ zoom: clamped, tool, byDocument });
             }
@@ -832,8 +895,26 @@ export default function PdfWorkspace({
         const availableHeight = Math.max(1, measuredHeight - pad);
         const next = mode === 'width' ? availableWidth / width : Math.min(availableWidth / width, availableHeight / height);
         changeZoom(next, undefined, undefined, lock);
-        scroller.scrollLeft = 0;
-        scroller.scrollTop = 0;
+        const savedScroll = lock ? undefined : readDrawingTools().byDocument[String(document?.id)]?.scroll?.[String(page)];
+
+        if (savedScroll) {
+            window.requestAnimationFrame(() => applySheetScroll(scroller, savedScroll));
+        } else {
+            scroller.scrollLeft = 0;
+            scroller.scrollTop = 0;
+        }
+
+        if (lock && document?.id) {
+            const current = readDrawingTools();
+            const savedView = current.byDocument[String(document.id)];
+
+            if (savedView?.scroll) {
+                const scroll = { ...savedView.scroll };
+                delete scroll[String(page)];
+                current.byDocument[String(document.id)] = { ...savedView, scroll };
+                writeDrawingTools(current);
+            }
+        }
 
         return true;
     };
@@ -1189,6 +1270,41 @@ export default function PdfWorkspace({
         });
     };
 
+    const rememberSheetScroll = () => {
+        const scroller = scrollerRef.current;
+
+        if (!scroller || !document?.id) {
+            return;
+        }
+
+        const current = readDrawingTools();
+        const savedView = current.byDocument[String(document.id)] ?? {
+            page,
+            rotation,
+        };
+        const scroll = { ...(savedView.scroll ?? {}) };
+        scroll[String(page)] = sheetScrollRatio(scroller);
+        current.byDocument[String(document.id)] = {
+            ...savedView,
+            page,
+            rotation,
+            scroll,
+        };
+        writeDrawingTools(current);
+    };
+    rememberScrollRef.current = rememberSheetScroll;
+
+    const queueSheetScroll = () => {
+        if (scrollSaveTimer.current !== null) {
+            window.clearTimeout(scrollSaveTimer.current);
+        }
+
+        scrollSaveTimer.current = window.setTimeout(() => {
+            scrollSaveTimer.current = null;
+            rememberSheetScroll();
+        }, 180);
+    };
+
     const beginPan = (event: ReactPointerEvent<HTMLElement>) => {
         if (!panning) {
             return;
@@ -1214,6 +1330,7 @@ export default function PdfWorkspace({
         const up = () => {
             target.removeEventListener('pointermove', move);
             target.removeEventListener('pointerup', up);
+            rememberSheetScroll();
         };
         target.addEventListener('pointermove', move);
         target.addEventListener('pointerup', up);
@@ -1232,6 +1349,7 @@ export default function PdfWorkspace({
         const ratioY = (event.clientY - map.top) / map.height;
         scroller.scrollLeft = ratioX * canvas.offsetWidth - scroller.clientWidth / 2;
         scroller.scrollTop = ratioY * canvas.offsetHeight - scroller.clientHeight / 2;
+        rememberSheetScroll();
     };
 
     const doorCount = openings.filter((opening) => opening.opening_type !== 'window').length;
@@ -1658,6 +1776,7 @@ export default function PdfWorkspace({
                     ref={scrollerRef}
                     className={`absolute inset-0 overflow-x-auto overflow-y-auto bg-[#d7dee6] ${panning ? 'cursor-grab active:cursor-grabbing' : ''}`}
                     onPointerDown={beginPan}
+                    onScroll={queueSheetScroll}
                     onPointerMove={(event) => {
                         const rect = scrollerRef.current?.getBoundingClientRect();
 
