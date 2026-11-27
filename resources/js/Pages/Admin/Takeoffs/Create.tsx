@@ -5,7 +5,6 @@ import InputError from '@/Components/InputError';
 import InputLabel from '@/Components/InputLabel';
 import QuickProjectDialog from '@/Components/QuickProjectDialog';
 import RichTextEditor from '@/Components/RichTextEditor';
-import TextInput from '@/Components/TextInput';
 import { notesToHtml } from '@/lib/notesHtml';
 import { Button } from '@/Components/ui/button';
 import {
@@ -22,8 +21,6 @@ import { FormEvent, useState } from 'react';
 
 type ProjectOption = { id: number; name: string; project_number: string | null };
 
-const inputClassName =
-    'h-11 w-full border-border bg-background text-foreground placeholder:text-muted-foreground focus:border-ring focus:ring-ring';
 const selectClassName =
     'h-11 w-full rounded-md border border-border bg-background px-3 text-base text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring sm:text-sm dark:[color-scheme:dark]';
 const labelClassName = 'text-emerald-700 dark:text-emerald-300';
@@ -183,7 +180,7 @@ export default function Create({ projects, projectId }: { projects: ProjectOptio
                                             Leave the project blank and upload a drawing. The drawing is searched for the project name, address, and other details. The takeoff title uses that same name.
                                         </p>
                                     </div>
-                                    <div className="grid items-start gap-5 xl:grid-cols-2">
+                                    <div className="grid items-start gap-5">
                                         <div className="flex flex-col gap-2">
                                             <div className="flex h-10 items-center justify-between gap-2">
                                                 <InputLabel htmlFor="project_id" value="Project" className={labelClassName} />
@@ -229,9 +226,10 @@ export default function Create({ projects, projectId }: { projects: ProjectOptio
                                             <div className="flex h-10 items-center">
                                                 <InputLabel htmlFor="title" value="Title" className={labelClassName} />
                                             </div>
-                                            <TextInput
+                                            <textarea
                                                 id="title"
-                                                className={inputClassName}
+                                                rows={2}
+                                                className="w-full resize-y rounded-md border border-border bg-background px-3 py-2 text-base leading-6 text-foreground shadow-sm placeholder:text-muted-foreground focus:border-ring focus:ring-ring"
                                                 value={form.data.title}
                                                 placeholder={suggested || 'Named from the project and drawing'}
                                                 onChange={(event) => form.setData('title', event.target.value)}

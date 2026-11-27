@@ -1240,7 +1240,15 @@ export default function Show({ takeoff, templates, quotations, can, openingTypes
                             details.setData('notes', notes === '' ? incoming : `${notes}${incoming}`);
                         }}
                     />
-                    <label className="text-sm">Title<TextInput className="mt-1 w-full" value={details.data.title} onChange={(event) => details.setData('title', event.target.value)} /></label>
+                    <label className="text-sm md:col-span-4">
+                        Title
+                        <textarea
+                            rows={2}
+                            className="mt-1 w-full resize-y rounded-md border-gray-300 px-3 py-2 text-base leading-6 shadow-sm"
+                            value={details.data.title}
+                            onChange={(event) => details.setData('title', event.target.value)}
+                        />
+                    </label>
                     <label className="text-sm">Revision number
                         <TextInput className="mt-1 w-full" inputMode="numeric" value={details.data.revision_number} onChange={(event) => details.setData('revision_number', event.target.value.replace(/\D/g, '').slice(0, 4))} />
                     </label>

@@ -16,29 +16,30 @@ export default function TakeoffSteps({
 }) {
     return (
         <section className="rounded-xl border border-emerald-200 bg-emerald-50/60 p-3 dark:border-emerald-900 dark:bg-emerald-950/20">
-            <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2">
+            <div className="mb-2 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
                 <h3 className="text-sm font-semibold text-emerald-900 dark:text-emerald-100">How to price this takeoff</h3>
-                <p className="text-sm text-emerald-800 dark:text-emerald-200">{guide.next}</p>
+                <p className="min-w-0 text-sm leading-5 text-emerald-800 dark:text-emerald-200">{guide.next}</p>
             </div>
-            <ol className="grid gap-2 lg:grid-cols-4">
+            <ol className="grid gap-2 md:grid-cols-2 xl:grid-cols-4">
                 {guide.steps.map((step, index) => {
                     const body = (
                         <>
-                            <span className="flex items-center justify-between gap-2">
+                            <span className="flex h-5 items-center justify-between gap-2">
                                 <span className={cn(
-                                    'flex size-5 items-center justify-center rounded-full text-[11px] font-semibold',
+                                    'flex size-5 shrink-0 items-center justify-center rounded-full text-[11px] font-semibold',
                                     step.state === 'current' ? 'bg-emerald-600 text-white' : 'bg-white text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200',
                                 )}>
                                     {index + 1}
                                 </span>
-                                <span className="text-[11px] font-medium uppercase tracking-wide text-emerald-700 dark:text-emerald-300">{stateLabel[step.state]}</span>
+                                <span className="whitespace-nowrap text-[11px] font-medium uppercase tracking-wide text-emerald-700 dark:text-emerald-300">{stateLabel[step.state]}</span>
                             </span>
-                            <span className="mt-2 block text-sm font-medium text-foreground">{step.title}</span>
-                            <span className="mt-1 block text-xs leading-5 text-muted-foreground">{step.detail}</span>
+                            <span className="mt-2 block h-10 text-sm font-medium leading-5 text-foreground">{step.title}</span>
+                            <span className="mt-2 block border-t border-emerald-200 dark:border-emerald-800" aria-hidden="true" />
+                            <span className="mt-2 block text-xs leading-5 text-muted-foreground">{step.detail}</span>
                         </>
                     );
                     const className = cn(
-                        'h-full rounded-lg border p-3 text-left',
+                        'flex h-full flex-col rounded-lg border p-3 text-left',
                         step.state === 'current' ? 'border-emerald-500 bg-white dark:bg-emerald-950/40' : 'border-emerald-200/80 bg-white/70 dark:border-emerald-900 dark:bg-transparent',
                     );
 
@@ -47,8 +48,8 @@ export default function TakeoffSteps({
                     }
 
                     return (
-                        <li key={step.key}>
-                            <button type="button" className={cn(className, 'w-full')} onClick={() => onOpen(step)}>
+                        <li key={step.key} className="flex">
+                            <button type="button" className={cn(className, 'w-full flex-1')} onClick={() => onOpen(step)}>
                                 {body}
                             </button>
                         </li>
