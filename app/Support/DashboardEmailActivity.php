@@ -3,7 +3,6 @@
 namespace App\Support;
 
 use App\Exceptions\MicrosoftGraphException;
-use App\Jobs\RefreshDashboardEmailActivity;
 use App\Models\User;
 use App\Services\MicrosoftGraphMailService;
 use Carbon\CarbonImmutable;
@@ -50,24 +49,11 @@ class DashboardEmailActivity
         $cacheKey = 'dashboard-email-activity:'.$user->id.':'.$mailbox.':'.$range;
         $cached = Cache::get($cacheKey);
 
-        if (is_array($cached)) {
+        if (is_array($cached) && ($cached['status'] ?? null) !== 'loading') {
             return $cached;
         }
 
-        RefreshDashboardEmailActivity::dispatch($user->id, $range);
-
-        $stale = Cache::get(self::staleCacheKey($cacheKey));
-
-        if (is_array($stale)) {
-            return $stale;
-        }
-
-        return self::payload(
-            'loading',
-            $mailbox,
-            $range,
-            self::emptyDays($range),
-        );
+        return self::refresh($user, $range);
     }
 
     /**

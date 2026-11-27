@@ -31,7 +31,6 @@ import {
 } from '@/Components/ui/dropdown-menu';
 
 import { openSnapDrawer } from '@/lib/shortcuts';
-import { useUnreadMail } from '@/lib/unreadMail';
 import { PageProps } from '@/types';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import { toast } from 'sonner';
@@ -82,8 +81,6 @@ export default function Authenticated({
     const canManageNotifications = Boolean(auth.can?.manageNotifications);
     const notifications = auth.notifications;
     const systemUpdatesUnread = auth.systemUpdatesUnread ?? 0;
-    const unreadMail = useUnreadMail();
-    const hasUnreadMail = unreadMail > 0;
     const hasUnreadNotifications = notifications.unreadCount > 0;
     const previousUnreadCount = useRef(notifications.unreadCount);
     const idleTimeoutRef = useRef<number | null>(null);
@@ -529,24 +526,6 @@ export default function Authenticated({
                                 >
                                     Dashboard
                                 </NavLink>
-
-                                <NavLink
-                                    href={route('mailbox.index')}
-                                    active={route().current('mailbox.*')}
-                                    className={
-                                        hasUnreadMail
-                                            ? ' text-red-600 dark:text-red-400'
-                                            : ''
-                                    }
-                                >
-                                    <span className="inline-flex items-center gap-1.5">
-                                        Email
-                                        {hasUnreadMail ? (
-                                            <MailOpenIcon className="size-3.5 animate-mail-alert text-red-600 dark:text-red-400" />
-                                        ) : null}
-                                    </span>
-                                </NavLink>
-
                             </div>
                         </div>
 

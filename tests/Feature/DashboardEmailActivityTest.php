@@ -1,12 +1,10 @@
 <?php
 
-use App\Jobs\RefreshDashboardEmailActivity;
 use App\Models\User;
 use App\Support\DashboardEmailActivity;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\Queue;
 use Inertia\Testing\AssertableInertia as Assert;
 
 beforeEach(function () {
@@ -128,24 +126,23 @@ test('email activity reports when no mailbox is assigned', function () {
     Http::assertNothingSent();
 });
 
-test('uncached email activity is queued without making the dashboard wait for microsoft 365', function () {
-    Queue::fake();
-    Http::fake();
+test('uncached email activity loads when the dashboard asks for it', function () {
+    fakeEmailActivityGraph(
+        inbox: [inboxItem('2026-11-02T13:00:00Z')],
+        sent: [['sentDateTime' => '2026-11-02T10:00:00Z']],
+    );
     $user = User::factory()->create(['microsoft_mailbox' => 'ricardo@gateway-ds.com']);
 
     $this->actingAs($user)
         ->get(route('dashboard'))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
+            ->missing('emailActivity')
             ->loadDeferredProps(fn (Assert $reload) => $reload
-                ->where('emailActivity.status', 'loading')
-                ->where('emailActivity.range', 14)));
-
-    Queue::assertPushed(
-        RefreshDashboardEmailActivity::class,
-        fn (RefreshDashboardEmailActivity $job) => $job->userId === $user->id && $job->range === 14,
-    );
-    Http::assertNothingSent();
+                ->where('emailActivity.status', 'ok')
+                ->where('emailActivity.range', 14)
+                ->where('emailActivity.totals.received', 1)
+                ->where('emailActivity.totals.sent', 1)));
 });
 
 test('email activity keeps the last successful data when microsoft 365 is unavailable', function () {
