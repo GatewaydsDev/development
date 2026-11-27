@@ -8,6 +8,8 @@ import FormActionFab from '@/Components/FormActionFab';
 import MaskedDecimalInput from '@/Components/MaskedDecimalInput';
 import RichTextEditor from '@/Components/RichTextEditor';
 import TextInput from '@/Components/TextInput';
+import { notesToHtml } from '@/lib/notesHtml';
+import { isEmptyHtml } from '@/Pages/Admin/Bids/bidText';
 import { Button } from '@/Components/ui/button';
 import {
     Card,
@@ -92,6 +94,9 @@ const optionalMoneySchema = z.string().refine((value) => {
 }, 'Budget amount must be zero or greater.');
 
 const addendumDocumentExtensions = ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'csv', 'png', 'jpg', 'jpeg', 'webp', 'txt'];
+
+const addendumNotesAreBlank = (notes: string) =>
+    !/<img\b/i.test(notes) && isEmptyHtml(notes);
 
 const addendumDocumentSchema = z
     .custom<File | null>((value) => value === null || value instanceof File)
@@ -231,7 +236,7 @@ function projectSchema(options: ProjectOptions, canEditCoreFields: boolean) {
                     notes: z
                         .string()
                         .trim()
-                        .max(2000, 'Addendum notes must be 2,000 characters or less.'),
+                        .max(60000, 'Addendum notes must be 60,000 characters or less.'),
                     document_name: z.string(),
                     document_url: z.string(),
                     document: addendumDocumentSchema,
@@ -393,7 +398,9 @@ function projectSchema(options: ProjectOptions, canEditCoreFields: boolean) {
             values.addendums.forEach((addendum, index) => {
                 const number = addendum.number.trim().toLowerCase();
                 const issuedOn = addendum.issued_on.trim();
-                const notes = addendum.notes.trim();
+                const notes = addendumNotesAreBlank(addendum.notes)
+                    ? ''
+                    : addendum.notes.trim();
                 const hasDocument =
                     addendum.document !== null ||
                     (addendum.document_name.trim() !== '' && !addendum.remove_document);
@@ -674,7 +681,7 @@ export default function ProjectForm({
                     (addendum) =>
                         addendum.number.trim() !== '' ||
                         addendum.issued_on.trim() !== '' ||
-                        addendum.notes.trim() !== '' ||
+                        !addendumNotesAreBlank(addendum.notes) ||
                         addendum.document !== null ||
                         (addendum.document_name.trim() !== '' && !addendum.remove_document),
                 )
@@ -682,7 +689,7 @@ export default function ProjectForm({
                     id: addendum.id.trim() || null,
                     number: addendum.number,
                     issued_on: addendum.issued_on,
-                    notes: addendum.notes,
+                    notes: addendumNotesAreBlank(addendum.notes) ? '' : addendum.notes,
                     remove_document: addendum.remove_document,
                     ...(addendum.document ? { document: addendum.document } : {}),
                 })),
@@ -1292,7 +1299,7 @@ export default function ProjectForm({
                                             return (
                                                 <div
                                                     key={field.id}
-                                                    className="grid min-w-0 items-start gap-4 rounded-lg border border-border bg-muted/10 p-4 md:grid-cols-2 xl:grid-cols-[minmax(8rem,0.7fr)_minmax(10rem,0.85fr)_minmax(0,1.4fr)_minmax(0,1fr)_auto]"
+                                                    className="grid min-w-0 items-start gap-4 rounded-lg border border-border bg-muted/10 p-4 md:grid-cols-2 xl:grid-cols-[minmax(8rem,0.7fr)_minmax(10rem,0.9fr)_minmax(0,1fr)_auto]"
                                                 >
                                                     <div className="flex flex-col gap-2">
                                                         <InputLabel
@@ -1342,32 +1349,6 @@ export default function ProjectForm({
                                                     </div>
                                                     <div className="flex flex-col gap-2">
                                                         <InputLabel
-                                                            htmlFor={`project-addendum-notes-${index}`}
-                                                            value="Notes"
-                                                            className={labelClassName}
-                                                        />
-                                                        <TextInput
-                                                            id={`project-addendum-notes-${index}`}
-                                                            value={addendum?.notes ?? ''}
-                                                            className={inputClassName}
-                                                            placeholder="Notes"
-                                                            onChange={(event) =>
-                                                                setAddendumData(
-                                                                    index,
-                                                                    'notes',
-                                                                    event.target.value,
-                                                                )
-                                                            }
-                                                        />
-                                                        <InputError
-                                                            message={errorMessage(
-                                                                validationErrors,
-                                                                `addendums.${index}.notes`,
-                                                            )}
-                                                        />
-                                                    </div>
-                                                    <div className="flex flex-col gap-2">
-                                                        <InputLabel
                                                             htmlFor={`project-addendum-user-${index}`}
                                                             value="Recorded by"
                                                             className={labelClassName}
@@ -1391,6 +1372,34 @@ export default function ProjectForm({
                                                             <Trash2Icon className="size-4" />
                                                             Remove
                                                         </Button>
+                                                    </div>
+                                                    <div className="flex min-w-0 flex-col gap-2 md:col-span-2 xl:col-span-full">
+                                                        <InputLabel
+                                                            htmlFor={`project-addendum-notes-${index}`}
+                                                            value="Notes"
+                                                            className={labelClassName}
+                                                        />
+                                                        <RichTextEditor
+                                                            id={`project-addendum-notes-${index}`}
+                                                            compact
+                                                            value={notesToHtml(addendum?.notes ?? '')}
+                                                            onChange={(html) =>
+                                                                setAddendumData(index, 'notes', html)
+                                                            }
+                                                            placeholder="Notes"
+                                                            error={errorMessage(
+                                                                validationErrors,
+                                                                `addendums.${index}.notes`,
+                                                            )}
+                                                            showPlaceholders={false}
+                                                            allowSideToolbar={false}
+                                                        />
+                                                        <InputError
+                                                            message={errorMessage(
+                                                                validationErrors,
+                                                                `addendums.${index}.notes`,
+                                                            )}
+                                                        />
                                                     </div>
                                                     <div className="flex flex-col gap-2 md:col-span-2 xl:col-span-full">
                                                         <InputLabel

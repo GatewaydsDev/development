@@ -1466,3 +1466,50 @@ test('a project keeps every bid date and each addendum', function () {
 
     expect($project->fresh()->bidDates)->toHaveCount(3);
 });
+
+test('formatted addendum notes are kept and an empty editor is stored blank', function () {
+    $admin = projectAdmin();
+    $base = [
+        'name' => 'Addendum notes editor',
+        'project_number' => '',
+        'assigned_to' => '',
+        'status_id' => projectStatusId(),
+        'priority' => 'normal',
+        'estimated_start_date' => '',
+        'estimated_end_date' => '',
+        'completed_at' => '',
+        'public_notes' => '',
+        'internal_notes' => '',
+        'contractors' => [],
+        'scopes' => [],
+        'revisions' => [],
+        'prices' => [],
+        'bid_dates' => [],
+    ];
+
+    $this->actingAs($admin)
+        ->post(route('admin.projects.store'), [
+            ...$base,
+            'addendums' => [
+                [
+                    'number' => '1',
+                    'issued_on' => '2026-11-12',
+                    'notes' => '<p>Hardware <strong>revised</strong></p><script>alert(1)</script>',
+                ],
+                [
+                    'number' => '2',
+                    'issued_on' => '2026-11-13',
+                    'notes' => '<p></p>',
+                ],
+            ],
+        ])
+        ->assertSessionHasNoErrors();
+
+    $project = Project::query()->where('name', 'Addendum notes editor')->firstOrFail();
+    $formatted = $project->addendums->firstWhere('number', '1');
+    $empty = $project->addendums->firstWhere('number', '2');
+
+    expect($formatted?->notes)->toContain('<strong>revised</strong>')
+        ->and($formatted?->notes)->not->toContain('script')
+        ->and($empty?->notes)->toBeNull();
+});

@@ -776,7 +776,7 @@ class ProjectController extends Controller
                 ],
                 'addendums.*.number' => ['required', 'string', 'max:50', 'distinct'],
                 'addendums.*.issued_on' => ['nullable', 'date'],
-                'addendums.*.notes' => ['nullable', 'string', 'max:2000'],
+                'addendums.*.notes' => ['nullable', 'string', 'max:60000'],
                 'addendums.*.document' => ['nullable', 'file', 'mimes:pdf,doc,docx,xls,xlsx,csv,png,jpg,jpeg,webp,txt', 'max:20480'],
                 'addendums.*.remove_document' => ['nullable', 'boolean'],
             ];
@@ -1297,7 +1297,7 @@ class ProjectController extends Controller
             $attributes = [
                 'number' => trim((string) $addendum['number']),
                 'issued_on' => $addendum['issued_on'] ?: null,
-                'notes' => filled($addendum['notes'] ?? null) ? trim((string) $addendum['notes']) : null,
+                'notes' => $this->addendumNotes($addendum['notes'] ?? null),
             ];
 
             if ($existing) {
@@ -1331,6 +1331,21 @@ class ProjectController extends Controller
                 $addendum->deleteStoredDocument();
                 $addendum->delete();
             });
+    }
+
+    private function addendumNotes(mixed $notes): ?string
+    {
+        $notes = is_string($notes) ? trim($notes) : '';
+
+        if ($notes === '' || BidApplicationText::isEmpty($notes)) {
+            return null;
+        }
+
+        if (strip_tags($notes) === $notes) {
+            return $notes;
+        }
+
+        return BidApplicationText::sanitize($notes);
     }
 
     /**

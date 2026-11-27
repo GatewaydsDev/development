@@ -497,7 +497,7 @@ class ProjectDocument
             ->map(fn ($addendum): array => [
                 'number' => (string) ($addendum->number ?: '—'),
                 'date' => $this->dateLabel($addendum->issued_on) ?: 'Not set',
-                'notes' => filled($addendum->notes) ? (string) $addendum->notes : 'No notes added.',
+                'notes' => $this->plainText($addendum->notes) ?: 'No notes added.',
                 'document' => filled($addendum->document_name) ? (string) $addendum->document_name : 'No document',
                 'user' => $addendum->user?->name ?: 'Not set',
             ])

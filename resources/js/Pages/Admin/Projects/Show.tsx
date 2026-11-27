@@ -476,8 +476,9 @@ export default function Show({ project, options, clientCompany = null, clientCom
                                     {project.addendums.map((addendum) => (
                                         <div
                                             key={addendum.id ?? addendum.number}
-                                            className="grid gap-3 rounded-lg border border-border bg-muted/30 p-4 sm:grid-cols-[8rem_10rem_minmax(0,1.2fr)_minmax(0,1fr)_minmax(10rem,0.8fr)] sm:items-start"
+                                            className="flex flex-col gap-4 rounded-lg border border-border bg-muted/30 p-4"
                                         >
+                                            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-[8rem_10rem_minmax(0,1fr)_minmax(10rem,0.8fr)]">
                                             <div>
                                                 <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                                                     Addendum
@@ -492,14 +493,6 @@ export default function Show({ project, options, clientCompany = null, clientCom
                                                 </p>
                                                 <p className="mt-1 text-sm text-foreground">
                                                     {addendum.issued_on || 'Not set'}
-                                                </p>
-                                            </div>
-                                            <div>
-                                                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                                                    Notes
-                                                </p>
-                                                <p className="mt-1 text-sm text-foreground">
-                                                    {addendum.notes || 'No notes added.'}
                                                 </p>
                                             </div>
                                             <div>
@@ -528,6 +521,16 @@ export default function Show({ project, options, clientCompany = null, clientCom
                                                 <p className="mt-1 text-sm text-foreground">
                                                     {addendum.user?.name || 'Not set'}
                                                 </p>
+                                            </div>
+                                            </div>
+                                            <div>
+                                                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                                                    Notes
+                                                </p>
+                                                <ProjectNote
+                                                    value={addendum.notes}
+                                                    empty="No notes added."
+                                                />
                                             </div>
                                         </div>
                                     ))}
