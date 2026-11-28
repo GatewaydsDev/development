@@ -22,9 +22,11 @@ import {
     CardTitle,
 } from '@/Components/ui/card';
 import ClientCompanyCard, { type ClientCompanyData } from '@/Components/ClientCompanyCard';
-import { Head, Link, router } from '@inertiajs/react';
-import { useState } from 'react';
+import { Head, Link, router, usePage } from '@inertiajs/react';
+import type { PageProps } from '@/types';
+import { useEffect, useState } from 'react';
 import { formatCurrency } from '@/lib/money';
+import { cn } from '@/lib/utils';
 import {
     BriefcaseIcon,
     CalendarDaysIcon,
@@ -100,7 +102,36 @@ function DetailItem({
 }
 
 export default function Show({ project, options, clientCompany = null, clientCompanies = [] }: ShowProps) {
+    const { auth } = usePage<PageProps>().props;
+    const [section, setSection] = useState('');
     const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+
+    useEffect(() => {
+        const id = new URLSearchParams(window.location.search).get('section')
+            || window.location.hash.replace('#', '');
+
+        setSection(id);
+
+        if (!id) {
+            return;
+        }
+
+        const timer = window.setTimeout(() => {
+            const node = document.getElementById(id);
+
+            if (!node) {
+                return;
+            }
+
+            const behavior = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+                ? 'auto'
+                : 'smooth';
+
+            node.scrollIntoView({ behavior, block: 'start' });
+        }, 180);
+
+        return () => window.clearTimeout(timer);
+    }, []);
     const removeProject = () => {
         router.delete(route('admin.projects.destroy', project.uuid));
     };
@@ -392,7 +423,153 @@ export default function Show({ project, options, clientCompany = null, clientCom
                         </CardContent>
                     </Card>
 
-                    <Card className="border-orange-200 bg-orange-50/70 dark:border-orange-900 dark:bg-orange-950/30">
+                    <div className="grid gap-6 md:grid-cols-2">
+                        <Card
+                            id="quotation"
+                            className={cn(
+                                'scroll-mt-28 border-indigo-200 bg-indigo-50/70 dark:border-indigo-900 dark:bg-indigo-950/30',
+                                section === 'quotation' && 'ring-2 ring-indigo-600',
+                            )}
+                        >
+                            <CardHeader>
+                                <CardTitle className="flex items-center gap-2">
+                                    <FileTextIcon className="size-5 text-muted-foreground" />
+                                    Quotation
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent className="flex flex-col gap-3">
+                                {project.quotation ? (
+                                    <>
+                                        <p className="font-medium text-foreground">
+                                            {project.quotation.number || project.quotation.title || 'Quotation'}
+                                        </p>
+                                        <p className="text-sm text-muted-foreground">{project.quotation.status_label}</p>
+                                        {auth.can?.viewQuotations ? (
+                                            <Link
+                                                href={route('admin.quotations.show', project.quotation.uuid)}
+                                                className="text-sm font-medium text-indigo-800 underline dark:text-indigo-200"
+                                            >
+                                                Open quotation
+                                            </Link>
+                                        ) : null}
+                                    </>
+                                ) : (
+                                    <p className="text-sm text-muted-foreground">No quotation yet.</p>
+                                )}
+                            </CardContent>
+                        </Card>
+                        <Card
+                            id="bid"
+                            className={cn(
+                                'scroll-mt-28 border-sky-200 bg-sky-50/70 dark:border-sky-900 dark:bg-sky-950/30',
+                                section === 'bid' && 'ring-2 ring-sky-600',
+                            )}
+                        >
+                            <CardHeader>
+                                <CardTitle>Bid</CardTitle>
+                            </CardHeader>
+                            <CardContent className="flex flex-col gap-3">
+                                {project.bid ? (
+                                    <>
+                                        <p className="font-medium text-foreground">
+                                            {project.bids_count && project.bids_count > 1
+                                                ? `Latest of ${project.bids_count}`
+                                                : 'Bid'}
+                                        </p>
+                                        <p className="text-sm text-muted-foreground">{project.bid.status}</p>
+                                        {auth.can?.viewBids ? (
+                                            <Link
+                                                href={route('admin.bids.show', project.bid.uuid)}
+                                                className="text-sm font-medium text-sky-800 underline dark:text-sky-200"
+                                            >
+                                                Open bid
+                                            </Link>
+                                        ) : null}
+                                    </>
+                                ) : (
+                                    <p className="text-sm text-muted-foreground">No bid yet.</p>
+                                )}
+                            </CardContent>
+                        </Card>
+                        <Card
+                            id="takeoff"
+                            className={cn(
+                                'scroll-mt-28 border-amber-200 bg-amber-50/70 dark:border-amber-900 dark:bg-amber-950/30',
+                                section === 'takeoff' && 'ring-2 ring-amber-600',
+                            )}
+                        >
+                            <CardHeader>
+                                <CardTitle>Takeoff</CardTitle>
+                            </CardHeader>
+                            <CardContent className="flex flex-col gap-3">
+                                {project.takeoff ? (
+                                    <>
+                                        <p className="font-medium text-foreground">{project.takeoff.title}</p>
+                                        <p className="text-sm text-muted-foreground">{project.takeoff.status_label}</p>
+                                        {auth.can?.viewTakeoffs ? (
+                                            <Link
+                                                href={route('admin.takeoffs.show', project.takeoff.uuid)}
+                                                className="text-sm font-medium text-amber-800 underline dark:text-amber-200"
+                                            >
+                                                Open takeoff
+                                            </Link>
+                                        ) : null}
+                                    </>
+                                ) : (
+                                    <p className="text-sm text-muted-foreground">No takeoff yet.</p>
+                                )}
+                            </CardContent>
+                        </Card>
+                        <Card
+                            id="schedule"
+                            className={cn(
+                                'scroll-mt-28 border-blue-200 bg-blue-50/70 dark:border-blue-900 dark:bg-blue-950/30',
+                                section === 'schedule' && 'ring-2 ring-blue-600',
+                            )}
+                        >
+                            <CardHeader>
+                                <CardTitle className="flex items-center gap-2">
+                                    <CalendarDaysIcon className="size-5 text-muted-foreground" />
+                                    Schedule
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent className="flex flex-col gap-3">
+                                {project.work_schedule ? (
+                                    <>
+                                        <p className="font-medium text-foreground">
+                                            {project.work_schedule.starts_on ?? '—'} → {project.work_schedule.ends_on ?? '—'}
+                                        </p>
+                                        <p className="text-sm text-muted-foreground">
+                                            {project.work_schedule.employees_count} crew
+                                            {project.work_schedule.schedules_count > 1
+                                                ? ` · latest of ${project.work_schedule.schedules_count}`
+                                                : ''}
+                                            {' · '}
+                                            {project.work_schedule.status_label}
+                                        </p>
+                                        {auth.can?.viewEmployees ? (
+                                            <Link
+                                                href={route('admin.employee-schedules.edit', project.work_schedule.uuid)}
+                                                className="text-sm font-medium text-blue-800 underline dark:text-blue-200"
+                                            >
+                                                Open schedule
+                                            </Link>
+                                        ) : null}
+                                    </>
+                                ) : (
+                                    <p className="text-sm text-muted-foreground">No schedule yet.</p>
+                                )}
+                            </CardContent>
+                        </Card>
+                    </div>
+
+                    <Card
+                        id="bid-dates"
+                        className={cn(
+                            'scroll-mt-28 border-orange-200 bg-orange-50/70 dark:border-orange-900 dark:bg-orange-950/30',
+                            section === 'bid-dates' && 'ring-2 ring-orange-600',
+                        )}
+                    >
                         <CardHeader>
                             <CardTitle className="flex items-center gap-2">
                                 <CalendarDaysIcon className="size-5 text-muted-foreground" />
@@ -460,7 +637,13 @@ export default function Show({ project, options, clientCompany = null, clientCom
                         </CardContent>
                     </Card>
 
-                    <Card className="border-violet-200 bg-violet-50/70 dark:border-violet-900 dark:bg-violet-950/30">
+                    <Card
+                        id="addendums"
+                        className={cn(
+                            'scroll-mt-28 border-violet-200 bg-violet-50/70 dark:border-violet-900 dark:bg-violet-950/30',
+                            section === 'addendums' && 'ring-2 ring-violet-600',
+                        )}
+                    >
                         <CardHeader>
                             <CardTitle className="flex items-center gap-2">
                                 <FilePlus2Icon className="size-5 text-muted-foreground" />

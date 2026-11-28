@@ -14,10 +14,9 @@ import {
     CardHeader,
     CardTitle,
 } from '@/Components/ui/card';
-import { Head, Link, router, usePage } from '@inertiajs/react';
+import { Head, Link, router } from '@inertiajs/react';
 import { formatCurrency } from '@/lib/money';
 import { cn } from '@/lib/utils';
-import { PageProps } from '@/types';
 import {
     BriefcaseIcon,
     EditIcon,
@@ -97,11 +96,6 @@ export default function Index({
     summary,
     listVersion,
 }: IndexProps) {
-    const { auth } = usePage<PageProps>().props;
-    const canViewBids = Boolean(auth.can?.viewBids);
-    const canViewQuotations = Boolean(auth.can?.viewQuotations);
-    const canViewTakeoffs = Boolean(auth.can?.viewTakeoffs);
-    const canViewSchedules = Boolean(auth.can?.viewEmployees);
     const [search, setSearch] = useState(filters.search ?? '');
     const [status, setStatus] = useState(filters.status ?? '');
     const highlightedProjectUuid = filters.highlight ?? null;
@@ -406,8 +400,8 @@ export default function Index({
                                                     name={project.quotation?.number || project.quotation?.title}
                                                     status={project.quotation?.status_label}
                                                     href={
-                                                        canViewQuotations && project.quotation
-                                                            ? route('admin.quotations.show', project.quotation.uuid)
+                                                        project.quotation
+                                                            ? projectSectionHref(project.uuid, 'quotation')
                                                             : null
                                                     }
                                                     className="border-indigo-600 bg-indigo-100 text-indigo-950 dark:border-indigo-400 dark:bg-indigo-950 dark:text-indigo-50"
@@ -417,8 +411,8 @@ export default function Index({
                                                     name={project.bid ? (project.bids_count && project.bids_count > 1 ? `Latest of ${project.bids_count}` : 'Bid') : null}
                                                     status={project.bid?.status}
                                                     href={
-                                                        canViewBids && project.bid
-                                                            ? route('admin.bids.show', project.bid.uuid)
+                                                        project.bid
+                                                            ? projectSectionHref(project.uuid, 'bid')
                                                             : null
                                                     }
                                                     className="border-sky-600 bg-sky-100 text-sky-950 dark:border-sky-400 dark:bg-sky-950 dark:text-sky-50"
@@ -428,8 +422,8 @@ export default function Index({
                                                     name={project.takeoff?.title}
                                                     status={project.takeoff?.status_label}
                                                     href={
-                                                        canViewTakeoffs && project.takeoff
-                                                            ? route('admin.takeoffs.show', project.takeoff.uuid)
+                                                        project.takeoff
+                                                            ? projectSectionHref(project.uuid, 'takeoff')
                                                             : null
                                                     }
                                                     className="border-amber-600 bg-amber-100 text-amber-950 dark:border-amber-400 dark:bg-amber-950 dark:text-amber-50"
@@ -443,14 +437,17 @@ export default function Index({
                                                     }
                                                     status={project.work_schedule?.status_label}
                                                     href={
-                                                        canViewSchedules && project.work_schedule
-                                                            ? route('admin.employee-schedules.edit', project.work_schedule.uuid)
+                                                        project.work_schedule
+                                                            ? projectSectionHref(project.uuid, 'schedule')
                                                             : null
                                                     }
                                                     className="border-emerald-600 bg-emerald-100 text-emerald-950 dark:border-emerald-400 dark:bg-emerald-950 dark:text-emerald-50"
                                                 />
                                                 {project.addendums && project.addendums.length > 0 ? (
-                                                    <div className="col-span-2 flex flex-col gap-1 rounded-md border-2 border-violet-600 bg-violet-100 px-2 py-1.5 text-violet-950 dark:border-violet-400 dark:bg-violet-950 dark:text-violet-50 xl:col-span-4">
+                                                    <Link
+                                                        href={projectSectionHref(project.uuid, 'addendums')}
+                                                        className="relative z-10 col-span-2 flex flex-col gap-1 rounded-md border-2 border-violet-600 bg-violet-100 px-2 py-1.5 text-violet-950 hover:brightness-95 dark:border-violet-400 dark:bg-violet-950 dark:text-violet-50 xl:col-span-4"
+                                                    >
                                                         <span className="text-[10px] font-bold uppercase leading-tight tracking-wide">
                                                             Addendums
                                                         </span>
@@ -463,7 +460,7 @@ export default function Index({
                                                                 </li>
                                                             ))}
                                                         </ul>
-                                                    </div>
+                                                    </Link>
                                                 ) : null}
                                                 </div>
                                             </div>
@@ -472,9 +469,12 @@ export default function Index({
                                                     Bid dates
                                                 </DirectoryFieldLabel>
                                                 {project.bid_dates && project.bid_dates.length > 0 ? (
-                                                    <ul className="flex flex-col gap-2 text-sm">
+                                                    <Link
+                                                        href={projectSectionHref(project.uuid, 'bid-dates')}
+                                                        className="relative z-10 flex flex-col gap-2 text-sm hover:text-foreground"
+                                                    >
                                                         {project.bid_dates.map((bidDate, index) => (
-                                                            <li key={bidDate.id ?? bidDate.bid_date ?? index}>
+                                                            <div key={bidDate.id ?? bidDate.bid_date ?? index}>
                                                                 <p className="font-medium text-foreground">
                                                                     {index === 0 ? 'Current · ' : ''}
                                                                     {isoToMaskedDate(bidDate.bid_date ?? '') ||
@@ -497,9 +497,9 @@ export default function Index({
                                                                 <p className="break-words text-muted-foreground">
                                                                     {bidDate.notes || 'No notes.'}
                                                                 </p>
-                                                            </li>
+                                                            </div>
                                                         ))}
-                                                    </ul>
+                                                    </Link>
                                                 ) : (
                                                     <p className="text-sm text-muted-foreground">
                                                         No bid date
@@ -734,6 +734,10 @@ function ProjectTotal({
             )}
         </div>
     );
+}
+
+function projectSectionHref(uuid: string, section: string): string {
+    return `${route('admin.projects.show', uuid)}?section=${section}`;
 }
 
 function LinkedRecord({

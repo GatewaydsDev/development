@@ -1476,7 +1476,42 @@ export default function Show({ takeoff, templates, quotations, can, openingTypes
     }).join('\n');
 
     return (
-        <AuthenticatedLayout header={<h2 className="text-xl font-semibold leading-tight text-emerald-700 dark:text-emerald-300">{takeoff.title}</h2>}>
+        <AuthenticatedLayout
+            stickyTitle={takeoff.title}
+            header={
+                <div>
+                    <nav
+                        aria-label="Breadcrumb"
+                        className="flex flex-wrap items-center gap-2 text-sm font-medium text-muted-foreground"
+                    >
+                        <span>Administration</span>
+                        <span>/</span>
+                        <Link
+                            href={route('admin.takeoffs.index')}
+                            className="transition hover:text-foreground"
+                        >
+                            Takeoffs
+                        </Link>
+                        {takeoff.project ? (
+                            <>
+                                <span>/</span>
+                                <Link
+                                    href={route('admin.projects.show', takeoff.project.uuid)}
+                                    className="transition hover:text-foreground"
+                                >
+                                    {[takeoff.project.project_number, takeoff.project.name].filter(Boolean).join(' — ')}
+                                </Link>
+                            </>
+                        ) : null}
+                        <span>/</span>
+                        <span className="text-foreground">{takeoff.title}</span>
+                    </nav>
+                    <h2 className="text-xl font-semibold leading-tight text-emerald-700 dark:text-emerald-300">
+                        {takeoff.title}
+                    </h2>
+                </div>
+            }
+        >
             <Head title={takeoff.title} />
             {existsNotice
                 ? createPortal(

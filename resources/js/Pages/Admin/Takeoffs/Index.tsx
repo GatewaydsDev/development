@@ -29,7 +29,10 @@ export default function Index({ filters, takeoffs, projects, can }: Props) {
         <AuthenticatedLayout header={
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <div>
-                        <nav className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                        <nav
+                            aria-label="Breadcrumb"
+                            className="flex items-center gap-2 text-sm font-medium text-muted-foreground"
+                        >
                             <span>Administration</span>
                             <span>/</span>
                             <span className="text-foreground">Takeoffs</span>
