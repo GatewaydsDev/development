@@ -102,6 +102,8 @@ type Paginated<T> = {
     total: number;
 };
 
+type CatalogOption = { id: string; name: string };
+
 type ShowProps = BasePageProps<{
     contact: Contact;
     tab: string;
@@ -110,6 +112,8 @@ type ShowProps = BasePageProps<{
     followUps: Paginated<FollowUp>;
     nextFollowUp: FollowUp | null;
     users: User[];
+    contactTypes?: CatalogOption[];
+    phoneLabels?: CatalogOption[];
 }> & {
     contact: Contact;
     tab: string;
@@ -158,6 +162,8 @@ export default function ContactsShow({
     followUps,
     nextFollowUp,
     users,
+    contactTypes = [],
+    phoneLabels = [],
 }: ShowProps) {
     const pageProps = usePage<ShowProps>();
     const can = (pageProps.props.auth.can ?? {}) as Record<string, boolean>;
@@ -231,7 +237,7 @@ export default function ContactsShow({
                         </CardHeader>
                         <CardContent className="space-y-4">
                             <div className="flex flex-wrap gap-2">
-                                <Badge variant="secondary">{contact.contact_type}</Badge>
+                                <Badge variant="secondary">{contactTypes.find((type) => String(type.id) === contact.contact_type)?.name ?? contact.contact_type}</Badge>
                                 {contact.is_active ? (
                                     <Badge>Active</Badge>
                                 ) : (
@@ -261,7 +267,7 @@ export default function ContactsShow({
                                                         : ''}
                                                 </a>
                                                 <span className="ml-2 text-xs text-muted-foreground">
-                                                    {phone.label}
+                                                    {phoneLabels.find((label) => label.name.toLowerCase() === phone.label.toLowerCase())?.name ?? phone.label}
                                                     {phone.is_primary ? ' · primary' : ''}
                                                 </span>
                                             </span>

@@ -67,6 +67,7 @@ type IndexProps = PageProps & {
     };
     contacts: Paginated<ContactDirectoryContact>;
     users: ContactDirectoryUser[];
+    contactTypes?: { id: string; name: string }[];
 };
 
 const CONTACT_TYPE_LABELS: Record<string, string> = {
@@ -83,7 +84,7 @@ const CONTACT_TYPE_STYLES: Record<string, string> = {
     other: 'border-violet-200 bg-violet-100 text-violet-800 dark:border-violet-800 dark:bg-violet-950 dark:text-violet-200',
 };
 
-export default function ContactsIndex({ filters, contacts, users, auth }: IndexProps) {
+export default function ContactsIndex({ filters, contacts, users, contactTypes = [], auth }: IndexProps) {
     const [search, setSearch] = useState(filters.search ?? '');
 
     const submitSearch = (event: FormEvent) => {
@@ -131,9 +132,9 @@ export default function ContactsIndex({ filters, contacts, users, auth }: IndexP
                     <SimpleSelect
                         label="Contact type"
                         value={filters.contact_type ?? ''}
-                        options={Object.entries(CONTACT_TYPE_LABELS).map(([value, label]) => ({
-                            value,
-                            label,
+                        options={(contactTypes.length > 0 ? contactTypes : Object.entries(CONTACT_TYPE_LABELS).map(([id, name]) => ({ id, name }))).map((type) => ({
+                            value: String(type.id),
+                            label: type.name,
                         }))}
                         placeholder="All contact types"
                         onChange={(value) => applyFilter('contact_type', value)}
@@ -224,8 +225,9 @@ export default function ContactsIndex({ filters, contacts, users, auth }: IndexP
                                     </TableCell>
                                     <TableCell>
                                         <Badge variant="outline" className={CONTACT_TYPE_STYLES[contact.contact_type] ?? CONTACT_TYPE_STYLES.other}>
-                                            {CONTACT_TYPE_LABELS[contact.contact_type] ??
-                                                contact.contact_type}
+                                            {contactTypes.find((type) => String(type.id) === contact.contact_type)?.name
+                                                ?? CONTACT_TYPE_LABELS[contact.contact_type]
+                                                ?? contact.contact_type}
                                         </Badge>
                                     </TableCell>
                                     <TableCell className="text-sm text-muted-foreground">

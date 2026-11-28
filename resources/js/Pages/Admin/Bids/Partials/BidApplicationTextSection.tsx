@@ -1,3 +1,4 @@
+import { FormSectionHeading } from '@/Components/ContactDirectory/FormSection';
 import CreatableSelect from '@/Components/CreatableSelect';
 import InputError from '@/Components/InputError';
 import InputLabel from '@/Components/InputLabel';
@@ -22,7 +23,7 @@ import { Button } from '@/Components/ui/button';
 import { cn } from '@/lib/utils';
 import { PageProps } from '@/types';
 import { router } from '@inertiajs/react';
-import { FileUpIcon, PlusIcon, SaveIcon } from 'lucide-react';
+import { DraftingCompassIcon, FileTextIcon, FileUpIcon, PlusIcon, SaveIcon } from 'lucide-react';
 import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import {
@@ -552,14 +553,11 @@ export default function BidApplicationTextSection({
 
     const fields = (
         <>
-            <div>
-                <h3 className="text-base font-semibold text-foreground">
-                    {copy.heading}
-                </h3>
-                <p className="text-sm text-muted-foreground">
-                    {copy.description}
-                </p>
-            </div>
+            <FormSectionHeading
+                icon={purpose === 'shipping' ? DraftingCompassIcon : FileTextIcon}
+                title={copy.heading}
+                description={copy.description}
+            />
 
             {editorOnly ? null : (
             <div>

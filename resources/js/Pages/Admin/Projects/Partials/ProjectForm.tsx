@@ -32,7 +32,21 @@ import {
     stateInitialsInputClassName,
 } from '@/lib/stateInitials';
 import { cn } from '@/lib/utils';
-import { LoaderCircleIcon, PlusIcon, Trash2Icon } from 'lucide-react';
+import { FormAddButton, FormSectionHeading, formRemoveButtonClassName } from '@/Components/ContactDirectory/FormSection';
+import {
+    BriefcaseIcon,
+    Building2Icon,
+    CalendarDaysIcon,
+    FilePlus2Icon,
+    GitBranchIcon,
+    ListChecksIcon,
+    LoaderCircleIcon,
+    MapPinIcon,
+    NotebookPenIcon,
+    TagsIcon,
+    Trash2Icon,
+    UsersIcon,
+} from 'lucide-react';
 import { FormEventHandler, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import {
@@ -770,12 +784,9 @@ export default function ProjectForm({
     const inputClassName =
         'h-11 w-full border-border bg-background text-foreground placeholder:text-muted-foreground focus:border-ring focus:ring-ring';
     const labelClassName = 'text-emerald-700 dark:text-emerald-300';
-    const addButtonClassName =
-        'border-emerald-700 bg-emerald-600 text-white hover:bg-emerald-700 hover:text-white';
     const manageButtonClassName =
         'border-sky-800 bg-sky-700 text-white hover:bg-sky-800 hover:text-white';
-    const removeButtonClassName =
-        'h-11 border-rose-700 bg-rose-600 text-white hover:bg-rose-700 hover:text-white';
+    const removeButtonClassName = formRemoveButtonClassName;
     const errors = new Proxy({} as Record<string, string | undefined>, {
         get: (_target, property) =>
             errorMessage(validationErrors, String(property)),
@@ -999,6 +1010,7 @@ export default function ProjectForm({
                         disabled={processing || nameTaken || checkingName}
                     />
                     <section className="flex flex-col gap-5 rounded-xl border border-emerald-200 bg-emerald-50 p-5 dark:border-emerald-900/60 dark:bg-emerald-950/30">
+                        <FormSectionHeading icon={BriefcaseIcon} title="Project details" description="Name, schedule, and who is responsible for this job." />
                         {canEditCoreFields && (
                             <div className="flex justify-end">
                                 <div className="flex w-full max-w-xs flex-col items-end gap-2 lg:w-80">
@@ -1126,13 +1138,7 @@ export default function ProjectForm({
                         {canEditCoreFields && (
                             <div className="grid items-start gap-5 rounded-lg border border-violet-200 bg-violet-50/70 dark:border-violet-900 dark:bg-violet-950/30 p-4 md:grid-cols-2 xl:grid-cols-4">
                                 <div className="flex flex-col gap-2 md:col-span-2 xl:col-span-4">
-                                    <h3 className="text-base font-semibold text-foreground">
-                                        Address
-                                    </h3>
-                                    <p className="text-sm text-muted-foreground">
-                                        Site location where the project work
-                                        will happen.
-                                    </p>
+                                    <FormSectionHeading icon={MapPinIcon} title="Address" description="Site location where the project work will happen." />
                                 </div>
                                 <div className="flex flex-col gap-2 xl:col-span-2">
                                     <InputLabel
@@ -1316,22 +1322,13 @@ export default function ProjectForm({
                     </section>
 
                         {canEditCoreFields && (
-                            <section className="flex flex-col gap-4 rounded-xl border border-orange-200 bg-orange-50/70 p-5 dark:border-orange-900 dark:bg-orange-950/30">
+                            <section data-add-scope className="flex flex-col gap-4 rounded-xl border border-orange-200 bg-orange-50/70 p-5 dark:border-orange-900 dark:bg-orange-950/30">
                                 <div>
-                                    <h3 className="text-base font-semibold text-foreground">
-                                        Bid dates
-                                    </h3>
-                                    <p className="text-sm text-muted-foreground">
-                                        Keep every bid date. When the date changes, add the new date here. The latest date stays the current bid date, and the days left update as you type the date. Opens at is the time the bid opens.
-                                    </p>
+                                    <FormSectionHeading icon={CalendarDaysIcon} title="Bid dates" description="Keep every bid date. When the date changes, add the new date here. The latest date stays the current bid date, and the days left update as you type the date. Opens at is the time the bid opens." />
                                 </div>
 
-                                {bidDateFields.length === 0 ? (
-                                    <div className="rounded-lg border border-dashed border-border bg-muted/20 p-4 text-sm text-muted-foreground">
-                                        No bid dates added yet.
-                                    </div>
-                                ) : (
-                                    <div className="flex flex-col gap-4">
+                                {bidDateFields.length > 0 && (
+                                    <div data-add-list className="flex flex-col gap-4">
                                         {bidDateFields.map((field, index) => {
                                             const bidDate = data.bid_dates[index];
                                             const isCurrent =
@@ -1341,6 +1338,7 @@ export default function ProjectForm({
                                             return (
                                                 <div
                                                     key={field.id}
+                                                    data-add-row
                                                     className="grid min-w-0 items-start gap-4 rounded-lg border border-border bg-muted/10 p-4 md:grid-cols-2 xl:grid-cols-[minmax(10rem,0.85fr)_minmax(8.5rem,0.6fr)_minmax(0,1.2fr)_minmax(0,0.9fr)_auto]"
                                                 >
                                                     <div className="flex flex-col gap-2">
@@ -1456,7 +1454,6 @@ export default function ProjectForm({
                                                             aria-label={`Remove bid date ${index + 1}`}
                                                         >
                                                             <Trash2Icon className="size-4" />
-                                                            Remove
                                                         </Button>
                                                     </div>
                                                 </div>
@@ -1464,9 +1461,8 @@ export default function ProjectForm({
                                         })}
                                     </div>
                                 )}
-                                <Button
-                                    type="button"
-                                    variant="outline"
+                                <FormAddButton
+                                    focusPlacement="start"
                                     onClick={() =>
                                         prependBidDate(
                                             blankBidDate(
@@ -1475,37 +1471,27 @@ export default function ProjectForm({
                                             ),
                                         )
                                     }
-                                    className={`ml-auto h-8 w-auto px-3 text-xs ${addButtonClassName}`}
                                 >
-                                    <PlusIcon className="size-3.5" />
                                     Add bid date
-                                </Button>
+                                </FormAddButton>
                             </section>
                         )}
 
                         {canEditCoreFields && (
-                            <section className="flex flex-col gap-4 rounded-xl border border-violet-200 bg-violet-50/70 p-5 dark:border-violet-900 dark:bg-violet-950/30">
+                            <section data-add-scope className="flex flex-col gap-4 rounded-xl border border-violet-200 bg-violet-50/70 p-5 dark:border-violet-900 dark:bg-violet-950/30">
                                 <div>
-                                    <h3 className="text-base font-semibold text-foreground">
-                                        Addendums
-                                    </h3>
-                                    <p className="text-sm text-muted-foreground">
-                                        Choose the addendum file first. The number, issued date, and notes are filled from the document, and a revised bid date is added when the file states one.
-                                    </p>
+                                    <FormSectionHeading icon={FilePlus2Icon} title="Addendums" description="Choose the addendum file first. The number, issued date, and notes are filled from the document, and a revised bid date is added when the file states one." />
                                 </div>
 
-                                {addendumFields.length === 0 ? (
-                                    <div className="rounded-lg border border-dashed border-border bg-muted/20 p-4 text-sm text-muted-foreground">
-                                        No addendums added yet.
-                                    </div>
-                                ) : (
-                                    <div className="flex flex-col gap-4">
+                                {addendumFields.length > 0 && (
+                                    <div data-add-list className="flex flex-col gap-4">
                                         {addendumFields.map((field, index) => {
                                             const addendum = data.addendums[index];
 
                                             return (
                                                 <div
                                                     key={field.id}
+                                                    data-add-row
                                                     ref={(node) => {
                                                         addendumCardRefs.current[index] = node;
                                                     }}
@@ -1634,7 +1620,7 @@ export default function ProjectForm({
                                                                 <Button
                                                                     type="button"
                                                                     variant="outline"
-                                                                    className="h-9"
+                                                                    className={removeButtonClassName}
                                                                     onClick={() =>
                                                                         setValue(
                                                                             `addendums.${index}.remove_document`,
@@ -1643,6 +1629,7 @@ export default function ProjectForm({
                                                                         )
                                                                     }
                                                                 >
+                                                                    <Trash2Icon className="size-4" />
                                                                     Remove saved document
                                                                 </Button>
                                                             </div>
@@ -1723,7 +1710,6 @@ export default function ProjectForm({
                                                             aria-label={`Remove addendum ${index + 1}`}
                                                         >
                                                             <Trash2Icon className="size-4" />
-                                                            Remove
                                                         </Button>
                                                     </div>
                                                     </div>
@@ -1760,9 +1746,7 @@ export default function ProjectForm({
                                         })}
                                     </div>
                                 )}
-                                <Button
-                                    type="button"
-                                    variant="outline"
+                                <FormAddButton
                                     onClick={() => {
                                         scrollToAddendum.current = addendumFields.length;
                                         appendAddendum(
@@ -1772,37 +1756,27 @@ export default function ProjectForm({
                                             ),
                                         );
                                     }}
-                                    className={`ml-auto h-8 w-auto px-3 text-xs ${addButtonClassName}`}
                                 >
-                                    <PlusIcon className="size-3.5" />
                                     Add addendum
-                                </Button>
+                                </FormAddButton>
                             </section>
                         )}
 
                         {canEditCoreFields && (
-                            <section className="flex flex-col gap-4 rounded-xl border p-5 border-emerald-200 bg-emerald-50/70 dark:border-emerald-900 dark:bg-emerald-950/30">
+                            <section data-add-scope className="flex flex-col gap-4 rounded-xl border p-5 border-emerald-200 bg-emerald-50/70 dark:border-emerald-900 dark:bg-emerald-950/30">
                                 <div>
-                                    <h3 className="text-base font-semibold text-foreground">
-                                        Companies
-                                    </h3>
-                                    <p className="text-sm text-muted-foreground">
-                                        Add each company on this job. Choose one company per row.
-                                    </p>
+                                    <FormSectionHeading icon={Building2Icon} title="Companies" description="Add each company on this job. Choose one company per row." />
                                 </div>
                                 {options.companies.length === 0 ? (
                                     <p className="text-sm text-muted-foreground">
                                         No companies yet. Add them in the Contact Directory.
                                     </p>
-                                ) : data.company_uuids.length === 0 ? (
-                                    <div className="rounded-lg border border-dashed border-border bg-background/60 p-4 text-sm text-muted-foreground">
-                                        No companies added yet.
-                                    </div>
-                                ) : (
-                                    <div className="flex flex-col gap-4">
+                                ) : data.company_uuids.length > 0 ? (
+                                    <div data-add-list className="flex flex-col gap-4">
                                         {data.company_uuids.map((uuid, index) => (
                                             <div
                                                 key={`project-company-row-${index}`}
+                                                data-add-row
                                                 ref={(node) => {
                                                     companyRowRefs.current[index] = node;
                                                 }}
@@ -1851,83 +1825,51 @@ export default function ProjectForm({
                                                         aria-label={`Remove company ${index + 1}`}
                                                     >
                                                         <Trash2Icon className="size-4" />
-                                                        Remove
                                                     </Button>
                                                 </div>
                                             </div>
                                         ))}
                                     </div>
-                                )}
+                                ) : null}
                                 {options.companies.length > 0 && (
-                                    <Button
-                                        type="button"
-                                        variant="outline"
+                                    <FormAddButton
                                         onClick={() => {
                                             setCompanyFocusIndex(data.company_uuids.length);
                                             setData('company_uuids', [...data.company_uuids, '']);
                                         }}
-                                        className={`ml-auto h-8 w-auto px-3 text-xs ${addButtonClassName}`}
                                     >
-                                        <PlusIcon className="size-3.5" />
                                         Add company
-                                    </Button>
+                                    </FormAddButton>
                                 )}
                             </section>
                         )}
 
                         {canEditCoreFields && (
-                            <section className="flex flex-col gap-4 rounded-xl border p-5 border-sky-200 bg-sky-50/70 dark:border-sky-900 dark:bg-sky-950/30">
-                                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                                    <div>
-                                        <h3 className="text-base font-semibold text-foreground">
-                                            Contractors
-                                        </h3>
-                                        <p className="text-sm text-muted-foreground">
-                                            Add contractors and their contacts
-                                            for this job.
-                                        </p>
-                                    </div>
-                                    <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
-                                        {Boolean(
-                                            auth.can?.viewContractors ||
-                                                auth.can?.createContractors,
-                                        ) && (
-                                            <Button
-                                                asChild
-                                                variant="outline"
-                                                className={`w-full sm:w-auto ${manageButtonClassName}`}
-                                            >
-                                                <Link
-                                                    href={route(
-                                                        'admin.contractors.index',
-                                                    )}
-                                                >
-                                                    Manage contractors
-                                                </Link>
-                                            </Button>
-                                        )}
+                            <section data-add-scope className="flex flex-col gap-4 rounded-xl border p-5 border-sky-200 bg-sky-50/70 dark:border-sky-900 dark:bg-sky-950/30">
+                                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                                    <FormSectionHeading icon={UsersIcon} title="Contractors" description="Add contractors and their contacts for this job." />
+                                    {Boolean(
+                                        auth.can?.viewContractors ||
+                                            auth.can?.createContractors,
+                                    ) && (
                                         <Button
-                                            type="button"
+                                            asChild
                                             variant="outline"
-                                            onClick={() =>
-                                                appendContractor(
-                                                    blankContractor(),
-                                                )
-                                            }
-                                            className={`w-full sm:w-auto ${addButtonClassName}`}
+                                            className={`w-full sm:w-auto ${manageButtonClassName}`}
                                         >
-                                            <PlusIcon className="size-4" />
-                                            Add contractor
+                                            <Link
+                                                href={route(
+                                                    'admin.contractors.index',
+                                                )}
+                                            >
+                                                Manage contractors
+                                            </Link>
                                         </Button>
-                                    </div>
+                                    )}
                                 </div>
 
-                                {contractorFields.length === 0 ? (
-                                    <div className="rounded-lg border border-dashed border-border bg-background/60 p-4 text-sm text-muted-foreground">
-                                        No contractors added yet.
-                                    </div>
-                                ) : (
-                                    <div className="flex flex-col gap-4">
+                                {contractorFields.length > 0 && (
+                                    <div data-add-list className="flex flex-col gap-4">
                                         {contractorFields.map((field, index) => {
                                             const contractor =
                                                 data.contractors[index];
@@ -1942,6 +1884,7 @@ export default function ProjectForm({
                                             return (
                                                 <div
                                                     key={field.id}
+                                                    data-add-row
                                                     className="grid gap-4 overflow-visible rounded-lg border border-emerald-200 bg-background p-4 shadow-sm dark:border-emerald-900/70 lg:grid-cols-[minmax(0,1fr)_auto]"
                                                 >
                                                     <div className="flex flex-col gap-4">
@@ -2140,7 +2083,6 @@ export default function ProjectForm({
                                                             aria-label={`Remove contractor ${index + 1}`}
                                                         >
                                                             <Trash2Icon className="size-4" />
-                                                            Remove
                                                         </Button>
                                                     </div>
                                                 </div>
@@ -2148,37 +2090,24 @@ export default function ProjectForm({
                                         })}
                                     </div>
                                 )}
+                                <FormAddButton
+                                    onClick={() =>
+                                        appendContractor(blankContractor())
+                                    }
+                                >
+                                    Add contractor
+                                </FormAddButton>
                             </section>
                         )}
 
                         {canViewSensitive && (
-                            <div className="flex flex-col gap-4 rounded-lg border border-amber-200 bg-amber-50/70 dark:border-amber-900 dark:bg-amber-950/30 p-4">
-                                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                                    <div>
-                                        <h3 className="text-base font-semibold text-foreground">
-                                            Prices
-                                        </h3>
-                                        <p className="text-sm text-muted-foreground">
-                                            Add a price for each option, such
-                                            as one for 2 windows and another
-                                            for 3 windows. Quotes and bids can
-                                            use these prices.
-                                        </p>
-                                    </div>
-                                    <Button
-                                        type="button"
-                                        variant="outline"
-                                        className={addButtonClassName}
-                                        onClick={() => appendPrice(blankPrice())}
-                                    >
-                                        <PlusIcon className="size-4" />
-                                        Add price
-                                    </Button>
-                                </div>
-                                <div className="flex flex-col gap-3">
+                            <div data-add-scope className="flex flex-col gap-4 rounded-lg border border-amber-200 bg-amber-50/70 dark:border-amber-900 dark:bg-amber-950/30 p-4">
+                                <FormSectionHeading icon={TagsIcon} title="Prices" description="Add a price for each option, such as one for 2 windows and another for 3 windows. Quotes and bids can use these prices." />
+                                <div data-add-list className="flex flex-col gap-3">
                                     {priceFields.map((field, index) => (
                                         <div
                                             key={field.id}
+                                            data-add-row
                                             className="grid items-start gap-3 rounded-lg border border-border p-3 sm:grid-cols-[minmax(0,1fr)_12rem_auto]"
                                         >
                                             <div className="flex flex-col gap-2">
@@ -2238,46 +2167,26 @@ export default function ProjectForm({
                                                     variant="outline"
                                                     className={removeButtonClassName}
                                                     onClick={() => removePrice(index)}
-                                                    disabled={priceFields.length === 1}
+                                                    aria-label={`Remove price ${index + 1}`}
                                                 >
                                                     <Trash2Icon className="size-4" />
-                                                    Remove
                                                 </Button>
                                             </div>
                                         </div>
                                     ))}
                                 </div>
+                                <FormAddButton onClick={() => appendPrice(blankPrice())}>
+                                    Add price
+                                </FormAddButton>
                             </div>
                         )}
 
                         {canEditCoreFields && (
-                            <div className="flex flex-col gap-4 rounded-lg border border-violet-200 bg-violet-50/70 dark:border-violet-900 dark:bg-violet-950/30 p-4">
-                                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                                    <div>
-                                        <h3 className="text-base font-semibold text-foreground">
-                                            Scope of work
-                                        </h3>
-                                        <p className="text-sm text-muted-foreground">
-                                            Add a scope type.
-                                        </p>
-                                    </div>
-                                    <Button
-                                        type="button"
-                                        variant="outline"
-                                        onClick={() => appendScope(blankScope())}
-                                        className={`w-full sm:w-auto ${addButtonClassName}`}
-                                    >
-                                        <PlusIcon className="size-4" />
-                                        Add scope
-                                    </Button>
-                                </div>
+                            <div data-add-scope className="flex flex-col gap-4 rounded-lg border border-violet-200 bg-violet-50/70 dark:border-violet-900 dark:bg-violet-950/30 p-4">
+                                <FormSectionHeading icon={ListChecksIcon} title="Scope of work" description="Add a scope type." />
 
-                                {scopeFields.length === 0 ? (
-                                    <div className="rounded-lg border border-dashed border-border bg-muted/20 p-4 text-sm text-muted-foreground">
-                                        No scopes added yet.
-                                    </div>
-                                ) : (
-                                    <div className="flex flex-col gap-4">
+                                {scopeFields.length > 0 && (
+                                    <div data-add-list className="flex flex-col gap-4">
                                         {scopeFields.map((field, index) => {
                                             const scope = data.scopes[index];
                                             const selectedScopeType =
@@ -2297,6 +2206,7 @@ export default function ProjectForm({
                                             return (
                                                 <div
                                                     key={field.id}
+                                                    data-add-row
                                                     className="grid gap-4 overflow-visible rounded-lg border border-border bg-muted/10 p-4 lg:grid-cols-[minmax(0,1fr)_auto]"
                                                 >
                                                     <div className="flex min-w-0 flex-col gap-4">
@@ -2359,7 +2269,6 @@ export default function ProjectForm({
                                                             aria-label={`Remove scope ${index + 1}`}
                                                         >
                                                             <Trash2Icon className="size-4" />
-                                                            Remove
                                                         </Button>
                                                     </div>
                                                 </div>
@@ -2367,45 +2276,18 @@ export default function ProjectForm({
                                         })}
                                     </div>
                                 )}
+                                <FormAddButton onClick={() => appendScope(blankScope())}>
+                                    Add scope
+                                </FormAddButton>
                             </div>
                         )}
 
                         {canEditCoreFields && (
-                            <div className="flex flex-col gap-4 rounded-lg border border-sky-200 bg-sky-50/70 dark:border-sky-900 dark:bg-sky-950/30 p-4">
-                                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                                    <div>
-                                        <h3 className="text-base font-semibold text-foreground">
-                                            Revisions
-                                        </h3>
-                                        <p className="text-sm text-muted-foreground">
-                                            Track drawing or document revisions
-                                            for this project.
-                                        </p>
-                                    </div>
-                                    <Button
-                                        type="button"
-                                        variant="outline"
-                                        onClick={() =>
-                                            appendRevision(
-                                                blankRevision(
-                                                    currentUserId,
-                                                    auth.user?.name ?? '',
-                                                ),
-                                            )
-                                        }
-                                        className={`w-full sm:w-auto ${addButtonClassName}`}
-                                    >
-                                        <PlusIcon className="size-4" />
-                                        Add revision
-                                    </Button>
-                                </div>
+                            <div data-add-scope className="flex flex-col gap-4 rounded-lg border border-sky-200 bg-sky-50/70 dark:border-sky-900 dark:bg-sky-950/30 p-4">
+                                <FormSectionHeading icon={GitBranchIcon} title="Revisions" description="Track drawing or document revisions for this project." />
 
-                                {revisionFields.length === 0 ? (
-                                    <div className="rounded-lg border border-dashed border-border bg-muted/20 p-4 text-sm text-muted-foreground">
-                                        No revisions added yet.
-                                    </div>
-                                ) : (
-                                    <div className="flex flex-col gap-4">
+                                {revisionFields.length > 0 && (
+                                    <div data-add-list className="flex flex-col gap-4">
                                         {revisionFields.map((field, index) => {
                                             const revision =
                                                 data.revisions[index];
@@ -2413,6 +2295,7 @@ export default function ProjectForm({
                                             return (
                                                 <div
                                                     key={field.id}
+                                                    data-add-row
                                                     className="grid min-w-0 items-start gap-4 rounded-lg border border-border bg-muted/10 p-4 md:grid-cols-2 xl:grid-cols-[minmax(8rem,0.7fr)_minmax(10rem,0.85fr)_minmax(0,1fr)_minmax(0,1.3fr)_auto]"
                                                 >
                                                     <div className="flex flex-col gap-2">
@@ -2545,7 +2428,6 @@ export default function ProjectForm({
                                                             aria-label={`Remove revision ${index + 1}`}
                                                         >
                                                             <Trash2Icon className="size-4" />
-                                                            Remove
                                                         </Button>
                                                     </div>
                                                 </div>
@@ -2553,10 +2435,23 @@ export default function ProjectForm({
                                         })}
                                     </div>
                                 )}
+                                <FormAddButton
+                                    onClick={() =>
+                                        appendRevision(
+                                            blankRevision(
+                                                currentUserId,
+                                                auth.user?.name ?? '',
+                                            ),
+                                        )
+                                    }
+                                >
+                                    Add revision
+                                </FormAddButton>
                             </div>
                         )}
 
                     <section className="flex flex-col gap-5 rounded-xl border p-5 border-amber-200 bg-amber-50/70 dark:border-amber-900 dark:bg-amber-950/30">
+                        <FormSectionHeading icon={NotebookPenIcon} title="Notes" description="Notes that stay with this project." />
                         <div className="flex flex-col gap-2">
                             <InputLabel
                                 htmlFor="public-notes"

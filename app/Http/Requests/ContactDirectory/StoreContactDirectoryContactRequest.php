@@ -3,7 +3,7 @@
 namespace App\Http\Requests\ContactDirectory;
 
 use App\Http\Requests\ContactDirectory\Concerns\ValidatesContactMethods;
-use App\Models\ContactDirectory\ContactDirectoryContact;
+use App\Models\ContactDirectory\ContactType;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -23,7 +23,7 @@ class StoreContactDirectoryContactRequest extends FormRequest
             'first_name' => ['required', 'string', 'max:255'],
             'last_name' => ['nullable', 'string', 'max:255'],
             'job_title' => ['nullable', 'string', 'max:255'],
-            'contact_type' => ['required', 'string', Rule::in(ContactDirectoryContact::CONTACT_TYPES)],
+            'contact_type' => ['required', 'string', 'max:60', Rule::exists(ContactType::class, 'slug')],
             'owner_id' => ['required', 'integer', 'exists:users,id'],
             'notes' => ['nullable', 'string'],
             'is_active' => ['nullable', 'boolean'],

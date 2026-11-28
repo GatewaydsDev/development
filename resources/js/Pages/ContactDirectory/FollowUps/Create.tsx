@@ -1,3 +1,4 @@
+import { FormAddButton, FormRemoveButton } from '@/Components/ContactDirectory/FormSection';
 import FormActionFab from '@/Components/FormActionFab';
 import InputError from '@/Components/InputError';
 import InputLabel from '@/Components/InputLabel';
@@ -13,7 +14,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/Com
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { PageProps } from '@/types';
 import { Head, Link, router, useForm } from '@inertiajs/react';
-import { CalendarClockIcon, ClipboardListIcon, ArrowDownIcon, ArrowUpIcon, ListChecksIcon, PlusIcon, Trash2Icon } from 'lucide-react';
+import { CalendarClockIcon, ClipboardListIcon, ArrowDownIcon, ArrowUpIcon, ListChecksIcon } from 'lucide-react';
 import { FormEvent, useState } from 'react';
 import { deviceTimezone, toInputValue, toIsoInstant } from '@/lib/followUpTime';
 import FormSection from '@/Components/ContactDirectory/FormSection';
@@ -122,22 +123,21 @@ export default function Create({ contacts, users, contactId, followUp, taskOptio
                                 </div>
                                 <p className="mt-4 text-xs text-muted-foreground">Dates and times use your device timezone ({deviceTimezone()}).</p>
                             </FormSection>
-                            <FormSection title="Tasks" description="Optional checklist for this follow-up, shown in this order. Saving a task to the list does not add it here." icon={ListChecksIcon} tone="violet">
-                                {form.data.tasks.length === 0 && <p className="mb-4 text-sm text-muted-foreground">No tasks added yet.</p>}
-                                <div className="space-y-3">
+                            <FormSection title="Tasks" description="Optional checklist for this follow-up, shown in this order. Saving a task to the list does not add it here." icon={ListChecksIcon} tone="violet" addScope>
+                                <div data-add-list className="space-y-3">
                                     {form.data.tasks.map((task, index) => (
-                                        <div key={index} className="flex items-start gap-2">
+                                        <div key={index} data-add-row className="flex items-start gap-2">
                                             <span className="mt-8 flex size-6 shrink-0 items-center justify-center rounded-full bg-violet-600 text-xs font-semibold text-white">{index + 1}</span>
                                             <div className="min-w-0 flex-1"><CreatableSelect id={`follow-up-task-${index}`} label={`Task ${index + 1}`} value={task.title} {...taskSelectProps} error={(form.errors as Record<string, string>)[`tasks.${index}.title`]} onChange={(_id, option) => setTaskTitle(index, option?.name ?? '')} /></div>
                                             <div className="mt-6 flex gap-1">
                                                 <Button type="button" variant="outline" size="icon" aria-label={`Move task ${index + 1} up`} disabled={index === 0} onClick={() => moveTask(index, -1)}><ArrowUpIcon className="size-4" aria-hidden="true" /></Button>
                                                 <Button type="button" variant="outline" size="icon" aria-label={`Move task ${index + 1} down`} disabled={index === form.data.tasks.length - 1} onClick={() => moveTask(index, 1)}><ArrowDownIcon className="size-4" aria-hidden="true" /></Button>
-                                                <Button type="button" variant="outline" size="icon" className="text-destructive" aria-label={`Remove task ${index + 1}`} onClick={() => form.setData('tasks', form.data.tasks.filter((_, i) => i !== index))}><Trash2Icon className="size-4" aria-hidden="true" /></Button>
+                                                <FormRemoveButton label={`Remove task ${index + 1}`} onClick={() => form.setData('tasks', form.data.tasks.filter((_, i) => i !== index))} />
                                             </div>
                                         </div>
                                     ))}
                                 </div>
-                                <div className="mt-4 flex justify-end"><Button type="button" className="bg-violet-600 text-white hover:bg-violet-700" onClick={() => form.setData('tasks', [...form.data.tasks, { title: '' }])}><PlusIcon className="size-4" aria-hidden="true" />Add task</Button></div>
+                                <div className="mt-4"><FormAddButton onClick={() => form.setData('tasks', [...form.data.tasks, { title: '' }])}>Add task</FormAddButton></div>
                             </FormSection>
                             <FormSection title="Notes" description="Details to remember for this follow-up." icon={ClipboardListIcon} tone="amber">
                                 <div className="space-y-2"><InputLabel htmlFor="follow-up-description" value="Notes (optional)" className={labelClass} />

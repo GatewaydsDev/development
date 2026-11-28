@@ -1,5 +1,5 @@
 import FormActionFab from '@/Components/FormActionFab';
-import FormSection from '@/Components/ContactDirectory/FormSection';
+import FormSection, { FormAddButton, FormRemoveButton } from '@/Components/ContactDirectory/FormSection';
 import InputError from '@/Components/InputError';
 import InputLabel from '@/Components/InputLabel';
 import { Button } from '@/Components/ui/button';
@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/Com
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import type { PageProps } from '@/types';
 import { Head, Link, useForm } from '@inertiajs/react';
-import { ArrowDownIcon, ArrowUpIcon, ClipboardListIcon, CalendarClockIcon, ListChecksIcon, PlusIcon, Trash2Icon } from 'lucide-react';
+import { ArrowDownIcon, ArrowUpIcon, ClipboardListIcon, CalendarClockIcon, ListChecksIcon } from 'lucide-react';
 import type { FormEvent } from 'react';
 
 type Item = { id?: number; description: string; quantity: string; unit_of_measure: string; specifications: string; notes: string };
@@ -60,7 +60,7 @@ export default function PriceRequestForm({ auth, priceRequest, users, projects, 
                   specifications: item.specifications ?? '',
                   notes: item.notes ?? '',
               }))
-            : [blankItem()]) as Item[],
+            : []) as Item[],
     });
 
     const submit = (event: FormEvent) => {
@@ -189,16 +189,10 @@ export default function PriceRequestForm({ auth, priceRequest, users, projects, 
                                     </div>
                                 </FormSection>
 
-                                <FormSection title="Items" description="The line items suppliers will quote, in this order." icon={ListChecksIcon} tone="violet">
-                                    <div className="mb-4 flex justify-end">
-                                        <Button type="button" className="bg-violet-600 text-white hover:bg-violet-700" onClick={() => form.setData('items', [...form.data.items, blankItem()])}>
-                                            <PlusIcon className="mr-1 size-4" aria-hidden /> Add item
-                                        </Button>
-                                    </div>
-                                    {form.data.items.length === 0 && <p className="text-sm text-muted-foreground">No items added yet.</p>}
-                                    <div className="space-y-4">
+                                <FormSection title="Items" description="The line items suppliers will quote, in this order." icon={ListChecksIcon} tone="violet" addScope>
+                                    <div data-add-list className="space-y-4">
                                         {form.data.items.map((item, index) => (
-                                            <div key={item.id ?? `new-${index}`} className="flex items-start gap-2">
+                                            <div key={item.id ?? `new-${index}`} data-add-row className="flex items-start gap-2">
                                                 <span className="mt-8 flex size-6 shrink-0 items-center justify-center rounded-full bg-violet-600 text-xs font-semibold text-white">{index + 1}</span>
                                                 <div className="grid min-w-0 flex-1 gap-3 md:grid-cols-[1fr_110px_120px]">
                                                     <div className="space-y-2">
@@ -224,11 +218,14 @@ export default function PriceRequestForm({ auth, priceRequest, users, projects, 
                                                 <div className="mt-7 flex shrink-0 gap-1">
                                                     <Button type="button" variant="outline" size="icon" aria-label="Move item up" disabled={index === 0} onClick={() => moveItem(index, -1)}><ArrowUpIcon className="size-4" /></Button>
                                                     <Button type="button" variant="outline" size="icon" aria-label="Move item down" disabled={index === form.data.items.length - 1} onClick={() => moveItem(index, 1)}><ArrowDownIcon className="size-4" /></Button>
-                                                    <Button type="button" variant="outline" size="icon" aria-label="Remove item" onClick={() => form.setData('items', form.data.items.filter((_, i) => i !== index))}><Trash2Icon className="size-4" /></Button>
+                                                    <FormRemoveButton label={`Remove item ${index + 1}`} onClick={() => form.setData('items', form.data.items.filter((_, i) => i !== index))} />
                                                 </div>
                                             </div>
                                         ))}
                                     </div>
+                                    <FormAddButton onClick={() => form.setData('items', [...form.data.items, blankItem()])}>
+                                        Add item
+                                    </FormAddButton>
                                 </FormSection>
                             </form>
                         </CardContent>

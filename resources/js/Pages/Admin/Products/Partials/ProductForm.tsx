@@ -1,3 +1,4 @@
+import { formRemoveButtonClassName } from '@/Components/ContactDirectory/FormSection';
 import CreatableSelect from '@/Components/CreatableSelect';
 import FormActionFab from '@/Components/FormActionFab';
 import InputError from '@/Components/InputError';
@@ -898,7 +899,7 @@ export default function ProductForm({
                                                 <Button
                                                     type="button"
                                                     variant="outline"
-                                                    size="sm"
+                                                    className={formRemoveButtonClassName}
                                                     onClick={() => {
                                                         setData(
                                                             'spec_pdf',
@@ -917,6 +918,7 @@ export default function ProductForm({
                                                         }
                                                     }}
                                                 >
+                                                    <Trash2Icon className="size-4" />
                                                     Remove PDF
                                                 </Button>
                                             </div>
@@ -941,9 +943,11 @@ export default function ProductForm({
                                         <Button
                                             type="button"
                                             variant="outline"
-                                            onClick={() =>
-                                                appendPart(blankPart())
-                                            }
+                                            onClick={() => {
+                                                const index = partFields.length;
+                                                appendPart(blankPart());
+                                                window.setTimeout(() => document.getElementById(`product-window-part-${index}`)?.focus(), 0);
+                                            }}
                                         >
                                             <PlusIcon className="size-4" />
                                             Add part
@@ -1001,6 +1005,7 @@ export default function ProductForm({
                                                         <Button
                                                             type="button"
                                                             variant="outline"
+                                                            className={formRemoveButtonClassName}
                                                             aria-label={`Remove part ${index + 1}`}
                                                             onClick={() =>
                                                                 removePart(
@@ -1237,11 +1242,11 @@ export default function ProductForm({
                                         <Button
                                             type="button"
                                             variant="outline"
-                                            onClick={() =>
-                                                appendConstruction(
-                                                    blankConstruction(),
-                                                )
-                                            }
+                                            onClick={() => {
+                                                const index = constructionFields.length;
+                                                appendConstruction(blankConstruction());
+                                                window.setTimeout(() => document.getElementById(`product-construction-${index}`)?.focus(), 0);
+                                            }}
                                         >
                                             <PlusIcon className="size-4" />
                                             Add construction
@@ -1306,6 +1311,7 @@ export default function ProductForm({
                                                             <Button
                                                                 type="button"
                                                                 variant="outline"
+                                                                className={formRemoveButtonClassName}
                                                                 aria-label={`Remove construction ${index + 1}`}
                                                                 onClick={() =>
                                                                     removeConstruction(
@@ -1523,7 +1529,7 @@ export default function ProductForm({
                                                 <Button
                                                     type="button"
                                                     variant="outline"
-                                                    size="sm"
+                                                    className={formRemoveButtonClassName}
                                                     onClick={() => {
                                                         setData(
                                                             'spec_pdf',
@@ -1542,6 +1548,7 @@ export default function ProductForm({
                                                         }
                                                     }}
                                                 >
+                                                    <Trash2Icon className="size-4" />
                                                     Remove PDF
                                                 </Button>
                                             </div>
@@ -1572,11 +1579,11 @@ export default function ProductForm({
                                         <Button
                                             type="button"
                                             variant="outline"
-                                            onClick={() =>
-                                                appendStatePrice(
-                                                    blankStatePrice(),
-                                                )
-                                            }
+                                            onClick={() => {
+                                                const index = statePriceFields.length;
+                                                appendStatePrice(blankStatePrice());
+                                                window.setTimeout(() => document.getElementById(`product-state-price-${index}`)?.focus(), 0);
+                                            }}
                                         >
                                             <PlusIcon className="size-4" />
                                             Add state price
@@ -1655,22 +1662,19 @@ export default function ProductForm({
                                                                 {selectedState?.name ||
                                                                     `State ${index + 1}`}
                                                             </p>
-                                                            {statePriceFields.length >
-                                                            1 ? (
-                                                                <Button
-                                                                    type="button"
-                                                                    variant="outline"
-                                                                    aria-label={`Remove state price ${index + 1}`}
-                                                                    onClick={() =>
-                                                                        removeStatePrice(
-                                                                            index,
-                                                                        )
-                                                                    }
-                                                                >
-                                                                    <Trash2Icon className="size-4" />
-                                                                    Remove
-                                                                </Button>
-                                                            ) : null}
+                                                            <Button
+                                                                type="button"
+                                                                variant="outline"
+                                                                className={formRemoveButtonClassName}
+                                                                aria-label={`Remove state price ${index + 1}`}
+                                                                onClick={() =>
+                                                                    removeStatePrice(
+                                                                        index,
+                                                                    )
+                                                                }
+                                                            >
+                                                                <Trash2Icon className="size-4" />
+                                                            </Button>
                                                         </div>
                                                         <div className="grid grid-cols-[auto_7.5rem] items-start gap-3 sm:grid-cols-[auto_9rem] sm:gap-4">
                                                             <CreatableSelect
@@ -2200,7 +2204,11 @@ export default function ProductForm({
                                 <Button
                                     type="button"
                                     variant="outline"
-                                    onClick={() => appendPart(blankPart())}
+                                    onClick={() => {
+                                        const index = partFields.length;
+                                        appendPart(blankPart());
+                                        window.setTimeout(() => document.getElementById(`product-part-${index}`)?.focus(), 0);
+                                    }}
                                 >
                                     <PlusIcon className="size-4" />
                                     Add part
@@ -2255,6 +2263,7 @@ export default function ProductForm({
                                                 <Button
                                                     type="button"
                                                     variant="outline"
+                                                    className={formRemoveButtonClassName}
                                                     aria-label={`Remove part ${index + 1}`}
                                                     onClick={() =>
                                                         removePart(index)

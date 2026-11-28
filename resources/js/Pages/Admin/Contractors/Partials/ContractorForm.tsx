@@ -1,3 +1,4 @@
+import { FormAddButton, FormRemoveButton } from '@/Components/ContactDirectory/FormSection';
 import FormActionFab from '@/Components/FormActionFab';
 import InputError from '@/Components/InputError';
 import InputLabel from '@/Components/InputLabel';
@@ -23,7 +24,7 @@ import {
 } from '@/lib/stateInitials';
 import { cn } from '@/lib/utils';
 import { router } from '@inertiajs/react';
-import { BuildingIcon, MapPinIcon, PlusIcon, StickyNoteIcon, Trash2Icon, UsersIcon } from 'lucide-react';
+import { BuildingIcon, MapPinIcon, StickyNoteIcon, UsersIcon } from 'lucide-react';
 import { FormEventHandler, useEffect, useState } from 'react';
 import {
     FieldErrors,
@@ -406,10 +407,7 @@ export default function ContractorForm({
             (_contact, contactIndex) => contactIndex !== index,
         );
 
-        setData(
-            'contacts',
-            contacts.length > 0 ? contacts : [blankContact(true)],
-        );
+        setData('contacts', contacts);
     };
 
     const makePrimary = (index: number) => {
@@ -514,7 +512,7 @@ export default function ContractorForm({
                         </div>
                     </section>
 
-                    <section className="flex flex-col gap-4 rounded-xl border border-emerald-200 bg-emerald-50 p-5 dark:border-emerald-900/60 dark:bg-emerald-950/30">
+                    <section data-add-scope data-add-list className="flex flex-col gap-4 rounded-xl border border-emerald-200 bg-emerald-50 p-5 dark:border-emerald-900/60 dark:bg-emerald-950/30">
                         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                             <div>
                                 <h3 className="flex items-center gap-2 text-base font-semibold text-foreground">
@@ -526,19 +524,12 @@ export default function ContractorForm({
                                     multiple contacts.
                                 </p>
                             </div>
-                            <Button
-                                type="button"
-                                variant="outline"
-                                onClick={addContact}
-                            >
-                                <PlusIcon className="size-4" />
-                                Add contact
-                            </Button>
                         </div>
 
                         {data.contacts.map((contact, index) => (
                             <div
                                 key={index}
+                                data-add-row
                                 className="flex flex-col gap-5 rounded-lg border border-emerald-200 bg-background p-4 shadow-sm dark:border-emerald-900/70"
                             >
                                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -556,19 +547,10 @@ export default function ContractorForm({
                                             className={labelClassName}
                                         />
                                     </div>
-                                    {data.contacts.length > 1 && (
-                                        <Button
-                                            type="button"
-                                            variant="outline"
-                                            size="sm"
-                                            onClick={() =>
-                                                removeContact(index)
-                                            }
-                                        >
-                                            <Trash2Icon className="size-4" />
-                                            Remove
-                                        </Button>
-                                    )}
+                                    <FormRemoveButton
+                                        label={`Remove contact ${index + 1}`}
+                                        onClick={() => removeContact(index)}
+                                    />
                                 </div>
 
                                 <div className="grid gap-5 md:grid-cols-2">
@@ -747,6 +729,7 @@ export default function ContractorForm({
                                 </div>
                             </div>
                         ))}
+                        <FormAddButton onClick={addContact}>Add contact</FormAddButton>
                     </section>
 
                     <section className="grid gap-5 rounded-xl border border-amber-200 bg-amber-50/70 p-5 dark:border-amber-900/60 dark:bg-amber-950/30 md:grid-cols-2">

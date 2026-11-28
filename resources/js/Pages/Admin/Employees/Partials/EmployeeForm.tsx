@@ -295,13 +295,21 @@ function FormSection({
     children: ReactNode;
 }) {
     return (
-        <section className="flex flex-col gap-5 rounded-xl border border-border bg-card p-5 shadow-sm">
-            <div className="flex items-start gap-3 border-b border-border pb-4">
-                <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+        <section className={`flex flex-col gap-5 rounded-lg border p-4 sm:p-6 ${
+            title === 'Employment'
+                ? 'border-sky-200 bg-sky-50/70 dark:border-sky-900 dark:bg-sky-950/30'
+                : title === 'App login'
+                    ? 'border-amber-200 bg-amber-50/70 dark:border-amber-900 dark:bg-amber-950/30'
+                    : title === 'Notes'
+                        ? 'border-violet-200 bg-violet-50/70 dark:border-violet-900 dark:bg-violet-950/30'
+                        : 'border-emerald-200 bg-emerald-50/70 dark:border-emerald-900 dark:bg-emerald-950/30'
+        }`}>
+            <div className="flex items-start gap-3">
+                <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-background/80 text-foreground">
                     {sectionIcons[title] ?? <UserRound className="size-4" />}
                 </span>
                 <div>
-                    <h3 className="text-base font-semibold text-foreground">
+                    <h3 className="text-lg font-semibold text-foreground">
                         {title}
                     </h3>
                     <p className="text-sm text-muted-foreground">

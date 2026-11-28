@@ -1,6 +1,7 @@
 import CertificationBadge from "@/Components/CertificationBadge";
 import CreatableSelect from "@/Components/CreatableSelect";
 import CrewRatePicker, { type RateGroup } from "@/Components/CrewRatePicker";
+import { formRemoveButtonClassName } from "@/Components/ContactDirectory/FormSection";
 import FormActionFab from "@/Components/FormActionFab";
 import InputError from "@/Components/InputError";
 import InputLabel from "@/Components/InputLabel";
@@ -198,9 +199,9 @@ function PersonCard({
             {onRemove && (
                 <Button
                     type="button"
-                    variant="ghost"
-                    size="icon"
+                    variant="outline"
                     aria-label={`Remove ${tag.toLowerCase()}`}
+                    className={formRemoveButtonClassName}
                     onClick={onRemove}
                 >
                     <Trash2Icon className="size-4" />
@@ -927,9 +928,8 @@ export default function ScheduleForm({
                                     </div>
                                     <Button
                                         type="button"
-                                        variant="ghost"
-                                        size="icon"
-                                        className="mt-7"
+                                        variant="outline"
+                                        className={`mt-7 ${formRemoveButtonClassName}`}
                                         aria-label="Remove task"
                                         onClick={() =>
                                             setData(

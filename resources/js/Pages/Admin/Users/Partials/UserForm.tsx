@@ -183,30 +183,34 @@ const getAgeInYears = (dateOfBirth: Date) => {
     return age;
 };
 
+const userSectionTones = {
+    emerald: 'border-emerald-200 bg-emerald-50/70 dark:border-emerald-900 dark:bg-emerald-950/30',
+    sky: 'border-sky-200 bg-sky-50/70 dark:border-sky-900 dark:bg-sky-950/30',
+    amber: 'border-amber-200 bg-amber-50/70 dark:border-amber-900 dark:bg-amber-950/30',
+    violet: 'border-violet-200 bg-violet-50/70 dark:border-violet-900 dark:bg-violet-950/30',
+} as const;
+
 function FormSection({
                          icon: Icon,
                          title,
                          description,
+                         tone = 'emerald',
                          children,
                      }: {
     icon: LucideIcon;
     title: string;
     description: string;
+    tone?: keyof typeof userSectionTones;
     children: ReactNode;
 }) {
     return (
-        <section className="overflow-hidden rounded-xl border border-border">
-            <header className="flex items-center gap-3 border-b border-border bg-muted/50 px-4 py-3">
-                <span
-                    className="flex size-9 items-center justify-center rounded-lg bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
-                    <Icon className="size-4"/>
-                </span>
-                <div>
-                    <h3 className="text-sm font-semibold">{title}</h3>
-                    <p className="text-xs text-muted-foreground">{description}</p>
-                </div>
-            </header>
-            <div className="flex flex-col gap-5 p-4 sm:p-5">{children}</div>
+        <section className={`min-w-0 rounded-lg border p-4 sm:p-6 ${userSectionTones[tone]}`}>
+            <h3 className="flex items-center gap-2 text-lg font-semibold text-foreground">
+                <Icon className="size-5 shrink-0" aria-hidden="true" />
+                {title}
+            </h3>
+            <p className="mt-1 text-sm text-muted-foreground">{description}</p>
+            <div className="mt-4 flex min-w-0 flex-col gap-5">{children}</div>
         </section>
     );
 }
@@ -560,7 +564,7 @@ export default function UserForm({
                             hasDateOfBirthError
                         }
                     />
-                    <FormSection icon={UserRoundIcon} title="Profile"
+                    <FormSection icon={UserRoundIcon} tone="emerald" title="Profile"
                                  description="Name, photo, sign-in email and preferences.">
                         <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
                             <UserAvatar
@@ -765,12 +769,13 @@ export default function UserForm({
                         </div>
                     </FormSection>
 
-                    <FormSection icon={ContactIcon} title="Contact details"
+                    <FormSection icon={ContactIcon} tone="sky" title="Contact details"
                                  description="All email addresses and phone numbers for this person.">
                         <UserContactFields
                             legend="Email addresses"
                             description="Add every email for this person. One address is the primary email."
                             addLabel="Add email"
+                            addAtBottom
                             placeholder="name@example.com"
                             inputType="email"
                             field="emails"
@@ -798,6 +803,7 @@ export default function UserForm({
                                     : 'Add every phone number for this person. One number is the primary phone.'
                             }
                             addLabel="Add phone"
+                            addAtBottom
                             placeholder="(555) 555-0100"
                             inputType="tel"
                             field="phones"
@@ -820,7 +826,7 @@ export default function UserForm({
                         />
                     </FormSection>
 
-                    <FormSection icon={ShieldCheckIcon} title="Access" description="User level and account status.">
+                    <FormSection icon={ShieldCheckIcon} tone="amber" title="Access" description="User level and account status.">
                         <UserLevelSelect
                             id="level_id"
                             value={data.level_id}
@@ -921,7 +927,7 @@ export default function UserForm({
                     </FormSection>
 
                     {canAssignMailbox ? (
-                        <FormSection icon={PlugIcon} title="Microsoft 365"
+                        <FormSection icon={PlugIcon} tone="violet" title="Microsoft 365"
                                      description="Mailbox and application settings. Super administrators only.">
                             {canAssignMailbox ? (
                                 <label className="flex items-center gap-2 text-sm font-medium">
@@ -1089,7 +1095,7 @@ export default function UserForm({
                         </FormSection>
                     ) : null}
 
-                    <FormSection icon={KeyRoundIcon} title="Password"
+                    <FormSection icon={KeyRoundIcon} tone="emerald" title="Password"
                                  description={
                                      passwordOptional
                                          ? 'Leave blank to keep the current password, or set a new one.'

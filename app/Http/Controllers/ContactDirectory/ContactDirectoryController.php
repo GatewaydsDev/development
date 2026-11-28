@@ -8,6 +8,8 @@ use App\Http\Requests\ContactDirectory\StoreContactDirectoryContactRequest;
 use App\Http\Requests\ContactDirectory\UpdateContactDirectoryContactRequest;
 use App\Models\ContactDirectory\ContactCompany;
 use App\Models\ContactDirectory\ContactDirectoryContact;
+use App\Models\ContactDirectory\ContactType;
+use App\Models\ContactDirectory\PhoneLabel;
 use App\Models\User;
 use Illuminate\Contracts\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
@@ -38,6 +40,8 @@ class ContactDirectoryController extends Controller
         return [
             'companies' => ContactCompany::query()->orderBy('name')->get(['id', 'name']),
             'users' => User::query()->orderBy('name')->get(['id', 'name']),
+            'contactTypes' => ContactType::options(),
+            'phoneLabels' => PhoneLabel::options(),
         ];
     }
 
@@ -68,6 +72,7 @@ class ContactDirectoryController extends Controller
             'filters' => $filters,
             'contacts' => $query,
             'users' => User::query()->orderBy('name')->get(['id', 'name']),
+            'contactTypes' => ContactType::options(),
         ]);
     }
 
@@ -116,6 +121,8 @@ class ContactDirectoryController extends Controller
             'followUps' => $followUps,
             'nextFollowUp' => $nextFollowUp,
             'users' => User::query()->orderBy('name')->get(['id', 'name']),
+            'contactTypes' => ContactType::options(),
+            'phoneLabels' => PhoneLabel::options(),
         ]);
     }
 

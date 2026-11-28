@@ -1007,7 +1007,7 @@ export const bidToFormData = (bid?: BidPayload): BidFormData => ({
                   stage_date: stage.stage_date ?? '',
                   notes: stage.notes ?? '',
               }))
-            : [blankStage()],
+            : [],
     scopes:
         bid?.scopes?.length
             ? bid.scopes.map((scope) => ({

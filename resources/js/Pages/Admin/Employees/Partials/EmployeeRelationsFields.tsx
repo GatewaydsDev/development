@@ -2,8 +2,8 @@ import InputError from '@/Components/InputError';
 import InputLabel from '@/Components/InputLabel';
 import MoneyInput from '@/Components/MoneyInput';
 import NamedCatalogSelect from '@/Components/NamedCatalogSelect';
-import { Button } from '@/Components/ui/button';
-import { PlusIcon, Trash2Icon } from 'lucide-react';
+import { FormAddButton, FormRemoveButton, FormSectionHeading } from '@/Components/ContactDirectory/FormSection';
+import { HammerIcon } from 'lucide-react';
 import { FieldErrors } from 'react-hook-form';
 import {
     type EmployeeFormData,
@@ -88,24 +88,18 @@ export default function EmployeeRelationsFields({
     removeSkill,
 }: EmployeeRelationsFieldsProps) {
     return (
-        <section className="flex flex-col gap-4 rounded-xl border border-border bg-muted/20 p-4">
-            <div>
-                <h3 className="text-base font-semibold text-foreground">
-                    Skills and rates
-                </h3>
-                <p className="text-sm text-muted-foreground">
-                    Add a skill, such as Painter, then add as many rates as needed:
-                    hourly, daily, half day, overtime, day off, union, or a
-                    custom named rate.
-                </p>
-            </div>
-            {data.skills.length === 0 ? (
-                <EmptyNote>No skills added yet.</EmptyNote>
-            ) : (
-                <div className="flex flex-col gap-4">
+        <section data-add-scope className="flex flex-col gap-4 rounded-lg border border-sky-200 bg-sky-50/70 p-4 dark:border-sky-900 dark:bg-sky-950/30 sm:p-6">
+            <FormSectionHeading
+                icon={HammerIcon}
+                title="Skills and rates"
+                description="Add a skill, such as Painter, then add as many rates as needed: hourly, daily, half day, overtime, day off, union, or a custom named rate."
+            />
+            {data.skills.length > 0 && (
+                <div data-add-list className="flex flex-col gap-4">
                     {data.skills.map((skill, index) => (
                         <div
                             key={`skill-${index}`}
+                            data-add-row
                             className={`flex flex-col gap-4 rounded-lg border p-4 ${skillBackgrounds[index % skillBackgrounds.length]}`}
                         >
                             <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_auto]">
@@ -134,17 +128,13 @@ export default function EmployeeRelationsFields({
                                 </div>
                             </div>
 
-                            <div className="flex flex-col gap-3 border-t border-black/10 pt-4 dark:border-white/15">
+                            <div data-add-scope className="flex flex-col gap-3 border-t border-black/10 pt-4 dark:border-white/15">
                                 <p className="text-sm font-medium text-foreground">
                                     Rates
                                 </p>
 
-                                {skill.rates.length === 0 ? (
-                                    <EmptyNote>
-                                        No rates for this skill yet.
-                                    </EmptyNote>
-                                ) : (
-                                    <div className="flex flex-col gap-3">
+                                {skill.rates.length > 0 && (
+                                    <div data-add-list className="flex flex-col gap-3">
                                         {skill.rates.map((rate, rateIndex) => {
                                             const usedRateTypes = new Set(
                                                 skill.rates
@@ -177,6 +167,7 @@ export default function EmployeeRelationsFields({
                                             return (
                                                 <div
                                                     key={`skill-${index}-rate-${rateIndex}`}
+                                                    data-add-row
                                                     className="grid gap-4 rounded-lg border border-border bg-background p-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,0.8fr)_auto] lg:items-start"
                                                 >
                                                     <div className="flex flex-col gap-2">
@@ -320,38 +311,16 @@ export default function EmployeeRelationsFields({
                                         })}
                                     </div>
                                 )}
-                                <Button
-                                    type="button"
-                                    variant="outline"
-                                    onClick={() => addSkillRate(index)}
-                                    className="self-end bg-background"
-                                >
-                                    <PlusIcon className="size-4" />
+                                <FormAddButton onClick={() => addSkillRate(index)}>
                                     Add rate
-                                </Button>
+                                </FormAddButton>
                             </div>
                         </div>
                     ))}
                 </div>
             )}
-            <Button
-                type="button"
-                variant="outline"
-                onClick={addSkill}
-                className="self-end bg-background"
-            >
-                <PlusIcon className="size-4" />
-                Add skill
-            </Button>
+            <FormAddButton onClick={addSkill}>Add skill</FormAddButton>
         </section>
-    );
-}
-
-function EmptyNote({ children }: { children: string }) {
-    return (
-        <div className="rounded-lg border border-dashed border-border bg-background/60 p-4 text-sm text-muted-foreground">
-            {children}
-        </div>
     );
 }
 
@@ -362,16 +331,5 @@ function RemoveButton({
     label: string;
     onClick: () => void;
 }) {
-    return (
-        <Button
-            type="button"
-            variant="outline"
-            onClick={onClick}
-            className="w-full border-rose-200 text-rose-700 hover:bg-rose-50 dark:border-rose-900/70 dark:text-rose-300 dark:hover:bg-rose-950/30 lg:w-auto"
-            aria-label={label}
-        >
-            <Trash2Icon className="size-4" />
-            Remove
-        </Button>
-    );
+    return <FormRemoveButton label={label} onClick={onClick} />;
 }

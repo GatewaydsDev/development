@@ -1,3 +1,5 @@
+import { formRemoveButtonClassName } from '@/Components/ContactDirectory/FormSection';
+import { queueFocusAddedRow } from '@/lib/focusFirstField';
 import CreatableSelect from '@/Components/CreatableSelect';
 import DateMaskInput from '@/Components/DateMaskInput';
 import QuickContractorContactDialog from '@/Components/QuickContractorContactDialog';
@@ -1564,6 +1566,7 @@ export default function QuotationForm({
 
             <section
                 id="quotation-revisions"
+                data-add-scope
                 className={`${sectionClassName} flex min-w-0 flex-col gap-4 rounded-xl border p-5 border-violet-200 bg-violet-50/70 dark:border-violet-900 dark:bg-violet-950/30`}
             >
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -1580,33 +1583,30 @@ export default function QuotationForm({
                         type="button"
                         variant="create"
                         className="w-full shrink-0 sm:w-auto"
-                        onClick={() =>
+                        onClick={(event) => {
                             appendRevision(
                                 blankRevision(
                                     currentUserId,
                                     auth.user?.name ?? '',
                                 ),
-                            )
-                        }
+                            );
+                            queueFocusAddedRow(event.currentTarget.closest('[data-add-scope]'));
+                        }}
                     >
                         <PlusIcon className="size-4" />
                         Add revision
                     </Button>
                 </div>
 
-                {revisionFields.length === 0 ? (
-                    <div className="rounded-lg border border-dashed border-border bg-background/70 p-4 text-sm text-muted-foreground">
-                        No revisions added yet. Use Add revision to set its
-                        title, status, and responsible user.
-                    </div>
-                ) : (
-                    <div className="flex flex-col gap-4">
+                {revisionFields.length > 0 && (
+                    <div data-add-list className="flex flex-col gap-4">
                         {revisionFields.map((field, index) => {
                             const revision = data.revisions?.[index];
 
                             return (
                                 <div
                                     key={field.id}
+                                    data-add-row
                                     className="grid min-w-0 gap-4 overflow-visible rounded-lg border border-emerald-200 bg-background p-4 dark:border-emerald-900/70 sm:grid-cols-2 xl:grid-cols-4"
                                 >
                                     <div className="flex flex-col gap-2">
@@ -1795,8 +1795,8 @@ export default function QuotationForm({
                                             />
                                             <Button
                                                 type="button"
-                                                variant="destructive"
-                                                className="h-11 shrink-0"
+                                                variant="outline"
+                                                className={formRemoveButtonClassName}
                                                 aria-label={`Remove revision ${index + 1}`}
                                                 onClick={() =>
                                                     setPendingDeleteRevision({

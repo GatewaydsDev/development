@@ -384,7 +384,7 @@ export const productToFormData = (
                             ),
                         },
                     ]
-                  : [blankStatePrice()]
+                  : []
               : [],
     configurations:
         product?.configurations?.length
@@ -403,11 +403,11 @@ export const productToFormData = (
             ? product.constructions.map((construction) => ({
                   construction_id: String(construction.id),
               }))
-            : [blankConstruction()],
+            : [],
     parts:
         product?.parts?.length
             ? product.parts.map((part) => ({
                   part_id: String(part.id),
               }))
-            : [blankPart()],
+            : [],
 });

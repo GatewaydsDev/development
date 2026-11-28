@@ -1,6 +1,8 @@
 <?php
 
 use App\Models\ContactDirectory\ContactDirectoryContact;
+use App\Models\ContactDirectory\ContactType;
+use App\Models\ContactDirectory\PhoneLabel;
 use App\Models\User;
 use App\Models\UserLevel;
 
@@ -152,6 +154,34 @@ it('prevents editing another contacts child records', function () {
         'email_addresses' => [$other->emailAddresses->first()->only(['id', 'email_address'])],
     ])->assertUnprocessable()->assertJsonValidationErrors(['phone_numbers.0.id', 'email_addresses.0.id']);
     expect($other->fresh()->phoneNumbers)->toHaveCount(2)->and($other->fresh()->emailAddresses)->toHaveCount(2);
+});
+
+it('adds a contact type and a phone label from the directory form', function () {
+    actingAs($this->admin)->post(route('contact-directory.contact-types.store'), ['name' => 'Architect'])
+        ->assertRedirect()->assertSessionHasNoErrors();
+    actingAs($this->admin)->post(route('contact-directory.phone-labels.store'), ['name' => 'Warehouse'])
+        ->assertRedirect()->assertSessionHasNoErrors();
+
+    expect(ContactType::where('slug', 'architect')->value('name'))->toBe('Architect')
+        ->and(PhoneLabel::where('name', 'Warehouse')->exists())->toBeTrue();
+
+    actingAs($this->admin)->post(route('contact-directory.contacts.store'), [
+        ...$this->payload,
+        'contact_type' => 'architect',
+        'phone_numbers' => [[
+            'phone_number' => '(570) 555-0100',
+            'country' => 'US',
+            'label' => 'Warehouse',
+            'extension' => '4',
+            'is_primary' => true,
+        ]],
+        'email_addresses' => [],
+    ])->assertSessionHasNoErrors()->assertRedirect();
+
+    $contact = ContactDirectoryContact::where('contact_type', 'architect')->first();
+    expect($contact)->not->toBeNull()
+        ->and($contact->primaryPhone->label)->toBe('Warehouse')
+        ->and($contact->primaryPhone->extension)->toBe('4');
 });
 
 it('denies add and edit pages to read-only users', function () {

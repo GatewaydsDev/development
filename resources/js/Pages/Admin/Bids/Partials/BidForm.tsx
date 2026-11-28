@@ -1,3 +1,4 @@
+import { FormAddButton, FormSectionHeading, formRemoveButtonClassName } from '@/Components/ContactDirectory/FormSection';
 import CreatableSelect from '@/Components/CreatableSelect';
 import QuickProjectDialog from '@/Components/QuickProjectDialog';
 import Checkbox from '@/Components/Checkbox';
@@ -22,9 +23,7 @@ import { Button } from '@/Components/ui/button';
 import {
     Card,
     CardContent,
-    CardDescription,
     CardHeader,
-    CardTitle,
 } from '@/Components/ui/card';
 import { cn } from '@/lib/utils';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -266,15 +265,6 @@ export default function BidForm({
     const defaultValues = useMemo(() => {
         const values = bidToFormData(bid);
 
-        if (!bid && options.stageTypes.length > 0) {
-            const preliminary =
-                options.stageTypes.find((type) =>
-                    type.name.toLowerCase().includes('preliminary'),
-                ) ?? options.stageTypes[0];
-
-            values.stages[0].stage_type_id = String(preliminary.id);
-        }
-
         if (!bid && currentUserId) {
             const canAssign = (options.assignees ?? []).some(
                 (assignee) => String(assignee.id) === currentUserId,
@@ -290,7 +280,7 @@ export default function BidForm({
         }
 
         return values;
-    }, [bid, currentUserId, options.assignees, options.stageTypes]);
+    }, [bid, currentUserId, options.assignees]);
 
     const {
         control,
@@ -727,8 +717,7 @@ export default function BidForm({
 
             <Card id="bid-details" className="scroll-mt-48 overflow-visible border-sky-200 bg-sky-50/70 shadow-sm max-sm:rounded-none max-sm:border-x-0 dark:border-sky-900 dark:bg-sky-950/30">
                 <CardHeader className="p-3 sm:p-6">
-                    <CardTitle>{title}</CardTitle>
-                    <CardDescription>{description}</CardDescription>
+                    <FormSectionHeading icon={FolderKanbanIcon} title={title} description={description} />
                 </CardHeader>
                 <CardContent className="flex flex-col gap-4 p-3 pt-0 sm:gap-6 sm:p-6 sm:pt-0">
                     <div className="flex flex-col gap-5">
@@ -742,7 +731,7 @@ export default function BidForm({
                                             <Button
                                                 type="button"
                                                 variant="create"
-                                                className="shrink-0"
+                                                className="h-8 w-auto shrink-0 px-3 text-xs"
                                                 onClick={() =>
                                                     setProjectDialogOpen(true)
                                                 }
@@ -942,46 +931,22 @@ export default function BidForm({
                 </CardContent>
             </Card>
 
-            <section id="bid-revisions" className="scroll-mt-48 flex flex-col gap-4 rounded-xl border border-violet-200 bg-violet-50/70 p-3 dark:border-violet-900 dark:bg-violet-950/30 sm:p-5">
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                    <div>
-                        <h3 className="text-base font-semibold text-foreground">
-                            Bid revisions
-                        </h3>
-                        <p className="text-sm text-muted-foreground">
-                            Track drawing or document revisions for this bid.
-                        </p>
-                    </div>
-                    <Button
-                        type="button"
-                        variant="create"
-                        className="min-h-11 w-full sm:w-auto"
-                        onClick={() =>
-                            appendRevision(
-                                blankRevision(
-                                    currentUserId,
-                                    auth.user?.name ?? '',
-                                ),
-                            )
-                        }
-                    >
-                        <PlusIcon className="size-4" />
-                        Add revision
-                    </Button>
-                </div>
+            <section id="bid-revisions" data-add-scope className="scroll-mt-48 flex flex-col gap-4 rounded-xl border border-violet-200 bg-violet-50/70 p-3 dark:border-violet-900 dark:bg-violet-950/30 sm:p-5">
+                <FormSectionHeading
+                    icon={GitBranchIcon}
+                    title="Bid revisions"
+                    description="Track drawing or document revisions for this bid."
+                />
 
-                {revisionFields.length === 0 ? (
-                    <div className="rounded-lg border border-dashed border-border bg-background/70 p-4 text-sm text-muted-foreground">
-                        No revisions added yet.
-                    </div>
-                ) : (
-                    <div className="flex flex-col gap-4">
+                {revisionFields.length > 0 && (
+                    <div data-add-list className="flex flex-col gap-4">
                         {revisionFields.map((field, index) => {
                             const revision = data.revisions?.[index];
 
                             return (
                                 <div
                                     key={field.id}
+                                    data-add-row
                                     className="grid min-w-0 gap-4 overflow-visible rounded-lg border border-emerald-200 bg-background p-4 dark:border-emerald-900/70 xl:grid-cols-[minmax(0,0.7fr)_minmax(0,0.9fr)_minmax(0,1.1fr)_minmax(0,1.3fr)_auto]"
                                 >
                                     <div className="flex flex-col gap-2">
@@ -1065,8 +1030,8 @@ export default function BidForm({
                                     <div className="flex items-start lg:pt-7">
                                         <Button
                                             type="button"
-                                            variant="destructive"
-                                            className="min-h-11 w-full sm:w-auto"
+                                            variant="outline"
+                                            className={formRemoveButtonClassName}
                                             aria-label={`Remove revision ${index + 1}`}
                                             onClick={() =>
                                                 setPendingDelete({
@@ -1086,31 +1051,28 @@ export default function BidForm({
                         })}
                     </div>
                 )}
+                <FormAddButton
+                    onClick={() =>
+                        appendRevision(
+                            blankRevision(
+                                currentUserId,
+                                auth.user?.name ?? '',
+                            ),
+                        )
+                    }
+                >
+                    Add revision
+                </FormAddButton>
             </section>
 
-            <section id="bid-stages" className="scroll-mt-48 flex flex-col gap-4 rounded-xl border border-emerald-200 bg-emerald-50/70 p-3 dark:border-emerald-900 dark:bg-emerald-950/30 sm:p-5">
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                    <div>
-                        <h3 className="text-base font-semibold text-foreground">
-                            Bid stages
-                        </h3>
-                        <p className="text-sm text-muted-foreground">
-                            Track preliminary, revised, and later stages. Type a
-                            new stage name to create it.
-                        </p>
-                    </div>
-                    <Button
-                        type="button"
-                        variant="create"
-                        className="min-h-11 w-full sm:w-auto"
-                        onClick={() => appendStage(blankStage())}
-                    >
-                        <PlusIcon className="size-4" />
-                        Add stage
-                    </Button>
-                </div>
+            <section id="bid-stages" data-add-scope className="scroll-mt-48 flex flex-col gap-4 rounded-xl border border-emerald-200 bg-emerald-50/70 p-3 dark:border-emerald-900 dark:bg-emerald-950/30 sm:p-5">
+                <FormSectionHeading
+                    icon={ListOrderedIcon}
+                    title="Bid stages"
+                    description="Track preliminary, revised, and later stages. Type a new stage name to create it."
+                />
 
-                <div className="flex flex-col gap-4">
+                <div data-add-list className="flex flex-col gap-4">
                     {stageFields.map((field, index) => {
                         const selectedIds = (data.stages ?? [])
                             .map((item, itemIndex) =>
@@ -1121,6 +1083,7 @@ export default function BidForm({
                         return (
                             <div
                                 key={field.id}
+                                data-add-row
                                 className="grid min-w-0 gap-4 overflow-visible rounded-lg border border-emerald-200 bg-background p-4 dark:border-emerald-900/70 xl:grid-cols-[minmax(0,1.3fr)_10rem_minmax(0,1fr)_auto]"
                             >
                                 <CreatableSelect
@@ -1190,8 +1153,8 @@ export default function BidForm({
                                 <div className="flex items-start lg:pt-7">
                                     <Button
                                         type="button"
-                                        variant="destructive"
-                                        className="min-h-11 w-full sm:w-auto"
+                                        variant="outline"
+                                        className={formRemoveButtonClassName}
                                         aria-label={`Remove stage ${index + 1}`}
                                         onClick={() => {
                                             const stageName =
@@ -1216,6 +1179,9 @@ export default function BidForm({
                         );
                     })}
                 </div>
+                <FormAddButton onClick={() => appendStage(blankStage())}>
+                    Add stage
+                </FormAddButton>
             </section>
 
             <section id="bid-document" className="scroll-mt-48">

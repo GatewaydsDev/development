@@ -3,9 +3,9 @@ import DateMaskInput from '@/Components/DateMaskInput';
 import InputError from '@/Components/InputError';
 import InputLabel from '@/Components/InputLabel';
 import NamedCatalogSelect from '@/Components/NamedCatalogSelect';
-import { Button } from '@/Components/ui/button';
+import { FormAddButton, FormRemoveButton, FormSectionHeading } from '@/Components/ContactDirectory/FormSection';
 import { router } from '@inertiajs/react';
-import { PlusIcon, Trash2Icon } from 'lucide-react';
+import { AwardIcon } from 'lucide-react';
 import { FieldErrors } from 'react-hook-form';
 import type {
     CertificationOption,
@@ -47,23 +47,14 @@ export default function EmployeeCertificationsFields({
     onRemove,
 }: EmployeeCertificationsFieldsProps) {
     return (
-        <section className="flex flex-col gap-4 rounded-xl border border-border bg-muted/20 p-4">
-            <div>
-                <h3 className="text-base font-semibold text-foreground">
-                    Certifications and qualifications
-                </h3>
-                <p className="text-sm text-muted-foreground">
-                    Choose a shared qualification, or add a new one from the
-                    list. The same qualification can be assigned to other
-                    employees.
-                </p>
-            </div>
-            {certifications.length === 0 ? (
-                <p className="rounded-lg border border-dashed border-border bg-background/60 p-4 text-sm text-muted-foreground">
-                    No certifications yet.
-                </p>
-            ) : (
-                <div className="flex flex-col gap-3">
+        <section data-add-scope className="flex flex-col gap-4 rounded-lg border border-amber-200 bg-amber-50/70 p-4 dark:border-amber-900 dark:bg-amber-950/30 sm:p-6">
+            <FormSectionHeading
+                icon={AwardIcon}
+                title="Certifications and qualifications"
+                description="Choose a shared qualification, or add a new one from the list. The same qualification can be assigned to other employees."
+            />
+            {certifications.length > 0 && (
+                <div data-add-list className="flex flex-col gap-3">
                     {certifications.map((certification, index) => {
                         const selected = catalog.find(
                             (item) =>
@@ -74,6 +65,7 @@ export default function EmployeeCertificationsFields({
                         return (
                             <div
                                 key={index}
+                                data-add-row
                                 className="grid gap-3 rounded-lg border border-border bg-background p-4 md:grid-cols-2"
                             >
                                 <div className="flex flex-col gap-2 md:col-span-2">
@@ -189,29 +181,14 @@ export default function EmployeeCertificationsFields({
                                     />
                                 </div>
                                 <div className="flex justify-end md:col-span-2">
-                                    <Button
-                                        type="button"
-                                        variant="outline"
-                                        onClick={() => onRemove(index)}
-                                    >
-                                        <Trash2Icon />
-                                        Remove
-                                    </Button>
+                                    <FormRemoveButton label={`Remove certification ${index + 1}`} onClick={() => onRemove(index)} />
                                 </div>
                             </div>
                         );
                     })}
                 </div>
             )}
-            <Button
-                type="button"
-                variant="outline"
-                onClick={onAdd}
-                className="self-end bg-background"
-            >
-                <PlusIcon />
-                Add certification
-            </Button>
+            <FormAddButton onClick={onAdd}>Add certification</FormAddButton>
         </section>
     );
 }

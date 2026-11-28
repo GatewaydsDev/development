@@ -4,11 +4,10 @@ import InputError from '@/Components/InputError';
 import InputLabel from '@/Components/InputLabel';
 import CreatableSelect from '@/Components/CreatableSelect';
 import TextInput from '@/Components/TextInput';
-import FormSection from '@/Components/ContactDirectory/FormSection';
+import FormSection, { FormAddButton, FormRemoveButton } from '@/Components/ContactDirectory/FormSection';
 import RichTextEditor from '@/Components/RichTextEditor';
 import { notesToHtml } from '@/lib/notesHtml';
-import { Button } from '@/Components/ui/button';
-import { Building2Icon, MapPinIcon, NotebookPenIcon, PlusIcon, Trash2Icon } from 'lucide-react';
+import { Building2Icon, MapPinIcon, NotebookPenIcon } from 'lucide-react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { PageProps } from '@/types';
 import { Head, Link, useForm } from '@inertiajs/react';
@@ -97,16 +96,15 @@ export default function CompanyForm({ company, addressTypes }: PageProps<{ compa
                             </div>
                             </FormSection>
                             <ContactMethodFields phones={form.data.phones} emails={form.data.emails} setRows={(field, rows) => form.setData(field, rows)} errors={errors} />
-                            <FormSection title="Company addresses" description="Add every office or location. Mark one location as the main office." icon={MapPinIcon} tone="violet">
-                            <div className="space-y-4">
-                                {form.data.addresses.length === 0 && <p className="text-sm text-muted-foreground">No addresses added yet.</p>}
-                                {form.data.addresses.map((address, index) => <div key={index} className="min-w-0 rounded-md border border-violet-200 bg-background p-4 dark:border-violet-900">
+                            <FormSection title="Company addresses" description="Add every office or location. Mark one location as the main office." icon={MapPinIcon} tone="violet" addScope>
+                            <div data-add-list className="space-y-4">
+                                {form.data.addresses.map((address, index) => <div key={index} data-add-row className="min-w-0 rounded-md border border-violet-200 bg-background p-4 dark:border-violet-900">
                                     <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
                                         <div className="flex flex-wrap items-center gap-3">
                                             <div className="w-56"><CreatableSelect id={`company-address-${index}-type`} label="Office type" value={address.address_type_id} options={addressTypes} optionsProp="addressTypes" createRoute={route('contact-directory.address-types.store')} entityLabel="office type" placeholder="Select or add a type" compact error={errors[`addresses.${index}.address_type_id`]} onChange={(typeId) => updateAddress(index, { address_type_id: typeId })} /></div>
                                             <label className="flex items-center gap-2 text-sm font-medium text-foreground"><input type="checkbox" className="accent-violet-600" checked={address.is_headquarters} onChange={(event) => setMainOffice(index, event.target.checked)} />Main office</label>
                                         </div>
-                                        <Button type="button" variant="outline" size="sm" className="text-destructive" onClick={() => removeAddress(index)}><Trash2Icon className="size-4" aria-hidden="true" />Remove</Button>
+                                        <FormRemoveButton label={`Remove address ${index + 1}`} onClick={() => removeAddress(index)} />
                                     </div>
                                     <div className="mb-4 space-y-2"><InputLabel htmlFor={`company-address-${index}-name`} value="Office name" className={labelClass} /><TextInput id={`company-address-${index}-name`} maxLength={255} placeholder="e.g. East Coast Headquarters" value={address.name} className={inputClass} onChange={(event) => updateAddress(index, { name: event.target.value })} /><InputError message={errors[`addresses.${index}.name`]} /></div>
                                     <div className="grid min-w-0 gap-4 md:grid-cols-2 xl:grid-cols-3">
@@ -117,7 +115,7 @@ export default function CompanyForm({ company, addressTypes }: PageProps<{ compa
                                         </div>)}
                                     </div>
                                 </div>)}
-                                <div className="flex justify-end"><Button type="button" variant="outline" onClick={addAddress}><PlusIcon className="size-4" aria-hidden="true" />Add address</Button></div>
+                                <FormAddButton onClick={addAddress}>Add address</FormAddButton>
                             </div>
                             </FormSection>
                             <FormSection title="Notes" icon={NotebookPenIcon}>

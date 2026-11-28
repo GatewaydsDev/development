@@ -1,4 +1,5 @@
 import FormActionFab from '@/Components/FormActionFab';
+import CreatableSelect, { type CreatableOption } from '@/Components/CreatableSelect';
 import InputError from '@/Components/InputError';
 import InputLabel from '@/Components/InputLabel';
 import ContactMethodFields, { contactMethodsPayload, emailRows, phoneRow, withPrimary } from '@/Components/ContactDirectory/ContactMethodFields';
@@ -19,8 +20,9 @@ type Contact = {
     email_addresses: { id: number; email_address: string; label: string; is_primary: boolean }[];
 };
 
-export default function ContactForm({ contact, companies, users, auth }: PageProps<{
+export default function ContactForm({ contact, companies, users, contactTypes = [], phoneLabels = [], auth }: PageProps<{
     contact: Contact | null; companies: Option[]; users: Option[];
+    contactTypes?: CreatableOption[]; phoneLabels?: CreatableOption[];
 }>) {
     const editing = contact !== null;
     const title = editing ? `Edit ${contact.first_name} ${contact.last_name ?? ''}`.trim() : 'Add contact';
@@ -75,13 +77,18 @@ export default function ContactForm({ contact, companies, users, auth }: PagePro
                                     <TextInput id={`contact-${field}`} required={field === 'first_name'} maxLength={255} isFocused={field === 'first_name'} value={form.data[field]} className={inputClass} onChange={(event) => form.setData(field, event.target.value)} />
                                     <InputError message={errors[field]} />
                                 </div>)}
-                                <div className="space-y-2">
-                                    <InputLabel htmlFor="contact-type" value="Contact type" className={labelClass} />
-                                    <select id="contact-type" className={inputClass} value={form.data.contact_type} onChange={(event) => form.setData('contact_type', event.target.value)}>
-                                        {['supplier', 'customer', 'subcontractor', 'other'].map((type) => <option key={type} value={type}>{type.charAt(0).toUpperCase() + type.slice(1)}</option>)}
-                                    </select>
-                                    <InputError message={errors.contact_type} />
-                                </div>
+                                <CreatableSelect
+                                    id="contact-type"
+                                    label="Contact type"
+                                    value={form.data.contact_type}
+                                    options={contactTypes}
+                                    optionsProp="contactTypes"
+                                    createRoute={route('contact-directory.contact-types.store')}
+                                    entityLabel="contact type"
+                                    placeholder="Select or add a type"
+                                    error={errors.contact_type}
+                                    onChange={(id) => form.setData('contact_type', id)}
+                                />
                                 <div className="space-y-2">
                                     <InputLabel htmlFor="contact-company" value="Company (optional)" className={labelClass} />
                                     <select id="contact-company" className={inputClass} value={form.data.company_id} onChange={(event) => form.setData('company_id', event.target.value)}>
@@ -98,7 +105,7 @@ export default function ContactForm({ contact, companies, users, auth }: PagePro
                                 </div>
                             </div>
                             </FormSection>
-                            <ContactMethodFields phones={form.data.phones} emails={form.data.emails} setRows={(field, rows) => form.setData(field, rows)} errors={errors} />
+                            <ContactMethodFields phones={form.data.phones} emails={form.data.emails} setRows={(field, rows) => form.setData(field, rows)} errors={errors} phoneLabels={phoneLabels} />
                             <FormSection title="Notes and status" icon={NotebookPenIcon} tone="violet">
                             <div className="space-y-2">
                                 <InputLabel htmlFor="contact-notes" value="Notes (optional)" className={labelClass} />

@@ -45,6 +45,8 @@ use App\Http\Controllers\ClientPortalController;
 use App\Http\Controllers\ClientTeamController;
 use App\Http\Controllers\ContactDirectory\AddressTypeController;
 use App\Http\Controllers\ContactDirectory\ContactCompanyController;
+use App\Http\Controllers\ContactDirectory\ContactTypeController;
+use App\Http\Controllers\ContactDirectory\PhoneLabelController;
 use App\Http\Controllers\ContactDirectory\ContactDirectoryController;
 use App\Http\Controllers\ContactDirectory\ContactDirectoryInquiryController;
 use App\Http\Controllers\ContactDirectory\ContactEmailController;
@@ -261,6 +263,10 @@ Route::middleware(['auth', 'prevent-back-history', 'can:view-contacts-directory'
         });
 
         Route::post('/address-types', [AddressTypeController::class, 'store'])->name('address-types.store')
+            ->middleware('can:manage-contacts-directory');
+        Route::post('/contact-types', [ContactTypeController::class, 'store'])->name('contact-types.store')
+            ->middleware('can:manage-contacts-directory');
+        Route::post('/phone-labels', [PhoneLabelController::class, 'store'])->name('phone-labels.store')
             ->middleware('can:manage-contacts-directory');
 
         Route::post('/follow-up-task-options', [FollowUpTaskOptionController::class, 'store'])->name('task-options.store')

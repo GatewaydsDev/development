@@ -4,6 +4,8 @@ import InputLabel from '@/Components/InputLabel';
 import PhoneInput, { phoneCountries } from '@/Components/PhoneInput';
 import TextInput from '@/Components/TextInput';
 import { ReactNode } from 'react';
+import { formRemoveButtonClassName } from '@/Components/ContactDirectory/FormSection';
+import { queueFocusAddedRow } from '@/lib/focusFirstField';
 import { Button } from '@/Components/ui/button';
 import { PlusIcon, Trash2Icon } from 'lucide-react';
 
@@ -28,10 +30,12 @@ type UserContactFieldsProps = {
     onChange: (rows: UserContactRow[]) => void;
     maxRows?: number;
     renderDetails?: (row: UserContactRow, index: number) => ReactNode;
+    renderAfterPrimary?: (row: UserContactRow, index: number) => ReactNode;
     preserveLegacyPhone?: boolean;
     stackPhonesOnMobile?: boolean;
     sectionClassName?: string;
     headingIcon?: ReactNode;
+    addAtBottom?: boolean;
 };
 
 const inputClassName =
@@ -55,10 +59,12 @@ export default function UserContactFields({
     onChange,
     maxRows = 20,
     renderDetails,
+    renderAfterPrimary,
     preserveLegacyPhone = false,
     stackPhonesOnMobile = false,
     sectionClassName,
     headingIcon,
+    addAtBottom = false,
 }: UserContactFieldsProps) {
     const updateValue = (index: number, value: string) => {
         onChange(
@@ -68,7 +74,7 @@ export default function UserContactFields({
         );
     };
 
-    const addRow = () => {
+    const addRow = (event: { currentTarget: HTMLElement }) => {
         onChange([
             ...rows,
             {
@@ -77,6 +83,7 @@ export default function UserContactFields({
                 ...(field === 'phones' ? { country: 'US' } : {}),
             },
         ]);
+        queueFocusAddedRow(event.currentTarget.closest('[data-add-scope]'));
     };
 
     const updateCountry = (index: number, country: string) => {
@@ -97,10 +104,27 @@ export default function UserContactFields({
         onChange(next);
     };
 
+    const addButton = (
+        <Button
+            type="button"
+            variant={addAtBottom ? 'create' : sectionClassName ? 'default' : 'outline'}
+            className={
+                addAtBottom
+                    ? 'ml-auto h-8 w-auto self-end px-3 text-xs'
+                    : `h-11 shrink-0 ${sectionClassName ? 'bg-emerald-600 text-white hover:bg-emerald-700' : ''}`
+            }
+            onClick={(event) => addRow(event)}
+            disabled={rows.length >= maxRows}
+        >
+            <PlusIcon className={addAtBottom ? 'size-3.5' : 'size-4'} />
+            {addLabel}
+        </Button>
+    );
+
     return (
-        <fieldset className={`flex min-w-0 flex-col gap-3 border p-4 ${sectionClassName ? `rounded-lg sm:p-6 ${sectionClassName}` : 'rounded-xl border-border'}`}>
+        <fieldset data-add-scope className={`flex min-w-0 flex-col gap-3 border p-4 ${sectionClassName ? `rounded-lg sm:p-6 ${sectionClassName}` : 'rounded-xl border-border'}`}>
             <legend className="sr-only">{legend}</legend>
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className={addAtBottom ? undefined : 'flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between'}>
                 <div>
                     <h3 className={sectionClassName ? 'flex items-center gap-2 text-lg font-semibold text-foreground' : 'text-sm font-medium text-emerald-700 dark:text-emerald-300'}>
                         {headingIcon}
@@ -110,27 +134,15 @@ export default function UserContactFields({
                         {description}
                     </p>
                 </div>
-                <Button
-                    type="button"
-                    variant={sectionClassName ? 'default' : 'outline'}
-                    className={`h-11 shrink-0 ${sectionClassName ? 'bg-emerald-600 text-white hover:bg-emerald-700' : ''}`}
-                    onClick={addRow}
-                    disabled={rows.length >= maxRows}
-                >
-                    <PlusIcon className="size-4" />
-                    {addLabel}
-                </Button>
+                {addAtBottom ? null : addButton}
             </div>
 
-            {rows.length === 0 ? (
-                <p className="rounded-lg border border-dashed border-border px-3 py-4 text-sm text-muted-foreground">
-                    None added yet.
-                </p>
-            ) : (
-                <div className="flex flex-col gap-3">
+            {rows.length > 0 && (
+                <div data-add-list className="flex flex-col gap-3">
                     {rows.map((row, index) => (
                         <div
                             key={`${field}-${index}`}
+                            data-add-row
                             className={
                                 field === 'phones'
                                     ? 'flex flex-wrap items-center gap-2'
@@ -192,10 +204,12 @@ export default function UserContactFields({
                                 />
                                 Primary
                             </label>
+                            {renderAfterPrimary?.(row, index)}
                             <Button
                                 type="button"
                                 variant="outline"
-                                className={(field === 'phones' ? 'h-9 px-3' : 'h-11') + (sectionClassName ? ' border-rose-200 text-rose-700 hover:bg-rose-50 hover:text-rose-800 dark:border-rose-800/60 dark:text-rose-300 dark:hover:bg-rose-950/40' : '')}
+                                title={`Remove ${legend} ${index + 1}`}
+                                className={formRemoveButtonClassName}
                                 aria-label={`Remove ${legend} ${index + 1}`}
                                 onClick={() => removeRow(index)}
                             >
@@ -223,6 +237,7 @@ export default function UserContactFields({
             )}
             <InputError message={errors[field]} />
             {rows.length >= maxRows && <p className="text-xs text-muted-foreground">Maximum {maxRows} entries.</p>}
+            {addAtBottom ? addButton : null}
         </fieldset>
     );
 }

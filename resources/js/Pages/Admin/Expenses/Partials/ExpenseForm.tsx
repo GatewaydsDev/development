@@ -1,5 +1,6 @@
 import CreatableSelect, { type CreatableOption } from '@/Components/CreatableSelect';
 import ReceiptCamera from '@/Components/ReceiptCamera';
+import { FormAddButton, FormRemoveButton } from '@/Components/ContactDirectory/FormSection';
 import FormActionFab from '@/Components/FormActionFab';
 import InputError from '@/Components/InputError';
 import MaskedDecimalInput from '@/Components/MaskedDecimalInput';
@@ -14,7 +15,7 @@ import {
 import { PageProps } from '@/types';
 import { cn } from '@/lib/utils';
 import { useForm, usePage } from '@inertiajs/react';
-import { BanknoteIcon, CameraIcon, PlusIcon, ReceiptIcon, RepeatIcon, ShoppingBagIcon, Trash2Icon, UploadIcon } from 'lucide-react';
+import { BanknoteIcon, CameraIcon, ReceiptIcon, RepeatIcon, ShoppingBagIcon, UploadIcon } from 'lucide-react';
 import { ChangeEvent, FormEvent, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 
 type PaymentRow = {
@@ -434,16 +435,18 @@ function FormSection({
     title,
     hint,
     className,
+    addScope = false,
     children,
 }: {
     icon: ReactNode;
     title: string;
     hint: string;
     className: string;
+    addScope?: boolean;
     children: ReactNode;
 }) {
     return (
-        <section className={cn('grid gap-3 rounded-xl border p-4 text-foreground', className)}>
+        <section data-add-scope={addScope ? '' : undefined} className={cn('grid gap-3 rounded-xl border p-4 text-foreground', className)}>
             <div className="flex items-start gap-2">
                 <span className="mt-0.5">{icon}</span>
                 <div>
@@ -465,7 +468,7 @@ const FREQUENCIES: Record<string, string> = {
 
 const paymentsFromExpense = (expense?: ExpenseRecord | null): PaymentDraft[] => {
     if (!expense || expense.payments.length === 0) {
-        return [blankPayment(expense?.amount ?? '')];
+        return [];
     }
 
     return expense.payments.map((payment) => ({
@@ -1161,6 +1164,7 @@ export default function ExpenseForm({
                         title="Payments"
                         hint="Each row is one part of the total. Mark it paid when the money has been sent, or leave it to be paid later."
                         className="border-amber-200 bg-amber-50/80 dark:border-amber-900 dark:bg-amber-950/30"
+                        addScope
                     >
                             <>
                                 <div className="flex flex-wrap items-end justify-between gap-3 rounded-lg border border-amber-200 bg-background px-3 py-2 dark:border-amber-900">
@@ -1176,15 +1180,6 @@ export default function ExpenseForm({
                                         </p>
                                         <InputError message={fieldError('payments')} />
                                     </div>
-                                    <Button
-                                        type="button"
-                                        variant="outline"
-                                        className="min-h-11 touch-manipulation"
-                                        onClick={() => form.setData('payments', [...form.data.payments, blankPayment()])}
-                                    >
-                                        <PlusIcon className="size-4" />
-                                        Add payment
-                                    </Button>
                                 </div>
                                 <div className="flex flex-wrap items-end gap-2 rounded-lg border border-dashed border-amber-400 bg-background p-3">
                                     <p className="w-full text-sm font-semibold text-foreground">Split the total into monthly payments</p>
@@ -1210,9 +1205,9 @@ export default function ExpenseForm({
                                         Split monthly
                                     </Button>
                                 </div>
-                                <div className="grid gap-3">
+                                <div data-add-list className="grid gap-3">
                                     {form.data.payments.map((payment, index) => (
-                                        <div key={`${payment.id ?? 'new'}-${index}`} className="grid gap-2 rounded-lg border border-amber-200 bg-background p-3 text-foreground dark:border-amber-900">
+                                        <div key={`${payment.id ?? 'new'}-${index}`} data-add-row className="grid gap-2 rounded-lg border border-amber-200 bg-background p-3 text-foreground dark:border-amber-900">
                                             <p className="text-sm font-semibold text-foreground">Payment {index + 1}</p>
                                             <div className="flex flex-wrap items-end gap-2">
                                                 <label className="grid w-[11.5rem] max-w-full shrink-0 gap-2 text-sm font-medium text-foreground">
@@ -1284,25 +1279,21 @@ export default function ExpenseForm({
                                                     <InputError message={fieldError(`payments.${index}.paid_on`)} />
                                                 </label>
                                             ) : null}
-                                            {form.data.payments.length > 1 ? (
-                                                <Button
-                                                    type="button"
-                                                    variant="outline"
-                                                    className="min-h-11 w-fit touch-manipulation"
-                                                    onClick={() =>
-                                                        form.setData(
-                                                            'payments',
-                                                            form.data.payments.filter((_, paymentIndex) => paymentIndex !== index),
-                                                        )
-                                                    }
-                                                >
-                                                    <Trash2Icon className="size-4" />
-                                                    Remove payment
-                                                </Button>
-                                            ) : null}
+                                            <FormRemoveButton
+                                                label={`Remove payment ${index + 1}`}
+                                                onClick={() =>
+                                                    form.setData(
+                                                        'payments',
+                                                        form.data.payments.filter((_, paymentIndex) => paymentIndex !== index),
+                                                    )
+                                                }
+                                            />
                                         </div>
                                     ))}
                                 </div>
+                                <FormAddButton onClick={() => form.setData('payments', [...form.data.payments, blankPayment()])}>
+                                    Add payment
+                                </FormAddButton>
                             </>
                     </FormSection>
                     )}

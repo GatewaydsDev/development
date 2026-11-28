@@ -468,7 +468,7 @@ export function projectToFormData(
                         notes: '',
                     },
                 ]
-              : [blankScope()];
+              : [];
 
     return {
         name: project?.name ?? '',
@@ -507,7 +507,7 @@ export function projectToFormData(
                             amount: String(project.budget_amount),
                         },
                     ]
-                  : [blankPrice()],
+                  : [],
         public_notes: project?.public_notes ?? '',
         internal_notes: project?.internal_notes ?? '',
         company_uuids: project?.companies?.map((company) => company.uuid) ?? [],
@@ -520,7 +520,7 @@ export function projectToFormData(
                       email: contractor.email ?? '',
                       phone_number: contractor.phone_number ?? '',
                   }))
-                : [blankContractor()],
+                : [],
         scopes,
         revisions:
             project?.revisions && project.revisions.length > 0

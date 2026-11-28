@@ -126,6 +126,6 @@ export function contractorToFormData(
                       notes: contact.notes ?? '',
                       is_primary: contact.is_primary || index === 0,
                   }))
-                : [blankContact(true)],
+                : [],
     };
 }
