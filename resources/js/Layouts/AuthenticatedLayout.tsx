@@ -65,10 +65,16 @@ const idleActivityEvents = [
 export default function Authenticated({
     header,
     stickyTitle,
+    stickyActions,
     // Kept for API compatibility; all app pages now use the full width after the sidebar.
     fullWidth: _fullWidth = false,
     children,
-}: PropsWithChildren<{ header?: ReactNode; stickyTitle?: string; fullWidth?: boolean }>) {
+}: PropsWithChildren<{
+    header?: ReactNode;
+    stickyTitle?: string;
+    stickyActions?: ReactNode;
+    fullWidth?: boolean;
+}>) {
     const page = usePage<PageProps>();
     const { auth, session, flash, impersonation } = page.props;
     const existingTakeoffMessage = [flash?.success, flash?.error].find(
@@ -807,39 +813,46 @@ export default function Authenticated({
                             )}
                             style={{ top: navHeight }}
                         >
-                            <div className={cn('mx-auto grid w-full gap-0.5 px-4 py-2 sm:px-6 lg:px-8')}>
-                                {headerBreadcrumb.length > 0 ? (
-                                    <nav
-                                        aria-label="Breadcrumb"
-                                        className="flex min-w-0 items-center gap-1.5 overflow-hidden text-xs font-medium text-muted-foreground"
-                                    >
-                                        {headerBreadcrumb.map((item, index) =>
-                                            item.href ? (
-                                                <Link
-                                                    key={`${item.label}-${index}`}
-                                                    href={item.href}
-                                                    className="shrink-0 transition hover:text-foreground"
-                                                >
-                                                    {item.label}
-                                                </Link>
-                                            ) : (
-                                                <span
-                                                    key={`${item.label}-${index}`}
-                                                    className={cn(
-                                                        item.label === '/'
-                                                            ? 'shrink-0'
-                                                            : 'min-w-0 truncate last:text-foreground',
-                                                    )}
-                                                >
-                                                    {item.label}
-                                                </span>
-                                            ),
-                                        )}
-                                    </nav>
+                            <div className="mx-auto flex w-full flex-col gap-2 px-4 py-2 sm:px-6 lg:flex-row lg:items-center lg:justify-between lg:px-8">
+                                <div className="grid min-w-0 flex-1 gap-0.5">
+                                    {headerBreadcrumb.length > 0 ? (
+                                        <nav
+                                            aria-label="Breadcrumb"
+                                            className="flex min-w-0 items-center gap-1.5 overflow-hidden text-xs font-medium text-muted-foreground"
+                                        >
+                                            {headerBreadcrumb.map((item, index) =>
+                                                item.href ? (
+                                                    <Link
+                                                        key={`${item.label}-${index}`}
+                                                        href={item.href}
+                                                        className="shrink-0 transition hover:text-foreground"
+                                                    >
+                                                        {item.label}
+                                                    </Link>
+                                                ) : (
+                                                    <span
+                                                        key={`${item.label}-${index}`}
+                                                        className={cn(
+                                                            item.label === '/'
+                                                                ? 'shrink-0'
+                                                                : 'min-w-0 truncate last:text-foreground',
+                                                        )}
+                                                    >
+                                                        {item.label}
+                                                    </span>
+                                                ),
+                                            )}
+                                        </nav>
+                                    ) : null}
+                                    <p className="truncate text-lg font-semibold leading-tight text-emerald-700 dark:text-emerald-300">
+                                        {compactTitle}
+                                    </p>
+                                </div>
+                                {stickyActions ? (
+                                    <div className="flex shrink-0 flex-wrap items-center gap-2">
+                                        {stickyActions}
+                                    </div>
                                 ) : null}
-                                <p className="truncate text-lg font-semibold leading-tight text-emerald-700 dark:text-emerald-300">
-                                    {compactTitle}
-                                </p>
                             </div>
                         </div>
                     )}

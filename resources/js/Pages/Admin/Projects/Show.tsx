@@ -82,6 +82,82 @@ function ProjectNote({
     );
 }
 
+function ProjectActions({
+    project,
+    options,
+    onRemove,
+}: {
+    project: ProjectPayload;
+    options: ProjectOptions;
+    onRemove: () => void;
+}) {
+    return (
+        <div className="flex flex-wrap gap-2">
+            <ActionHint hint="Print this project">
+                <Button variant="outline" asChild>
+                    <a
+                        href={route('admin.projects.document.print', project.uuid)}
+                        target="_blank"
+                        rel="noreferrer"
+                        aria-label="Print this project"
+                    >
+                        <PrinterIcon className="size-4" />
+                        Print
+                    </a>
+                </Button>
+            </ActionHint>
+            <ActionHint hint="Download as PDF">
+                <Button variant="outline" asChild>
+                    <a
+                        href={route('admin.projects.document.export.pdf', project.uuid)}
+                        aria-label="Download as PDF"
+                    >
+                        <FileTextIcon className="size-4" />
+                        PDF
+                    </a>
+                </Button>
+            </ActionHint>
+            <ActionHint hint="Download as Word">
+                <Button variant="outline" asChild>
+                    <a
+                        href={route('admin.projects.document.export.word', project.uuid)}
+                        aria-label="Download as Word"
+                    >
+                        <FileTextIcon className="size-4" />
+                        Word 2026
+                    </a>
+                </Button>
+            </ActionHint>
+            {options.can.update && (
+                <ActionHint hint="Edit this project">
+                    <Button variant="outline" asChild>
+                        <Link
+                            href={route('admin.projects.edit', project.uuid)}
+                            aria-label="Edit this project"
+                        >
+                            <EditIcon className="size-4" />
+                            Edit
+                        </Link>
+                    </Button>
+                </ActionHint>
+            )}
+            {options.can.delete && (
+                <ActionHint hint="Remove this project">
+                    <Button
+                        type="button"
+                        variant="destructive"
+                        onClick={onRemove}
+                        aria-label="Remove this project"
+                    >
+                        <TrashIcon className="size-4" />
+                        Remove
+                    </Button>
+                </ActionHint>
+            )}
+        </div>
+    );
+}
+
 function DetailItem({
     label,
     value,
@@ -139,6 +215,13 @@ export default function Show({ project, options, clientCompany = null, clientCom
     return (
         <AuthenticatedLayout
             stickyTitle={`Project details — ${project.name}`}
+            stickyActions={
+                <ProjectActions
+                    project={project}
+                    options={options}
+                    onRemove={() => setIsDeleteOpen(true)}
+                />
+            }
             header={
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <div>
@@ -163,81 +246,11 @@ export default function Show({ project, options, clientCompany = null, clientCom
                             Project details
                         </h2>
                     </div>
-                    <div className="flex flex-wrap gap-2">
-                        <ActionHint hint="Print this project">
-                            <Button variant="outline" asChild>
-                                <a
-                                    href={route(
-                                        'admin.projects.document.print',
-                                        project.uuid,
-                                    )}
-                                    target="_blank"
-                                    rel="noreferrer"
-                                    aria-label="Print this project"
-                                >
-                                    <PrinterIcon className="size-4" />
-                                    Print
-                                </a>
-                            </Button>
-                        </ActionHint>
-                        <ActionHint hint="Download as PDF">
-                            <Button variant="outline" asChild>
-                                <a
-                                    href={route(
-                                        'admin.projects.document.export.pdf',
-                                        project.uuid,
-                                    )}
-                                    aria-label="Download as PDF"
-                                >
-                                    <FileTextIcon className="size-4" />
-                                    PDF
-                                </a>
-                            </Button>
-                        </ActionHint>
-                        <ActionHint hint="Download as Word">
-                            <Button variant="outline" asChild>
-                                <a
-                                    href={route(
-                                        'admin.projects.document.export.word',
-                                        project.uuid,
-                                    )}
-                                    aria-label="Download as Word"
-                                >
-                                    <FileTextIcon className="size-4" />
-                                    Word 2026
-                                </a>
-                            </Button>
-                        </ActionHint>
-                        {options.can.update && (
-                            <ActionHint hint="Edit this project">
-                                <Button variant="outline" asChild>
-                                    <Link
-                                        href={route(
-                                            'admin.projects.edit',
-                                            project.uuid,
-                                        )}
-                                        aria-label="Edit this project"
-                                    >
-                                        <EditIcon className="size-4" />
-                                        Edit
-                                    </Link>
-                                </Button>
-                            </ActionHint>
-                        )}
-                        {options.can.delete && (
-                            <ActionHint hint="Remove this project">
-                                <Button
-                                    type="button"
-                                    variant="destructive"
-                                    onClick={() => setIsDeleteOpen(true)}
-                                    aria-label="Remove this project"
-                                >
-                                    <TrashIcon className="size-4" />
-                                    Remove
-                                </Button>
-                            </ActionHint>
-                        )}
-                    </div>
+                    <ProjectActions
+                        project={project}
+                        options={options}
+                        onRemove={() => setIsDeleteOpen(true)}
+                    />
                 </div>
             }
         >
