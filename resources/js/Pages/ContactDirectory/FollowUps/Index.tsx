@@ -1,3 +1,4 @@
+import PaginationNav, { type Paginator } from '@/Components/PaginationNav';
 import FollowUpTaskList from '@/Components/ContactDirectory/FollowUpTaskList';
 import { notesToHtml } from '@/lib/notesHtml';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
@@ -35,7 +36,7 @@ type FollowUp = {
     assigned_user?: { id: number; name: string } | null;
 };
 
-type Paginated<T> = { data: T[]; current_page: number; last_page: number; total: number };
+type Paginated<T> = Paginator & { data: T[] };
 
 type Props = PageProps<{
     filters: {
@@ -387,15 +388,7 @@ export default function FollowUpsIndex({
                     })}
                 </div>
 
-                {followUps.last_page > 1 && (
-                    <div className="flex items-center justify-between text-sm text-muted-foreground">
-                        <span>Page {followUps.current_page} of {followUps.last_page} · {followUps.total} follow-ups</span>
-                        <div className="flex gap-2">
-                            <Button variant="outline" size="sm" disabled={followUps.current_page <= 1} onClick={() => applyFilters({ page: String(followUps.current_page - 1) })}>Previous</Button>
-                            <Button variant="outline" size="sm" disabled={followUps.current_page >= followUps.last_page} onClick={() => applyFilters({ page: String(followUps.current_page + 1) })}>Next</Button>
-                        </div>
-                    </div>
-                )}
+                <PaginationNav paginator={followUps} itemLabel="follow-ups" />
             </div>
         </AuthenticatedLayout>
     );

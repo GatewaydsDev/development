@@ -1,3 +1,4 @@
+import PaginationNav, { type Paginator } from '@/Components/PaginationNav';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Link, router, usePage } from '@inertiajs/react';
 import { useState, type FormEvent } from 'react';
@@ -56,12 +57,7 @@ type Suggestion = {
     severity: string;
 };
 
-type Paginated<T> = {
-    data: T[];
-    current_page: number;
-    last_page: number;
-    total: number;
-};
+type Paginated<T> = Paginator & { data: T[] };
 
 type Props = PageProps<{
     filters: {
@@ -369,6 +365,7 @@ export default function InquiriesIndex({
                             </CardContent>
                         </Card>
                     ))}
+                    <PaginationNav paginator={inquiries} itemLabel="inquiries" />
                 </div>
             </div>
         </AuthenticatedLayout>

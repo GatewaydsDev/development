@@ -1,3 +1,4 @@
+import PaginationNav, { type Paginator } from '@/Components/PaginationNav';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import FormActionFab from '@/Components/FormActionFab';
 import { Link, router, usePage } from '@inertiajs/react';
@@ -116,7 +117,7 @@ type Inquiry = {
     project?: { id: number; name: string } | null;
 };
 
-type Paginated<T> = { data: T[]; current_page: number; last_page: number; total: number };
+type Paginated<T> = Paginator & { data: T[] };
 
 type ShowProps = PageProps<{
     inquiry: Inquiry;
@@ -748,6 +749,7 @@ export default function InquiriesShow({
                                 )}
                             </Card>
                         ))}
+                        <PaginationNav paginator={activities} itemLabel="communications" />
                     </TabsContent>
 
                     <TabsContent value="follow-ups" className="mt-4 space-y-4">
@@ -817,6 +819,7 @@ export default function InquiriesShow({
                                 )}
                             </Card>
                         ))}
+                        <PaginationNav paginator={followUps} itemLabel="follow-ups" />
                     </TabsContent>
                 </Tabs>
             </div>

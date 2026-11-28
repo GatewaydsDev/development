@@ -1,3 +1,4 @@
+import PaginationNav, { type Paginator } from '@/Components/PaginationNav';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import FormActionFab from '@/Components/FormActionFab';
 import { Link, router, usePage } from '@inertiajs/react';
@@ -73,7 +74,7 @@ type PriceRequest = {
     preferred_quote_selection: PreferredQuoteSelection;
 };
 
-type Paginated<T> = { data: T[]; current_page: number; last_page: number; total: number };
+type Paginated<T> = Paginator & { data: T[] };
 
 const formatDate = (value?: string | null) =>
     value
@@ -351,6 +352,7 @@ export default function PriceRequestsShow({
                                 </CardHeader>
                             </Card>
                         ))}
+                        <PaginationNav paginator={inquiries} itemLabel="inquiries" />
 
                         {canManageContacts && (
                             <Card>

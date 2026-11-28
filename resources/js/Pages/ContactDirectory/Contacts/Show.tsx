@@ -1,3 +1,4 @@
+import PaginationNav, { type Paginator } from '@/Components/PaginationNav';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import FormActionFab from '@/Components/FormActionFab';
 import RecordActionLink from '@/Components/ContactDirectory/RecordActionLink';
@@ -95,12 +96,7 @@ type FollowUp = {
     inquiry?: { id: number; title: string } | null;
 };
 
-type Paginated<T> = {
-    data: T[];
-    current_page: number;
-    last_page: number;
-    total: number;
-};
+type Paginated<T> = Paginator & { data: T[] };
 
 type CatalogOption = { id: string; name: string };
 
@@ -565,6 +561,7 @@ export default function ContactsShow({
                                 </CardContent>
                             </Card>
                         ))}
+                        <PaginationNav paginator={inquiries} itemLabel="inquiries" />
                     </TabsContent>
 
                     <TabsContent value="activity" className="mt-4 space-y-4">
@@ -622,6 +619,7 @@ export default function ContactsShow({
                                 )}
                             </Card>
                         ))}
+                        <PaginationNav paginator={activities} itemLabel="communications" />
                     </TabsContent>
 
                     <TabsContent value="follow-ups" className="mt-4 space-y-4">
@@ -701,6 +699,7 @@ export default function ContactsShow({
                                 )}
                             </Card>
                         ))}
+                        <PaginationNav paginator={followUps} itemLabel="follow-ups" />
                     </TabsContent>
                 </Tabs>
             </div>

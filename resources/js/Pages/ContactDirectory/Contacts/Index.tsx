@@ -1,3 +1,4 @@
+import PaginationNav, { type Paginator } from '@/Components/PaginationNav';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import CreateContactButton from '@/Components/ContactDirectory/CreateContactButton';
 import RecordActionLink from '@/Components/ContactDirectory/RecordActionLink';
@@ -48,14 +49,7 @@ type ContactDirectoryContact = {
     next_follow_up_at: string | null;
 };
 
-type Paginated<T> = {
-    data: T[];
-    current_page: number;
-    last_page: number;
-    per_page: number;
-    total: number;
-    links?: { url: string | null; label: string; active?: boolean }[];
-};
+type Paginated<T> = Paginator & { data: T[] };
 
 type IndexProps = PageProps & {
     filters: {
@@ -319,45 +313,7 @@ export default function ContactsIndex({ filters, contacts, users, contactTypes =
                     </Table>
                 </div>
 
-                {contacts.last_page > 1 && (
-                    <nav
-                        className="flex items-center justify-between"
-                        aria-label="Contact pagination"
-                    >
-                        <p className="text-sm text-muted-foreground">
-                            Page {contacts.current_page} of {contacts.last_page}
-                        </p>
-                        <div className="flex gap-2">
-                            <Button asChild variant="outline" size="sm">
-                                <Link
-                                    href={route('contact-directory.contacts.index', {
-                                        page: Math.max(1, contacts.current_page - 1),
-                                        ...filters,
-                                    })}
-                                    aria-disabled={contacts.current_page === 1}
-                                >
-                                    Previous
-                                </Link>
-                            </Button>
-                            <Button asChild variant="outline" size="sm">
-                                <Link
-                                    href={route('contact-directory.contacts.index', {
-                                        page: Math.min(
-                                            contacts.last_page,
-                                            contacts.current_page + 1,
-                                        ),
-                                        ...filters,
-                                    })}
-                                    aria-disabled={
-                                        contacts.current_page === contacts.last_page
-                                    }
-                                >
-                                    Next
-                                </Link>
-                            </Button>
-                        </div>
-                    </nav>
-                )}
+                <PaginationNav paginator={contacts} itemLabel="contacts" />
             </div>
         </AuthenticatedLayout>
     );

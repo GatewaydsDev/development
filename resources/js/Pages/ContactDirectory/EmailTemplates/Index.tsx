@@ -1,3 +1,4 @@
+import PaginationNav, { type Paginator } from '@/Components/PaginationNav';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import FormActionFab from '@/Components/FormActionFab';
 import { router, usePage } from '@inertiajs/react';
@@ -40,7 +41,7 @@ type StarterTemplate = {
     body: string;
 };
 
-type Paginated<T> = { data: T[]; current_page: number; last_page: number; total: number };
+type Paginated<T> = Paginator & { data: T[] };
 
 type Props = PageProps<{
     filters: { search?: string; category?: string; is_active?: string; visibility?: string };
@@ -289,6 +290,7 @@ export default function EmailTemplatesIndex({
                             </Card>
                         );
                     })}
+                    <PaginationNav paginator={templates} itemLabel="templates" />
                 </div>
 
                 {canManage && (

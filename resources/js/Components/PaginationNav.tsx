@@ -25,7 +25,7 @@ export type Paginator = {
     last_page_url?: string | null;
     next_page_url?: string | null;
     prev_page_url?: string | null;
-    links: PaginationLink[];
+    links?: PaginationLink[];
 };
 
 function decodeLabel(label: string): string {
@@ -60,7 +60,11 @@ function withPage(url: string | null | undefined, page: number): string | null {
                 ? window.location.origin
                 : 'http://localhost',
         );
-        parsed.searchParams.set('page', String(page));
+        const pageName =
+            ['inquiries_page', 'activities_page', 'follow_ups_page', 'contacts_page', 'page'].find(
+                (name) => parsed.searchParams.has(name),
+            ) ?? 'page';
+        parsed.searchParams.set(pageName, String(page));
 
         return `${parsed.pathname}${parsed.search}${parsed.hash}`;
     } catch {
@@ -115,16 +119,16 @@ export default function PaginationNav({
     paginator: Paginator;
     itemLabel: string;
 }) {
-    const pageLinks = paginator.links.filter(
+    const pageLinks = (paginator.links ?? []).filter(
         (link) => !isPreviousLabel(link.label) && !isNextLabel(link.label),
     );
     const previousUrl =
         paginator.prev_page_url ??
-        paginator.links.find((link) => isPreviousLabel(link.label))?.url ??
+        (paginator.links ?? []).find((link) => isPreviousLabel(link.label))?.url ??
         null;
     const nextUrl =
         paginator.next_page_url ??
-        paginator.links.find((link) => isNextLabel(link.label))?.url ??
+        (paginator.links ?? []).find((link) => isNextLabel(link.label))?.url ??
         null;
     const anyUrl =
         paginator.first_page_url ??

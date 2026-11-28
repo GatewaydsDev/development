@@ -1,3 +1,4 @@
+import PaginationNav, { type Paginator } from '@/Components/PaginationNav';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head, Link } from '@inertiajs/react';
 import { Badge } from '@/Components/ui/badge';
@@ -35,7 +36,7 @@ type Company = {
     email_addresses: EmailRecord[];
 };
 
-type Paginated<T> = { data: T[]; current_page: number; last_page: number; total: number };
+type Paginated<T> = Paginator & { data: T[] };
 
 type Props = PageProps<{
     company: Company & { contacts_count: number };
@@ -190,6 +191,7 @@ export default function CompaniesShow({ company, contacts, projects = [], auth }
                                 </div>
                             </div>
                         ))}
+                        <PaginationNav paginator={contacts} itemLabel="contacts" />
                     </CardContent>
                 </Card>
             </div>

@@ -1,3 +1,4 @@
+import PaginationNav, { type Paginator } from '@/Components/PaginationNav';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import ListSearchInput, { listSearchButtonClassName } from '@/Components/ListSearchInput';
 import { Link, router } from '@inertiajs/react';
@@ -25,7 +26,7 @@ type Company = {
     primary_email?: { email_address: string } | null;
 };
 
-type Paginated<T> = { data: T[]; current_page: number; last_page: number; total: number };
+type Paginated<T> = Paginator & { data: T[] };
 
 type Props = PageProps<{
     filters: { search?: string; is_active?: string };
@@ -162,17 +163,9 @@ export default function CompaniesIndex({ filters, companies, auth }: Props) {
                         </ul>
                     )}
 
-                    {companies.last_page > 1 && (
-                        <div className="flex items-center justify-between gap-2 border-t border-border px-4 py-3 text-sm text-muted-foreground">
-                            <Button type="button" variant="outline" size="sm" disabled={companies.current_page <= 1} onClick={() => applyFilters({ page: String(companies.current_page - 1) })}>
-                                Previous
-                            </Button>
-                            <span>Page {companies.current_page} of {companies.last_page}</span>
-                            <Button type="button" variant="outline" size="sm" disabled={companies.current_page >= companies.last_page} onClick={() => applyFilters({ page: String(companies.current_page + 1) })}>
-                                Next
-                            </Button>
-                        </div>
-                    )}
+                    <div className="px-4 pb-1">
+                        <PaginationNav paginator={companies} itemLabel="companies" />
+                    </div>
                 </div>
             </div>
         </AuthenticatedLayout>
